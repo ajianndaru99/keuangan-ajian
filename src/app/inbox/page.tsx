@@ -2,7 +2,7 @@
 
 // ==============================================================================
 // INBOX PAGE: src/app/inbox/page.tsx
-// Halaman Inbox Transaksi Pending dengan Realtime, Kategorisasi 1-tap, & Tambah Manual
+// Halaman Inbox Transaksi Pending dengan Realtime, Kategorisasi 1-tap, & Desain Bersih
 // ==============================================================================
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -15,11 +15,11 @@ import {
   Inbox as InboxIcon,
   Plus,
   CheckCircle2,
-  Sparkles,
   ArrowDownLeft,
   ArrowUpRight,
   RefreshCw,
   Info,
+  X,
 } from 'lucide-react';
 import { formatRupiah } from '@/lib/utils';
 
@@ -129,6 +129,7 @@ export default function InboxPage() {
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
   const [isRealtimeActive, setIsRealtimeActive] = useState(false);
   const [isCloudConnected, setIsCloudConnected] = useState(false);
+  const [showDemoNotice, setShowDemoNotice] = useState(true);
 
   // Ambil data dari Supabase jika env sudah dikonfigurasi
   const fetchData = useCallback(async () => {
@@ -379,98 +380,107 @@ export default function InboxPage() {
         isRealtimeActive={isRealtimeActive || !isCloudConnected}
       />
 
-      <main className="flex-1 pb-24 px-4 pt-4">
-        {/* Banner Info jika belum connect ke database Supabase Cloud */}
-        {!isCloudConnected && (
-          <div className="mb-4 p-3 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 flex items-start gap-2.5 text-xs text-indigo-900 dark:text-indigo-200">
-            <Info className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
-            <div className="leading-relaxed">
-              <span className="font-semibold">Mode Pratinjau Interaktif: </span>
-              Menampilkan data simulasi agar Anda bisa langsung mencoba fitur kategorisasi 1-tap, filter, koreksi nominal 0, dan tambah manual.
+      <main className="flex-1 pb-24 px-4 pt-3.5">
+        {/* Banner Ringkas Mode Demo (Bisa ditutup) */}
+        {!isCloudConnected && showDemoNotice && (
+          <div className="mb-3 px-3 py-2 rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200/80 dark:border-blue-900/60 flex items-center justify-between text-xs text-blue-900 dark:text-blue-200 transition-all">
+            <div className="flex items-center gap-2">
+              <Info className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+              <span className="text-[11px] leading-tight">
+                <strong>Mode Pratinjau Demo</strong>: Menggunakan data simulasi untuk uji coba langsung.
+              </span>
             </div>
+            <button
+              onClick={() => setShowDemoNotice(false)}
+              className="text-blue-400 hover:text-blue-700 dark:hover:text-blue-200 p-0.5 rounded transition-colors"
+              title="Tutup pemberitahuan"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
           </div>
         )}
 
-        {/* Tally & Quick Action Card */}
-        <div className="rounded-3xl p-5 mb-4 bg-gradient-to-br from-indigo-900 via-indigo-800 to-slate-900 text-white shadow-xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 -mr-6 -mt-6 w-32 h-32 rounded-full bg-indigo-500/20 blur-2xl pointer-events-none" />
-
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <span className="p-2 rounded-xl bg-white/10 backdrop-blur-md">
-                <InboxIcon className="w-4 h-4 text-indigo-200" />
+        {/* Kartu Ringkasan Pending & Tambah Manual */}
+        <div className="rounded-2xl p-4 mb-3.5 bg-white dark:bg-[#111827] border border-slate-200/90 dark:border-slate-800 shadow-sm transition-colors">
+          <div className="flex items-center justify-between mb-3.5">
+            <div>
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 block">
+                Inbox Transaksi
               </span>
-              <div>
-                <h2 className="text-xs font-semibold uppercase tracking-wider text-indigo-200">
-                  Inbox Transaksi
-                </h2>
-                <p className="text-lg font-extrabold leading-none mt-0.5">
-                  {pendingTally.totalCount} Transaksi Pending
-                </p>
-              </div>
+              <p className="text-xl font-black text-slate-900 dark:text-white tracking-tight leading-none mt-0.5">
+                {pendingTally.totalCount} Perlu Diverifikasi
+              </p>
             </div>
 
             <button
               onClick={() => setIsManualModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white text-indigo-950 font-semibold text-xs shadow-md hover:bg-indigo-50 active:scale-95 transition-all"
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-semibold text-xs shadow-sm shadow-blue-500/20 transition-all"
             >
-              <Plus className="w-3.5 h-3.5 text-indigo-600" />
+              <Plus className="w-3.5 h-3.5" />
               <span>Tambah Manual</span>
             </button>
           </div>
 
           {/* Quick Stat Bar */}
-          <div className="grid grid-cols-2 gap-2 pt-3 border-t border-white/10">
-            <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-lg bg-rose-500/20 text-rose-300">
+          <div className="grid grid-cols-2 gap-2 pt-3 border-t border-slate-100 dark:border-slate-800/80">
+            <div className="flex items-center gap-2.5 p-2 rounded-xl bg-slate-50 dark:bg-[#070a11] border border-slate-200/60 dark:border-slate-800/80">
+              <div className="p-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400">
                 <ArrowUpRight className="w-3.5 h-3.5" />
               </div>
-              <div>
-                <span className="text-[10px] text-indigo-200/80">Pending Keluar</span>
-                <p className="text-xs font-bold">{formatRupiah(pendingTally.outTotal)}</p>
+              <div className="min-w-0">
+                <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 block leading-none mb-1">
+                  Pending Keluar
+                </span>
+                <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                  {formatRupiah(pendingTally.outTotal)}
+                </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-300">
+            <div className="flex items-center gap-2.5 p-2 rounded-xl bg-slate-50 dark:bg-[#070a11] border border-slate-200/60 dark:border-slate-800/80">
+              <div className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400">
                 <ArrowDownLeft className="w-3.5 h-3.5" />
               </div>
-              <div>
-                <span className="text-[10px] text-indigo-200/80">Pending Masuk</span>
-                <p className="text-xs font-bold">{formatRupiah(pendingTally.inTotal)}</p>
+              <div className="min-w-0">
+                <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 block leading-none mb-1">
+                  Pending Masuk
+                </span>
+                <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                  {formatRupiah(pendingTally.inTotal)}
+                </p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Filter Bar Chips */}
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar mb-4 py-0.5">
+        {/* Filter Bar Chips dengan Spasi Lega */}
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar mb-3.5 py-0.5 pr-4">
           <button
             onClick={() => setFilterOwner('all')}
-            className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all border ${
               filterOwner === 'all'
-                ? 'bg-indigo-600 text-white shadow-sm'
-                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+                ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                : 'bg-white dark:bg-[#111827] border-slate-200/90 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60'
             }`}
           >
             Semua ({transactions.length})
           </button>
           <button
             onClick={() => setFilterOwner('suami')}
-            className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all border ${
               filterOwner === 'suami'
-                ? 'bg-blue-600 text-white shadow-sm'
-                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+                ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                : 'bg-white dark:bg-[#111827] border-slate-200/90 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60'
             }`}
           >
             👨 Suami ({transactions.filter((t) => t.source_device === 'suami').length})
           </button>
           <button
             onClick={() => setFilterOwner('istri')}
-            className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all border ${
               filterOwner === 'istri'
-                ? 'bg-pink-600 text-white shadow-sm'
-                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+                ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                : 'bg-white dark:bg-[#111827] border-slate-200/90 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60'
             }`}
           >
             👩 Istri ({transactions.filter((t) => t.source_device === 'istri').length})
@@ -478,10 +488,10 @@ export default function InboxPage() {
           {pendingTally.reviewCount > 0 && (
             <button
               onClick={() => setFilterOwner('review')}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all border ${
                 filterOwner === 'review'
-                  ? 'bg-amber-600 text-white shadow-sm'
-                  : 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800'
+                  ? 'bg-amber-600 text-white border-amber-600 shadow-sm'
+                  : 'bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-800'
               }`}
             >
               ⚠️ Perlu Cek ({pendingTally.reviewCount})
@@ -491,7 +501,7 @@ export default function InboxPage() {
           <button
             onClick={fetchData}
             title="Refresh data"
-            className="p-1.5 rounded-full text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 ml-auto shrink-0 transition-colors"
+            className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 ml-auto shrink-0 transition-all border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-[#111827]"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
           </button>
@@ -499,15 +509,15 @@ export default function InboxPage() {
 
         {/* Daftar Transaksi */}
         {filteredTransactions.length === 0 ? (
-          <div className="text-center py-16 px-6 rounded-3xl bg-slate-50 dark:bg-slate-800/40 border border-dashed border-slate-200 dark:border-slate-800 my-4">
-            <div className="w-16 h-16 rounded-2xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto mb-4 shadow-sm">
-              <CheckCircle2 className="w-8 h-8" />
+          <div className="text-center py-16 px-6 rounded-2xl bg-white dark:bg-[#111827] border border-dashed border-slate-200 dark:border-slate-800 my-4 shadow-sm">
+            <div className="w-14 h-14 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto mb-3 shadow-sm border border-emerald-200/60 dark:border-emerald-900/60">
+              <CheckCircle2 className="w-7 h-7" />
             </div>
             <h3 className="font-bold text-slate-900 dark:text-white text-base">
               Semua Transaksi Sudah Beres! 🎉
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-xs mx-auto leading-relaxed">
-              Tidak ada transaksi yang menunggu kategorisasi. Transaksi baru yang masuk via notifikasi HP akan langsung muncul di sini.
+              Tidak ada transaksi yang menunggu kategorisasi. Transaksi baru dari notifikasi HP akan otomatis masuk ke sini.
             </p>
           </div>
         ) : (

@@ -6,7 +6,7 @@
 // ==============================================================================
 
 import { useState } from 'react';
-import { X, Plus, AlertCircle } from 'lucide-react';
+import { X, Plus } from 'lucide-react';
 import { formatRupiah } from '@/lib/utils';
 import { Category } from './CategoryChipList';
 
@@ -50,7 +50,6 @@ export default function ManualTransactionModal({
   const [categoryId, setCategoryId] = useState<string>('');
   const [transactionDate, setTransactionDate] = useState(() => {
     const now = new Date();
-    // Format YYYY-MM-DDTHH:mm untuk input datetime-local
     const offset = now.getTimezoneOffset() * 60000;
     const localISOTime = new Date(now.getTime() - offset).toISOString().slice(0, 16);
     return localISOTime;
@@ -84,10 +83,10 @@ export default function ManualTransactionModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="w-full max-w-sm rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+      <div className="w-full max-w-sm rounded-2xl bg-white dark:bg-[#111827] border border-slate-200 dark:border-slate-800 p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <span className="p-2 rounded-xl bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400">
+            <span className="p-2 rounded-xl bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
               <Plus className="w-4 h-4" />
             </span>
             <h3 className="font-bold text-slate-900 dark:text-white text-base">
@@ -117,8 +116,8 @@ export default function ManualTransactionModal({
                 }}
                 className={`py-2 text-xs font-semibold rounded-lg transition-all ${
                   device === 'suami'
-                    ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-sm'
-                    : 'text-slate-500'
+                    ? 'bg-white dark:bg-[#111827] text-blue-600 dark:text-blue-400 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 👨 Suami
@@ -131,8 +130,8 @@ export default function ManualTransactionModal({
                 }}
                 className={`py-2 text-xs font-semibold rounded-lg transition-all ${
                   device === 'istri'
-                    ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-sm'
-                    : 'text-slate-500'
+                    ? 'bg-white dark:bg-[#111827] text-pink-600 dark:text-pink-400 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 👩 Istri
@@ -149,7 +148,7 @@ export default function ManualTransactionModal({
               value={activeAccountId}
               onChange={(e) => setSelectedAccountId(e.target.value)}
               required
-              className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-[#070a11] border border-slate-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 dark:text-white"
             >
               {filteredAccounts.map((acc) => (
                 <option key={acc.id} value={acc.id}>
@@ -167,7 +166,7 @@ export default function ManualTransactionModal({
               className={`py-2 text-xs font-semibold rounded-lg transition-all ${
                 direction === 'out'
                   ? 'bg-rose-600 text-white shadow-sm'
-                  : 'text-slate-600 dark:text-slate-400'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               💸 Pengeluaran
@@ -178,7 +177,7 @@ export default function ManualTransactionModal({
               className={`py-2 text-xs font-semibold rounded-lg transition-all ${
                 direction === 'in'
                   ? 'bg-emerald-600 text-white shadow-sm'
-                  : 'text-slate-600 dark:text-slate-400'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               💰 Pemasukan
@@ -200,7 +199,7 @@ export default function ManualTransactionModal({
                 setAmountStr(num);
               }}
               placeholder="Rp 0"
-              className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-base font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-[#070a11] border border-slate-200 dark:border-slate-700 text-base font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
@@ -215,7 +214,7 @@ export default function ManualTransactionModal({
               value={merchant}
               onChange={(e) => setMerchant(e.target.value)}
               placeholder="Contoh: Alfamart / Kopi Janji Jiwa"
-              className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-[#070a11] border border-slate-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 dark:text-white"
             />
           </div>
 
@@ -227,7 +226,7 @@ export default function ManualTransactionModal({
             <select
               value={categoryId}
               onChange={(e) => setCategoryId(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-[#070a11] border border-slate-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 dark:text-white"
             >
               <option value="">-- Kategorikan Nanti di Inbox --</option>
               {categories
@@ -249,7 +248,7 @@ export default function ManualTransactionModal({
               type="datetime-local"
               value={transactionDate}
               onChange={(e) => setTransactionDate(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-[#070a11] border border-slate-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 dark:text-white"
             />
           </div>
 
@@ -264,7 +263,7 @@ export default function ManualTransactionModal({
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold flex items-center justify-center gap-1.5 shadow-md shadow-indigo-500/20 active:scale-95 transition-all disabled:opacity-50"
+              className="flex-1 py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold flex items-center justify-center gap-1.5 shadow-md shadow-blue-500/20 active:scale-95 transition-all disabled:opacity-50"
             >
               <Plus className="w-4 h-4" />
               <span>{loading ? 'Menyimpan...' : 'Simpan Transaksi'}</span>
