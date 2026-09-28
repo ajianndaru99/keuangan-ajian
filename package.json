@@ -1,0 +1,14 @@
+{
+  "name": "dashboard-keuangan-keluarga",
+  "version": "1.0.0",
+  "description": "Dashboard Keuangan Keluarga berbasis notifikasi otomatis MacroDroid",
+  "type": "module",
+  "scripts": {
+    "test": "node --experimental-strip-types --test tests/**/*.test.ts",
+    "test:watch": "node --experimental-strip-types --test --watch tests/**/*.test.ts",
+    "serve:mock": "node --experimental-strip-types scripts/serve-webhook-mock.ts"
+  },
+  "keywords": ["finance", "supabase", "nextjs", "notification-parser"],
+  "author": "Antigravity",
+  "license": "MIT"
+}
