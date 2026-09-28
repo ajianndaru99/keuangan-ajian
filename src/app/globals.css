@@ -3,22 +3,70 @@
 @tailwind utilities;
 
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
+  --background: #f4f7fb;
+  --foreground: #1e293b;
 }
 
 html.dark {
-  --background: #0b0f19;
+  --background: #090e17;
   --foreground: #f8fafc;
 }
 
 body {
   color: var(--foreground);
-  background: var(--background);
+  background-color: var(--background);
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(186, 230, 253, 0.45) 0px, transparent 55%),
+    radial-gradient(at 100% 0%, rgba(221, 214, 254, 0.45) 0px, transparent 55%),
+    radial-gradient(at 50% 45%, rgba(167, 243, 208, 0.25) 0px, transparent 50%),
+    radial-gradient(at 0% 100%, rgba(254, 205, 211, 0.35) 0px, transparent 55%),
+    radial-gradient(at 100% 100%, rgba(199, 210, 254, 0.4) 0px, transparent 55%);
+  background-attachment: fixed;
   font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-tap-highlight-color: transparent;
+}
+
+html.dark body {
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(14, 116, 144, 0.22) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgba(109, 40, 217, 0.2) 0px, transparent 50%),
+    radial-gradient(at 50% 50%, rgba(5, 150, 105, 0.15) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(67, 56, 202, 0.22) 0px, transparent 50%);
+}
+
+/* Glassmorphism Styles */
+.liquid-glass {
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  box-shadow: 0 10px 30px -5px rgba(100, 116, 139, 0.08), 0 0 0 1px rgba(255, 255, 255, 0.6) inset;
+}
+
+html.dark .liquid-glass {
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+}
+
+.liquid-pill {
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow: 0 2px 8px rgba(148, 163, 184, 0.06);
+}
+
+html.dark .liquid-pill {
+  background: rgba(30, 41, 59, 0.55);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
 }
 
 /* Scrollbar halus */

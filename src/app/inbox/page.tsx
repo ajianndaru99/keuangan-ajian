@@ -2,7 +2,7 @@
 
 // ==============================================================================
 // INBOX PAGE: src/app/inbox/page.tsx
-// Halaman Inbox Transaksi Pending dengan Realtime, Kategorisasi 1-tap, & Desain Bersih
+// Halaman Inbox Transaksi Pending — Soft Pastel Liquid Glass Aesthetic
 // ==============================================================================
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -20,6 +20,7 @@ import {
   RefreshCw,
   Info,
   X,
+  Sparkles,
 } from 'lucide-react';
 import { formatRupiah } from '@/lib/utils';
 
@@ -380,19 +381,19 @@ export default function InboxPage() {
         isRealtimeActive={isRealtimeActive || !isCloudConnected}
       />
 
-      <main className="flex-1 pb-24 px-4 pt-3.5">
-        {/* Banner Ringkas Mode Demo (Bisa ditutup) */}
+      <main className="flex-1 pb-28 px-4 pt-3.5">
+        {/* Banner Ringkas Mode Demo - Liquid Pill */}
         {!isCloudConnected && showDemoNotice && (
-          <div className="mb-3 px-3 py-2 rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200/80 dark:border-blue-900/60 flex items-center justify-between text-xs text-blue-900 dark:text-blue-200 transition-all">
+          <div className="mb-3 px-3.5 py-2 rounded-2xl liquid-pill bg-sky-50/70 dark:bg-sky-950/40 border border-sky-200/70 dark:border-sky-800/40 flex items-center justify-between text-xs text-sky-900 dark:text-sky-200 transition-all shadow-sm">
             <div className="flex items-center gap-2">
-              <Info className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+              <Sparkles className="w-3.5 h-3.5 text-sky-500 dark:text-sky-400 shrink-0" />
               <span className="text-[11px] leading-tight">
-                <strong>Mode Pratinjau Demo</strong>: Menggunakan data simulasi untuk uji coba langsung.
+                <strong>Mode Pratinjau Demo</strong>: Menggunakan data simulasi interaktif.
               </span>
             </div>
             <button
               onClick={() => setShowDemoNotice(false)}
-              className="text-blue-400 hover:text-blue-700 dark:hover:text-blue-200 p-0.5 rounded transition-colors"
+              className="text-sky-400 hover:text-sky-700 dark:hover:text-sky-200 p-0.5 rounded-lg transition-colors"
               title="Tutup pemberitahuan"
             >
               <X className="w-3.5 h-3.5" />
@@ -400,52 +401,55 @@ export default function InboxPage() {
           </div>
         )}
 
-        {/* Kartu Ringkasan Pending & Tambah Manual */}
-        <div className="rounded-2xl p-4 mb-3.5 bg-white dark:bg-[#111827] border border-slate-200/90 dark:border-slate-800 shadow-sm transition-colors">
-          <div className="flex items-center justify-between mb-3.5">
+        {/* Kartu Ringkasan Pending — Frosted Liquid Glass Card */}
+        <div className="rounded-3xl p-5 mb-3.5 liquid-glass relative overflow-hidden transition-all">
+          {/* Subtle Ambient Liquid Glow behind glass */}
+          <div className="absolute -top-12 -right-12 w-40 h-40 rounded-full bg-gradient-to-br from-sky-300/30 via-indigo-300/20 to-purple-300/20 blur-2xl pointer-events-none" />
+
+          <div className="flex items-center justify-between mb-4 relative z-10">
             <div>
               <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 block">
                 Inbox Transaksi
               </span>
-              <p className="text-xl font-black text-slate-900 dark:text-white tracking-tight leading-none mt-0.5">
+              <p className="text-xl font-black text-slate-800 dark:text-white tracking-tight leading-none mt-1">
                 {pendingTally.totalCount} Perlu Diverifikasi
               </p>
             </div>
 
             <button
               onClick={() => setIsManualModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-semibold text-xs shadow-sm shadow-blue-500/20 transition-all"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-gradient-to-r from-sky-400 via-sky-500 to-indigo-500 hover:from-sky-500 hover:to-indigo-600 active:scale-95 text-white font-semibold text-xs shadow-md shadow-sky-400/25 transition-all border border-white/30"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Tambah Manual</span>
             </button>
           </div>
 
-          {/* Quick Stat Bar */}
-          <div className="grid grid-cols-2 gap-2 pt-3 border-t border-slate-100 dark:border-slate-800/80">
-            <div className="flex items-center gap-2.5 p-2 rounded-xl bg-slate-50 dark:bg-[#070a11] border border-slate-200/60 dark:border-slate-800/80">
-              <div className="p-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400">
+          {/* Quick Stat Bar — Frosted Pills */}
+          <div className="grid grid-cols-2 gap-2 pt-3 border-t border-slate-200/50 dark:border-white/10 relative z-10">
+            <div className="flex items-center gap-2.5 p-2.5 rounded-2xl liquid-pill bg-white/40 dark:bg-white/5 border border-white/60 dark:border-white/10">
+              <div className="p-1.5 rounded-xl bg-rose-100/70 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200/40">
                 <ArrowUpRight className="w-3.5 h-3.5" />
               </div>
               <div className="min-w-0">
                 <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 block leading-none mb-1">
                   Pending Keluar
                 </span>
-                <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                <p className="text-xs font-bold text-slate-800 dark:text-white truncate">
                   {formatRupiah(pendingTally.outTotal)}
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-2.5 p-2 rounded-xl bg-slate-50 dark:bg-[#070a11] border border-slate-200/60 dark:border-slate-800/80">
-              <div className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400">
+            <div className="flex items-center gap-2.5 p-2.5 rounded-2xl liquid-pill bg-white/40 dark:bg-white/5 border border-white/60 dark:border-white/10">
+              <div className="p-1.5 rounded-xl bg-emerald-100/70 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200/40">
                 <ArrowDownLeft className="w-3.5 h-3.5" />
               </div>
               <div className="min-w-0">
                 <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 block leading-none mb-1">
                   Pending Masuk
                 </span>
-                <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                <p className="text-xs font-bold text-slate-800 dark:text-white truncate">
                   {formatRupiah(pendingTally.inTotal)}
                 </p>
               </div>
@@ -453,34 +457,34 @@ export default function InboxPage() {
           </div>
         </div>
 
-        {/* Filter Bar Chips dengan Spasi Lega */}
+        {/* Filter Bar Chips dengan Soft Liquid Styling */}
         <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar mb-3.5 py-0.5 pr-4">
           <button
             onClick={() => setFilterOwner('all')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all border ${
+            className={`px-3.5 py-1.5 rounded-2xl text-xs font-semibold whitespace-nowrap transition-all border ${
               filterOwner === 'all'
-                ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                : 'bg-white dark:bg-[#111827] border-slate-200/90 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                ? 'bg-gradient-to-r from-sky-400 to-indigo-500 text-white border-transparent shadow-md shadow-sky-400/20'
+                : 'liquid-pill text-slate-700 dark:text-slate-300 hover:bg-white/80 dark:hover:bg-white/10 border-white/70 dark:border-white/10'
             }`}
           >
             Semua ({transactions.length})
           </button>
           <button
             onClick={() => setFilterOwner('suami')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all border ${
+            className={`px-3.5 py-1.5 rounded-2xl text-xs font-semibold whitespace-nowrap transition-all border ${
               filterOwner === 'suami'
-                ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                : 'bg-white dark:bg-[#111827] border-slate-200/90 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                ? 'bg-gradient-to-r from-sky-400 to-indigo-500 text-white border-transparent shadow-md shadow-sky-400/20'
+                : 'liquid-pill text-slate-700 dark:text-slate-300 hover:bg-white/80 dark:hover:bg-white/10 border-white/70 dark:border-white/10'
             }`}
           >
             👨 Suami ({transactions.filter((t) => t.source_device === 'suami').length})
           </button>
           <button
             onClick={() => setFilterOwner('istri')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all border ${
+            className={`px-3.5 py-1.5 rounded-2xl text-xs font-semibold whitespace-nowrap transition-all border ${
               filterOwner === 'istri'
-                ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                : 'bg-white dark:bg-[#111827] border-slate-200/90 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                ? 'bg-gradient-to-r from-pink-400 to-rose-400 text-white border-transparent shadow-md shadow-pink-400/20'
+                : 'liquid-pill text-slate-700 dark:text-slate-300 hover:bg-white/80 dark:hover:bg-white/10 border-white/70 dark:border-white/10'
             }`}
           >
             👩 Istri ({transactions.filter((t) => t.source_device === 'istri').length})
@@ -488,10 +492,10 @@ export default function InboxPage() {
           {pendingTally.reviewCount > 0 && (
             <button
               onClick={() => setFilterOwner('review')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all border ${
+              className={`px-3.5 py-1.5 rounded-2xl text-xs font-semibold whitespace-nowrap transition-all border ${
                 filterOwner === 'review'
-                  ? 'bg-amber-600 text-white border-amber-600 shadow-sm'
-                  : 'bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-800'
+                  ? 'bg-amber-500 text-white border-amber-500 shadow-md shadow-amber-500/20'
+                  : 'bg-amber-100/60 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200 border-amber-200/80 dark:border-amber-800/60 backdrop-blur-md'
               }`}
             >
               ⚠️ Perlu Cek ({pendingTally.reviewCount})
@@ -501,19 +505,19 @@ export default function InboxPage() {
           <button
             onClick={fetchData}
             title="Refresh data"
-            className="p-2 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 ml-auto shrink-0 transition-all border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-[#111827]"
+            className="p-2 rounded-2xl liquid-pill text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white ml-auto shrink-0 transition-all border border-white/70 dark:border-white/10"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
           </button>
         </div>
 
-        {/* Daftar Transaksi */}
+        {/* Daftar Transaksi Liquid Glass Cards */}
         {filteredTransactions.length === 0 ? (
-          <div className="text-center py-16 px-6 rounded-2xl bg-white dark:bg-[#111827] border border-dashed border-slate-200 dark:border-slate-800 my-4 shadow-sm">
-            <div className="w-14 h-14 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto mb-3 shadow-sm border border-emerald-200/60 dark:border-emerald-900/60">
+          <div className="text-center py-16 px-6 rounded-3xl liquid-glass border border-white/80 dark:border-white/10 my-4 shadow-sm">
+            <div className="w-14 h-14 rounded-2xl bg-emerald-100/70 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto mb-3 shadow-sm border border-emerald-200/60 dark:border-emerald-800/40">
               <CheckCircle2 className="w-7 h-7" />
             </div>
-            <h3 className="font-bold text-slate-900 dark:text-white text-base">
+            <h3 className="font-bold text-slate-800 dark:text-white text-base">
               Semua Transaksi Sudah Beres! 🎉
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-xs mx-auto leading-relaxed">

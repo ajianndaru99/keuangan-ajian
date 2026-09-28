@@ -2,7 +2,7 @@
 
 // ==============================================================================
 // COMPONENT: src/components/inbox/CategoryChipList.tsx
-// Deretan tombol kategori untuk kategorisasi 1-tap dengan scrolling mulus
+// Deretan tombol kategori untuk kategorisasi 1-tap — Soft Pastel Liquid Glass
 // ==============================================================================
 
 import {
@@ -70,9 +70,9 @@ export default function CategoryChipList({
               key={cat.id}
               onClick={() => onSelect(cat.id)}
               disabled={disabled}
-              className="group shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-slate-100/80 hover:bg-blue-600 hover:text-white dark:bg-[#1a2333] dark:hover:bg-blue-600 text-slate-700 dark:text-slate-200 dark:hover:text-white border border-slate-200/80 dark:border-slate-700/80 active:scale-95 transition-all disabled:opacity-50"
+              className="group shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-medium liquid-pill text-slate-700 dark:text-slate-200 hover:bg-gradient-to-r hover:from-sky-400 hover:to-indigo-400 hover:text-white dark:hover:text-white active:scale-95 transition-all border border-white/70 dark:border-white/10 shadow-sm disabled:opacity-50"
             >
-              <IconComponent className="w-3.5 h-3.5 group-hover:scale-105 transition-transform text-slate-500 group-hover:text-white dark:text-slate-400" />
+              <IconComponent className="w-3.5 h-3.5 group-hover:scale-110 transition-transform text-slate-400 group-hover:text-white dark:text-slate-400" />
               <span className="whitespace-nowrap">{cat.name}</span>
             </button>
           );

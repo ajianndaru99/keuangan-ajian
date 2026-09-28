@@ -2,7 +2,7 @@
 
 // ==============================================================================
 // COMPONENT: src/components/inbox/ManualTransactionModal.tsx
-// Formulir tambah transaksi manual jika notifikasi terlewat
+// Formulir tambah transaksi manual — Soft Pastel Liquid Glass
 // ==============================================================================
 
 import { useState } from 'react';
@@ -82,20 +82,20 @@ export default function ManualTransactionModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="w-full max-w-sm rounded-2xl bg-white dark:bg-[#111827] border border-slate-200 dark:border-slate-800 p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="w-full max-w-sm rounded-3xl liquid-glass border border-white/80 dark:border-white/10 p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <span className="p-2 rounded-xl bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400">
+            <span className="p-2 rounded-2xl bg-sky-100/70 dark:bg-sky-950/50 text-sky-600 dark:text-sky-400 border border-sky-200/50">
               <Plus className="w-4 h-4" />
             </span>
-            <h3 className="font-bold text-slate-900 dark:text-white text-base">
+            <h3 className="font-bold text-slate-800 dark:text-white text-base">
               Tambah Transaksi Manual
             </h3>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+            className="p-1.5 rounded-full text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-white/10 transition-all"
           >
             <X className="w-4 h-4" />
           </button>
@@ -107,17 +107,17 @@ export default function ManualTransactionModal({
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
               Pemilik Transaksi
             </label>
-            <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-slate-100 dark:bg-slate-800">
+            <div className="grid grid-cols-2 gap-2 p-1 rounded-2xl liquid-pill bg-white/40 dark:bg-slate-800/40">
               <button
                 type="button"
                 onClick={() => {
                   setDevice('suami');
                   setSelectedAccountId('');
                 }}
-                className={`py-2 text-xs font-semibold rounded-lg transition-all ${
+                className={`py-2 text-xs font-semibold rounded-xl transition-all ${
                   device === 'suami'
-                    ? 'bg-white dark:bg-[#111827] text-blue-600 dark:text-blue-400 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-gradient-to-r from-sky-400 to-indigo-400 text-white shadow-sm shadow-sky-400/20'
+                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
                 }`}
               >
                 👨 Suami
@@ -128,10 +128,10 @@ export default function ManualTransactionModal({
                   setDevice('istri');
                   setSelectedAccountId('');
                 }}
-                className={`py-2 text-xs font-semibold rounded-lg transition-all ${
+                className={`py-2 text-xs font-semibold rounded-xl transition-all ${
                   device === 'istri'
-                    ? 'bg-white dark:bg-[#111827] text-pink-600 dark:text-pink-400 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-gradient-to-r from-pink-400 to-rose-400 text-white shadow-sm shadow-pink-400/20'
+                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
                 }`}
               >
                 👩 Istri
@@ -148,10 +148,10 @@ export default function ManualTransactionModal({
               value={activeAccountId}
               onChange={(e) => setSelectedAccountId(e.target.value)}
               required
-              className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-[#070a11] border border-slate-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 dark:text-white"
+              className="w-full px-4 py-2.5 rounded-2xl liquid-pill bg-white/60 dark:bg-black/30 border border-white/80 dark:border-white/10 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400 text-slate-800 dark:text-white"
             >
               {filteredAccounts.map((acc) => (
-                <option key={acc.id} value={acc.id}>
+                <option key={acc.id} value={acc.id} className="bg-white dark:bg-slate-900 text-slate-800 dark:text-white">
                   {acc.name} ({acc.type === 'bank' ? 'Bank' : 'E-Wallet'})
                 </option>
               ))}
@@ -159,14 +159,14 @@ export default function ManualTransactionModal({
           </div>
 
           {/* Toggle Arah Transaksi */}
-          <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-slate-100 dark:bg-slate-800">
+          <div className="grid grid-cols-2 gap-2 p-1 rounded-2xl liquid-pill bg-white/40 dark:bg-slate-800/40">
             <button
               type="button"
               onClick={() => setDirection('out')}
-              className={`py-2 text-xs font-semibold rounded-lg transition-all ${
+              className={`py-2 text-xs font-semibold rounded-xl transition-all ${
                 direction === 'out'
-                  ? 'bg-rose-600 text-white shadow-sm'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  ? 'bg-gradient-to-r from-rose-400 to-pink-500 text-white shadow-sm shadow-rose-500/20'
+                  : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
               }`}
             >
               💸 Pengeluaran
@@ -174,10 +174,10 @@ export default function ManualTransactionModal({
             <button
               type="button"
               onClick={() => setDirection('in')}
-              className={`py-2 text-xs font-semibold rounded-lg transition-all ${
+              className={`py-2 text-xs font-semibold rounded-xl transition-all ${
                 direction === 'in'
-                  ? 'bg-emerald-600 text-white shadow-sm'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  ? 'bg-gradient-to-r from-emerald-400 to-teal-500 text-white shadow-sm shadow-emerald-500/20'
+                  : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
               }`}
             >
               💰 Pemasukan
@@ -199,7 +199,7 @@ export default function ManualTransactionModal({
                 setAmountStr(num);
               }}
               placeholder="Rp 0"
-              className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-[#070a11] border border-slate-200 dark:border-slate-700 text-base font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-3 rounded-2xl liquid-pill bg-white/60 dark:bg-black/30 border border-white/80 dark:border-white/10 text-base font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-400"
             />
           </div>
 
@@ -214,7 +214,7 @@ export default function ManualTransactionModal({
               value={merchant}
               onChange={(e) => setMerchant(e.target.value)}
               placeholder="Contoh: Alfamart / Kopi Janji Jiwa"
-              className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-[#070a11] border border-slate-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 dark:text-white"
+              className="w-full px-4 py-2.5 rounded-2xl liquid-pill bg-white/60 dark:bg-black/30 border border-white/80 dark:border-white/10 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400 text-slate-800 dark:text-white"
             />
           </div>
 
@@ -226,13 +226,13 @@ export default function ManualTransactionModal({
             <select
               value={categoryId}
               onChange={(e) => setCategoryId(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-[#070a11] border border-slate-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 dark:text-white"
+              className="w-full px-4 py-2.5 rounded-2xl liquid-pill bg-white/60 dark:bg-black/30 border border-white/80 dark:border-white/10 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400 text-slate-800 dark:text-white"
             >
-              <option value="">-- Kategorikan Nanti di Inbox --</option>
+              <option value="" className="bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300">-- Kategorikan Nanti di Inbox --</option>
               {categories
                 .filter((c) => c.type === (direction === 'in' ? 'income' : 'expense'))
                 .map((cat) => (
-                  <option key={cat.id} value={cat.id}>
+                  <option key={cat.id} value={cat.id} className="bg-white dark:bg-slate-900 text-slate-800 dark:text-white">
                     {cat.name}
                   </option>
                 ))}
@@ -248,7 +248,7 @@ export default function ManualTransactionModal({
               type="datetime-local"
               value={transactionDate}
               onChange={(e) => setTransactionDate(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-[#070a11] border border-slate-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 dark:text-white"
+              className="w-full px-4 py-2.5 rounded-2xl liquid-pill bg-white/60 dark:bg-black/30 border border-white/80 dark:border-white/10 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400 text-slate-800 dark:text-white"
             />
           </div>
 
@@ -256,14 +256,14 @@ export default function ManualTransactionModal({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-3 px-4 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+              className="flex-1 py-3 px-4 rounded-2xl liquid-pill border border-white/80 dark:border-white/10 text-slate-600 dark:text-slate-300 text-xs font-semibold hover:bg-white/80 dark:hover:bg-white/10 transition-all"
             >
               Batal
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold flex items-center justify-center gap-1.5 shadow-md shadow-blue-500/20 active:scale-95 transition-all disabled:opacity-50"
+              className="flex-1 py-3 px-4 rounded-2xl bg-gradient-to-r from-sky-400 via-sky-500 to-indigo-500 hover:from-sky-500 hover:to-indigo-600 text-white text-xs font-semibold flex items-center justify-center gap-1.5 shadow-md shadow-sky-400/20 active:scale-95 transition-all disabled:opacity-50 border border-white/30"
             >
               <Plus className="w-4 h-4" />
               <span>{loading ? 'Menyimpan...' : 'Simpan Transaksi'}</span>

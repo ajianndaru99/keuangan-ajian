@@ -2,7 +2,7 @@
 
 // ==============================================================================
 // COMPONENT: src/components/inbox/QuickEditModal.tsx
-// Formulir edit cepat untuk nominal dan merchant (terutama transaksi amount 0)
+// Formulir edit cepat — Soft Pastel Liquid Glass
 // ==============================================================================
 
 import { useState } from 'react';
@@ -45,27 +45,27 @@ export default function QuickEditModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="w-full max-w-sm rounded-2xl bg-white dark:bg-[#111827] border border-slate-200 dark:border-slate-800 p-6 shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="w-full max-w-sm rounded-3xl liquid-glass border border-white/80 dark:border-white/10 p-6 shadow-2xl">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <span className="p-2 rounded-xl bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400">
+            <span className="p-2 rounded-2xl bg-amber-100/70 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 border border-amber-200/50">
               <AlertCircle className="w-4 h-4" />
             </span>
-            <h3 className="font-bold text-slate-900 dark:text-white text-base">
+            <h3 className="font-bold text-slate-800 dark:text-white text-base">
               Koreksi Transaksi
             </h3>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+            className="p-1.5 rounded-full text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-white/10 transition-all"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {rawNotification && (
-          <div className="mb-4 p-3 rounded-xl bg-slate-50 dark:bg-[#070a11] border border-slate-200/80 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300">
+          <div className="mb-4 p-3 rounded-2xl liquid-pill bg-white/40 dark:bg-black/30 border border-white/60 dark:border-white/10 text-xs text-slate-600 dark:text-slate-300">
             <p className="font-semibold text-slate-400 dark:text-slate-400 text-[10px] uppercase mb-1">
               Isi Notifikasi Asli:
             </p>
@@ -75,14 +75,14 @@ export default function QuickEditModal({
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Toggle Arah Transaksi */}
-          <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-slate-100 dark:bg-slate-800">
+          <div className="grid grid-cols-2 gap-2 p-1 rounded-2xl liquid-pill bg-white/40 dark:bg-slate-800/40">
             <button
               type="button"
               onClick={() => setDirection('out')}
-              className={`py-2 text-xs font-semibold rounded-lg transition-all ${
+              className={`py-2 text-xs font-semibold rounded-xl transition-all ${
                 direction === 'out'
-                  ? 'bg-rose-600 text-white shadow-sm'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  ? 'bg-gradient-to-r from-rose-400 to-pink-500 text-white shadow-sm shadow-rose-500/20'
+                  : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
               }`}
             >
               💸 Pengeluaran
@@ -90,10 +90,10 @@ export default function QuickEditModal({
             <button
               type="button"
               onClick={() => setDirection('in')}
-              className={`py-2 text-xs font-semibold rounded-lg transition-all ${
+              className={`py-2 text-xs font-semibold rounded-xl transition-all ${
                 direction === 'in'
-                  ? 'bg-emerald-600 text-white shadow-sm'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  ? 'bg-gradient-to-r from-emerald-400 to-teal-500 text-white shadow-sm shadow-emerald-500/20'
+                  : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
               }`}
             >
               💰 Pemasukan
@@ -114,7 +114,7 @@ export default function QuickEditModal({
                 setAmountStr(numeric);
               }}
               placeholder="Rp 0"
-              className="w-full px-4 py-3 rounded-xl bg-slate-50 dark:bg-[#070a11] border border-slate-200 dark:border-slate-700 text-base font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-3 rounded-2xl liquid-pill bg-white/60 dark:bg-black/30 border border-white/80 dark:border-white/10 text-base font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-400"
             />
           </div>
 
@@ -128,7 +128,7 @@ export default function QuickEditModal({
               value={merchant}
               onChange={(e) => setMerchant(e.target.value)}
               placeholder="Contoh: Kopi Kenangan / Token Listrik"
-              className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-[#070a11] border border-slate-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2.5 rounded-2xl liquid-pill bg-white/60 dark:bg-black/30 border border-white/80 dark:border-white/10 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400 text-slate-800 dark:text-white"
             />
           </div>
 
@@ -136,14 +136,14 @@ export default function QuickEditModal({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-3 px-4 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+              className="flex-1 py-3 px-4 rounded-2xl liquid-pill border border-white/80 dark:border-white/10 text-slate-600 dark:text-slate-300 text-xs font-semibold hover:bg-white/80 dark:hover:bg-white/10 transition-all"
             >
               Batal
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold flex items-center justify-center gap-1.5 shadow-md shadow-blue-500/20 active:scale-95 transition-all disabled:opacity-50"
+              className="flex-1 py-3 px-4 rounded-2xl bg-gradient-to-r from-sky-400 via-sky-500 to-indigo-500 hover:from-sky-500 hover:to-indigo-600 text-white text-xs font-semibold flex items-center justify-center gap-1.5 shadow-md shadow-sky-400/20 active:scale-95 transition-all disabled:opacity-50 border border-white/30"
             >
               <Check className="w-4 h-4" />
               <span>{loading ? 'Menyimpan...' : 'Simpan Perubahan'}</span>

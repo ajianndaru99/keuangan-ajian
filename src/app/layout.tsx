@@ -12,7 +12,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: '#2563eb',
+  themeColor: '#38bdf8',
 };
 
 export default function RootLayout({
@@ -38,8 +38,8 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="min-h-screen bg-slate-100/70 dark:bg-[#070a11] text-slate-900 dark:text-slate-100 font-sans selection:bg-blue-600 selection:text-white">
-        <div className="mx-auto max-w-md md:max-w-xl min-h-screen flex flex-col bg-slate-50/50 dark:bg-[#0b0f19] border-x border-slate-200/80 dark:border-slate-800/80 shadow-sm">
+      <body className="min-h-screen text-slate-800 dark:text-slate-100 font-sans selection:bg-sky-400 selection:text-white antialiased">
+        <div className="mx-auto max-w-md md:max-w-xl min-h-screen flex flex-col bg-white/30 dark:bg-slate-950/40 backdrop-blur-xl border-x border-white/50 dark:border-white/10 shadow-[0_0_40px_rgba(100,116,139,0.04)]">
           {children}
         </div>
       </body>

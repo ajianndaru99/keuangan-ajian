@@ -2,7 +2,7 @@
 
 // ==============================================================================
 // LOGIN PAGE: src/app/login/page.tsx
-// Halaman otentikasi Supabase Auth untuk Suami & Istri dengan Desain Bersih
+// Halaman otentikasi Supabase Auth — Soft Pastel Liquid Glass
 // ==============================================================================
 
 import { useState } from 'react';
@@ -51,10 +51,10 @@ export default function LoginPage() {
     <div className="flex-1 flex flex-col justify-center px-6 py-12">
       {/* Brand Header */}
       <div className="text-center mb-8">
-        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-blue-600 text-white shadow-md shadow-blue-500/20 mb-3">
-          <Wallet className="w-7 h-7" />
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-3xl bg-gradient-to-tr from-sky-400 via-sky-300 to-indigo-300 text-white shadow-lg shadow-sky-400/25 border border-white/60 mb-3">
+          <Wallet className="w-8 h-8 text-white drop-shadow-sm" />
         </div>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+        <h1 className="text-2xl font-black tracking-tight text-slate-800 dark:text-white">
           Keuangan Keluarga
         </h1>
         <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
@@ -62,15 +62,15 @@ export default function LoginPage() {
         </p>
       </div>
 
-      {/* Login Card */}
-      <div className="bg-white dark:bg-[#111827] rounded-2xl p-6 shadow-sm border border-slate-200/90 dark:border-slate-800">
-        <div className="flex items-center gap-2 mb-6 text-xs font-semibold uppercase tracking-wider text-blue-600 dark:text-blue-400">
+      {/* Login Card — Frosted Liquid Glass */}
+      <div className="liquid-glass rounded-3xl p-6 shadow-xl border border-white/80 dark:border-white/10">
+        <div className="flex items-center gap-2 mb-6 text-xs font-semibold uppercase tracking-wider text-sky-600 dark:text-sky-400">
           <ShieldCheck className="w-4 h-4" />
           <span>Akses Masuk Terproteksi</span>
         </div>
 
         {errorMessage && (
-          <div className="mb-4 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-600 dark:text-rose-300 text-xs font-medium">
+          <div className="mb-4 p-3 rounded-2xl liquid-pill bg-rose-50/70 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-600 dark:text-rose-300 text-xs font-medium">
             {errorMessage}
           </div>
         )}
@@ -87,7 +87,7 @@ export default function LoginPage() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="suami@keluarga.com"
               required
-              className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-[#070a11] border border-slate-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-slate-900 dark:text-white"
+              className="w-full px-4 py-2.5 rounded-2xl liquid-pill bg-white/60 dark:bg-black/30 border border-white/80 dark:border-white/10 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400 transition-all text-slate-800 dark:text-white"
             />
           </div>
 
@@ -102,7 +102,7 @@ export default function LoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
               required
-              className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-[#070a11] border border-slate-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-slate-900 dark:text-white"
+              className="w-full px-4 py-2.5 rounded-2xl liquid-pill bg-white/60 dark:bg-black/30 border border-white/80 dark:border-white/10 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400 transition-all text-slate-800 dark:text-white"
             />
           </div>
 
@@ -110,7 +110,7 @@ export default function LoginPage() {
             id="login-submit-btn"
             type="submit"
             disabled={loading}
-            className="w-full mt-2 py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white font-semibold text-sm shadow-sm shadow-blue-500/20 flex items-center justify-center gap-2 transition-all disabled:opacity-70"
+            className="w-full mt-2 py-3 px-4 rounded-2xl bg-gradient-to-r from-sky-400 via-sky-500 to-indigo-500 hover:from-sky-500 hover:to-indigo-600 active:scale-[0.99] text-white font-semibold text-sm shadow-md shadow-sky-400/25 flex items-center justify-center gap-2 transition-all disabled:opacity-70 border border-white/30"
           >
             {loading ? (
               <>
@@ -127,23 +127,23 @@ export default function LoginPage() {
         </form>
 
         {/* Preset Cepat untuk Pengujian */}
-        <div className="mt-6 pt-5 border-t border-slate-100 dark:border-slate-800">
+        <div className="mt-6 pt-5 border-t border-slate-200/50 dark:border-white/10">
           <p className="text-[11px] text-center font-medium text-slate-400 mb-2.5 flex items-center justify-center gap-1.5">
-            <Users className="w-3.5 h-3.5 text-blue-500" />
+            <Users className="w-3.5 h-3.5 text-sky-500" />
             <span>Pilih Akun Cepat (Uji Coba):</span>
           </p>
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
               onClick={() => setPreset('suami@keluarga.com')}
-              className="py-2 px-3 rounded-xl bg-slate-50 dark:bg-[#070a11] hover:bg-blue-50 dark:hover:bg-blue-950/30 text-slate-700 dark:text-slate-300 text-xs font-medium border border-slate-200/80 dark:border-slate-800 hover:border-blue-300 dark:hover:border-blue-800 transition-all"
+              className="py-2 px-3 rounded-2xl liquid-pill hover:bg-white/90 text-slate-700 dark:text-slate-300 text-xs font-medium border border-white/80 dark:border-white/10 transition-all"
             >
               👨 Akun Suami
             </button>
             <button
               type="button"
               onClick={() => setPreset('istri@keluarga.com')}
-              className="py-2 px-3 rounded-xl bg-slate-50 dark:bg-[#070a11] hover:bg-blue-50 dark:hover:bg-blue-950/30 text-slate-700 dark:text-slate-300 text-xs font-medium border border-slate-200/80 dark:border-slate-800 hover:border-blue-300 dark:hover:border-blue-800 transition-all"
+              className="py-2 px-3 rounded-2xl liquid-pill hover:bg-white/90 text-slate-700 dark:text-slate-300 text-xs font-medium border border-white/80 dark:border-white/10 transition-all"
             >
               👩 Akun Istri
             </button>
