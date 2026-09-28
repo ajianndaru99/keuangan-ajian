@@ -6,7 +6,7 @@
 // ==============================================================================
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
 import Navbar from '@/components/Navbar';
 import TransactionCard, { TransactionItem } from '@/components/inbox/TransactionCard';
 import ManualTransactionModal, { AccountOption } from '@/components/inbox/ManualTransactionModal';
@@ -15,15 +15,15 @@ import {
   Inbox as InboxIcon,
   Plus,
   CheckCircle2,
-  Filter,
   Sparkles,
   ArrowDownLeft,
   ArrowUpRight,
   RefreshCw,
+  Info,
 } from 'lucide-react';
 import { formatRupiah } from '@/lib/utils';
 
-// Kategori default fallback untuk preview
+// Kategori default
 const defaultMockCategories: Category[] = [
   { id: 'cat-1', name: 'Belanja Dapur', type: 'expense', icon: 'shopping-cart', sort_order: 1 },
   { id: 'cat-2', name: 'Makan & Jajan', type: 'expense', icon: 'utensils', sort_order: 2 },
@@ -38,19 +38,105 @@ const defaultMockCategories: Category[] = [
   { id: 'cat-11', name: 'Gaji/Pemasukan', type: 'income', icon: 'wallet', sort_order: 11 },
 ];
 
+// Akun default untuk modal tambah manual
+const defaultMockAccounts: AccountOption[] = [
+  { id: 'acc-s-1', name: 'BCA', owner: 'suami', type: 'bank' },
+  { id: 'acc-s-2', name: 'Mandiri', owner: 'suami', type: 'bank' },
+  { id: 'acc-s-3', name: 'GoPay', owner: 'suami', type: 'ewallet' },
+  { id: 'acc-s-4', name: 'OVO', owner: 'suami', type: 'ewallet' },
+  { id: 'acc-i-1', name: 'BCA', owner: 'istri', type: 'bank' },
+  { id: 'acc-i-2', name: 'BRI', owner: 'istri', type: 'bank' },
+  { id: 'acc-i-3', name: 'ShopeePay', owner: 'istri', type: 'ewallet' },
+  { id: 'acc-i-4', name: 'DANA', owner: 'istri', type: 'ewallet' },
+];
+
+// Transaksi sampel demo interaktif jika Supabase belum terhubung
+const initialDemoTransactions: TransactionItem[] = [
+  {
+    id: 'demo-tx-1',
+    household_id: 'demo-hh',
+    account_id: 'acc-s-1',
+    category_id: null,
+    amount: 45000,
+    direction: 'out',
+    merchant: 'KOPI KENANGAN',
+    raw_notification: 'QRIS BCA: Pembayaran Rp 45.000 di KOPI KENANGAN BERHASIL tgl 28/09/26',
+    source_device: 'suami',
+    transaction_date: new Date(Date.now() - 1000 * 60 * 12).toISOString(),
+    status: 'pending',
+    dedupe_hash: 'demo-hash-1',
+    needs_review: false,
+    accounts: { name: 'BCA', type: 'bank' },
+  },
+  {
+    id: 'demo-tx-2',
+    household_id: 'demo-hh',
+    account_id: 'acc-s-2',
+    category_id: null,
+    amount: 25000,
+    direction: 'out',
+    merchant: 'INDOMARET',
+    raw_notification: 'Pembayaran QRIS Rp 25.000 di INDOMARET berhasil.',
+    source_device: 'suami',
+    transaction_date: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
+    status: 'pending',
+    dedupe_hash: 'demo-hash-2',
+    needs_review: false,
+    accounts: { name: 'Mandiri', type: 'bank' },
+  },
+  {
+    id: 'demo-tx-3',
+    household_id: 'demo-hh',
+    account_id: 'acc-i-3',
+    category_id: null,
+    amount: 0,
+    direction: 'out',
+    merchant: 'Perlu Cek Manual',
+    raw_notification: 'ShopeePay: Pembayaran belanja berhasil. Terima kasih!',
+    source_device: 'istri',
+    transaction_date: new Date(Date.now() - 1000 * 60 * 90).toISOString(),
+    status: 'pending',
+    dedupe_hash: 'demo-hash-3',
+    needs_review: true,
+    accounts: { name: 'ShopeePay', type: 'ewallet' },
+  },
+  {
+    id: 'demo-tx-4',
+    household_id: 'demo-hh',
+    account_id: 'acc-i-4',
+    category_id: null,
+    amount: 500000,
+    direction: 'in',
+    merchant: 'Isi Saldo via BCA OneKlik',
+    raw_notification: 'Isi Saldo Rp 500.000 via BCA OneKlik berhasil.',
+    source_device: 'istri',
+    transaction_date: new Date(Date.now() - 1000 * 60 * 180).toISOString(),
+    status: 'pending',
+    dedupe_hash: 'demo-hash-4',
+    needs_review: false,
+    accounts: { name: 'DANA', type: 'ewallet' },
+  },
+];
+
 export default function InboxPage() {
-  const [transactions, setTransactions] = useState<TransactionItem[]>([]);
+  const [transactions, setTransactions] = useState<TransactionItem[]>(initialDemoTransactions);
   const [categories, setCategories] = useState<Category[]>(defaultMockCategories);
-  const [accounts, setAccounts] = useState<AccountOption[]>([]);
+  const [accounts, setAccounts] = useState<AccountOption[]>(defaultMockAccounts);
   const [userRole, setUserRole] = useState<'suami' | 'istri'>('suami');
   const [displayName, setDisplayName] = useState<string>('');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [filterOwner, setFilterOwner] = useState<'all' | 'suami' | 'istri' | 'review'>('all');
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
   const [isRealtimeActive, setIsRealtimeActive] = useState(false);
+  const [isCloudConnected, setIsCloudConnected] = useState(false);
 
-  // Ambil data awal dari Supabase
+  // Ambil data dari Supabase jika env sudah dikonfigurasi
   const fetchData = useCallback(async () => {
+    if (!isSupabaseConfigured()) {
+      setIsCloudConnected(false);
+      return;
+    }
+
     setLoading(true);
     const supabase = createClient();
 
@@ -83,12 +169,12 @@ export default function InboxPage() {
         .order('transaction_date', { ascending: false });
 
       if (!txError && txData) {
-        // Normalisasi format relasi accounts jika berbentuk array
         const normalized = txData.map((item: any) => ({
           ...item,
           accounts: Array.isArray(item.accounts) ? item.accounts[0] : item.accounts,
         }));
         setTransactions(normalized);
+        setIsCloudConnected(true);
       }
 
       // 3. Kategori
@@ -120,7 +206,9 @@ export default function InboxPage() {
   useEffect(() => {
     fetchData();
 
-    // 5. Setup Supabase Realtime Subscription
+    if (!isSupabaseConfigured()) return;
+
+    // Setup Supabase Realtime Subscription
     const supabase = createClient();
     const channel = supabase
       .channel('realtime:transactions')
@@ -132,7 +220,6 @@ export default function InboxPage() {
           table: 'transactions',
         },
         () => {
-          // Ketika ada notifikasi baru masuk via webhook, refresh data otomatis
           fetchData();
         }
       )
@@ -147,31 +234,34 @@ export default function InboxPage() {
 
   // Aksi 1-tap kategorisasi
   const handleCategorize = async (transactionId: string, categoryId: string) => {
-    // Optimistic UI update: langsung hapus dari antrean Inbox
     setTransactions((prev) => prev.filter((t) => t.id !== transactionId));
 
-    const supabase = createClient();
-    await supabase
-      .from('transactions')
-      .update({
-        category_id: categoryId,
-        status: 'reconciled',
-        needs_review: false,
-      })
-      .eq('id', transactionId);
+    if (isSupabaseConfigured()) {
+      const supabase = createClient();
+      await supabase
+        .from('transactions')
+        .update({
+          category_id: categoryId,
+          status: 'reconciled',
+          needs_review: false,
+        })
+        .eq('id', transactionId);
+    }
   };
 
   // Aksi abaikan transaksi (status 'ignored')
   const handleIgnore = async (transactionId: string) => {
     setTransactions((prev) => prev.filter((t) => t.id !== transactionId));
 
-    const supabase = createClient();
-    await supabase
-      .from('transactions')
-      .update({
-        status: 'ignored',
-      })
-      .eq('id', transactionId);
+    if (isSupabaseConfigured()) {
+      const supabase = createClient();
+      await supabase
+        .from('transactions')
+        .update({
+          status: 'ignored',
+        })
+        .eq('id', transactionId);
+    }
   };
 
   // Aksi koreksi nominal / merchant
@@ -189,16 +279,18 @@ export default function InboxPage() {
       )
     );
 
-    const supabase = createClient();
-    await supabase
-      .from('transactions')
-      .update({
-        amount,
-        merchant,
-        direction,
-        needs_review: false,
-      })
-      .eq('id', transactionId);
+    if (isSupabaseConfigured()) {
+      const supabase = createClient();
+      await supabase
+        .from('transactions')
+        .update({
+          amount,
+          merchant,
+          direction,
+          needs_review: false,
+        })
+        .eq('id', transactionId);
+    }
   };
 
   // Aksi tambah transaksi manual
@@ -211,33 +303,45 @@ export default function InboxPage() {
     transactionDate: string;
     sourceDevice: 'suami' | 'istri';
   }) => {
-    const supabase = createClient();
-    const dedupeHash = `manual_${Date.now()}_${Math.random()}`;
+    const targetAccount = accounts.find((a) => a.id === data.accountId);
+    const newTx: TransactionItem = {
+      id: `manual-${Date.now()}`,
+      household_id: 'demo-hh',
+      account_id: data.accountId,
+      category_id: data.categoryId || null,
+      amount: data.amount,
+      direction: data.direction,
+      merchant: data.merchant,
+      raw_notification: `Input Manual: ${data.merchant} (${formatRupiah(data.amount)})`,
+      source_device: data.sourceDevice,
+      transaction_date: data.transactionDate,
+      status: data.categoryId ? 'reconciled' : 'pending',
+      dedupe_hash: `manual_${Date.now()}`,
+      needs_review: false,
+      accounts: targetAccount ? { name: targetAccount.name, type: targetAccount.type } : undefined,
+    };
 
-    const { data: newTx, error } = await supabase
-      .from('transactions')
-      .insert({
-        account_id: data.accountId,
-        category_id: data.categoryId || null,
-        amount: data.amount,
-        direction: data.direction,
-        merchant: data.merchant,
-        raw_notification: `Input Manual: ${data.merchant} (${formatRupiah(data.amount)})`,
-        source_device: data.sourceDevice,
-        transaction_date: data.transactionDate,
-        status: data.categoryId ? 'reconciled' : 'pending',
-        dedupe_hash: dedupeHash,
-        needs_review: false,
-      })
-      .select('*, accounts (name, type)')
-      .single();
+    if (!data.categoryId) {
+      setTransactions((prev) => [newTx, ...prev]);
+    }
 
-    if (!error && newTx && !data.categoryId) {
-      const normalized = {
-        ...newTx,
-        accounts: Array.isArray(newTx.accounts) ? newTx.accounts[0] : newTx.accounts,
-      };
-      setTransactions((prev) => [normalized, ...prev]);
+    if (isSupabaseConfigured()) {
+      const supabase = createClient();
+      await supabase
+        .from('transactions')
+        .insert({
+          account_id: data.accountId,
+          category_id: data.categoryId || null,
+          amount: data.amount,
+          direction: data.direction,
+          merchant: data.merchant,
+          raw_notification: newTx.raw_notification,
+          source_device: data.sourceDevice,
+          transaction_date: data.transactionDate,
+          status: data.categoryId ? 'reconciled' : 'pending',
+          dedupe_hash: newTx.dedupe_hash,
+          needs_review: false,
+        });
     }
   };
 
@@ -272,10 +376,21 @@ export default function InboxPage() {
         userRole={userRole}
         displayName={displayName}
         pendingCount={pendingTally.totalCount}
-        isRealtimeActive={isRealtimeActive}
+        isRealtimeActive={isRealtimeActive || !isCloudConnected}
       />
 
       <main className="flex-1 pb-24 px-4 pt-4">
+        {/* Banner Info jika belum connect ke database Supabase Cloud */}
+        {!isCloudConnected && (
+          <div className="mb-4 p-3 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 flex items-start gap-2.5 text-xs text-indigo-900 dark:text-indigo-200">
+            <Info className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
+            <div className="leading-relaxed">
+              <span className="font-semibold">Mode Pratinjau Interaktif: </span>
+              Menampilkan data simulasi agar Anda bisa langsung mencoba fitur kategorisasi 1-tap, filter, koreksi nominal 0, dan tambah manual.
+            </div>
+          </div>
+        )}
+
         {/* Tally & Quick Action Card */}
         <div className="rounded-3xl p-5 mb-4 bg-gradient-to-br from-indigo-900 via-indigo-800 to-slate-900 text-white shadow-xl relative overflow-hidden">
           <div className="absolute top-0 right-0 -mr-6 -mt-6 w-32 h-32 rounded-full bg-indigo-500/20 blur-2xl pointer-events-none" />
