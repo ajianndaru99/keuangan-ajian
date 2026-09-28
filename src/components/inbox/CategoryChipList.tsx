@@ -2,7 +2,7 @@
 
 // ==============================================================================
 // COMPONENT: src/components/inbox/CategoryChipList.tsx
-// Deretan tombol kategori untuk kategorisasi 1-tap — Soft Pastel Liquid Glass
+// Deretan tombol kategori untuk kategorisasi 1-tap — Kontras Tinggi & Jelas
 // ==============================================================================
 
 import {
@@ -55,7 +55,6 @@ export default function CategoryChipList({
   onSelect,
   disabled = false,
 }: CategoryChipListProps) {
-  // Filter kategori berdasarkan arah transaksi (pengeluaran vs pemasukan)
   const targetType = transactionDirection === 'in' ? 'income' : 'expense';
   const filtered = categories.filter((c) => c.type === targetType);
   const displayList = filtered.length > 0 ? filtered : categories;
@@ -70,9 +69,9 @@ export default function CategoryChipList({
               key={cat.id}
               onClick={() => onSelect(cat.id)}
               disabled={disabled}
-              className="group shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-medium liquid-pill text-slate-700 dark:text-slate-200 hover:bg-gradient-to-r hover:from-sky-400 hover:to-indigo-400 hover:text-white dark:hover:text-white active:scale-95 transition-all border border-white/70 dark:border-white/10 shadow-sm disabled:opacity-50"
+              className="group shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-bold bg-white/90 dark:bg-slate-800/70 text-slate-900 dark:text-slate-100 hover:bg-gradient-to-r hover:from-sky-500 hover:to-blue-600 hover:text-white dark:hover:text-white active:scale-95 transition-all border border-slate-200/90 dark:border-white/10 shadow-sm disabled:opacity-50"
             >
-              <IconComponent className="w-3.5 h-3.5 group-hover:scale-110 transition-transform text-slate-400 group-hover:text-white dark:text-slate-400" />
+              <IconComponent className="w-3.5 h-3.5 group-hover:scale-110 transition-transform text-slate-600 group-hover:text-white dark:text-slate-300" />
               <span className="whitespace-nowrap">{cat.name}</span>
             </button>
           );

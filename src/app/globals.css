@@ -3,24 +3,26 @@
 @tailwind utilities;
 
 :root {
-  --background: #f4f7fb;
-  --foreground: #1e293b;
+  color-scheme: light;
+  --background: #f1f5f9;
+  --foreground: #0f172a;
 }
 
 html.dark {
+  color-scheme: dark;
   --background: #090e17;
   --foreground: #f8fafc;
 }
 
 body {
-  color: var(--foreground);
+  color: #0f172a;
   background-color: var(--background);
   background-image: 
-    radial-gradient(at 0% 0%, rgba(186, 230, 253, 0.45) 0px, transparent 55%),
-    radial-gradient(at 100% 0%, rgba(221, 214, 254, 0.45) 0px, transparent 55%),
-    radial-gradient(at 50% 45%, rgba(167, 243, 208, 0.25) 0px, transparent 50%),
-    radial-gradient(at 0% 100%, rgba(254, 205, 211, 0.35) 0px, transparent 55%),
-    radial-gradient(at 100% 100%, rgba(199, 210, 254, 0.4) 0px, transparent 55%);
+    radial-gradient(at 0% 0%, rgba(186, 230, 253, 0.5) 0px, transparent 55%),
+    radial-gradient(at 100% 0%, rgba(221, 214, 254, 0.5) 0px, transparent 55%),
+    radial-gradient(at 50% 45%, rgba(167, 243, 208, 0.3) 0px, transparent 50%),
+    radial-gradient(at 0% 100%, rgba(254, 205, 211, 0.4) 0px, transparent 55%),
+    radial-gradient(at 100% 100%, rgba(199, 210, 254, 0.45) 0px, transparent 55%);
   background-attachment: fixed;
   font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
   -webkit-font-smoothing: antialiased;
@@ -29,44 +31,46 @@ body {
 }
 
 html.dark body {
+  color: #f8fafc;
+  background-color: #090e17;
   background-image: 
-    radial-gradient(at 0% 0%, rgba(14, 116, 144, 0.22) 0px, transparent 50%),
-    radial-gradient(at 100% 0%, rgba(109, 40, 217, 0.2) 0px, transparent 50%),
-    radial-gradient(at 50% 50%, rgba(5, 150, 105, 0.15) 0px, transparent 50%),
-    radial-gradient(at 100% 100%, rgba(67, 56, 202, 0.22) 0px, transparent 50%);
+    radial-gradient(at 0% 0%, rgba(14, 116, 144, 0.25) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgba(109, 40, 217, 0.22) 0px, transparent 50%),
+    radial-gradient(at 50% 50%, rgba(5, 150, 105, 0.18) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(67, 56, 202, 0.25) 0px, transparent 50%);
 }
 
-/* Glassmorphism Styles */
+/* Glassmorphism Styles dengan Kontras Tinggi di Mode Terang */
 .liquid-glass {
-  background: rgba(255, 255, 255, 0.65);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.75);
-  box-shadow: 0 10px 30px -5px rgba(100, 116, 139, 0.08), 0 0 0 1px rgba(255, 255, 255, 0.6) inset;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  box-shadow: 0 10px 30px -5px rgba(100, 116, 139, 0.12), 0 1px 3px 0 rgba(0, 0, 0, 0.05);
 }
 
 html.dark .liquid-glass {
-  background: rgba(15, 23, 42, 0.65);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
 }
 
 .liquid-pill {
-  background: rgba(255, 255, 255, 0.55);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(255, 255, 255, 0.7);
-  box-shadow: 0 2px 8px rgba(148, 163, 184, 0.06);
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 2px 8px rgba(148, 163, 184, 0.08);
 }
 
 html.dark .liquid-pill {
-  background: rgba(30, 41, 59, 0.55);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  background: rgba(30, 41, 59, 0.65);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 /* Scrollbar halus */
