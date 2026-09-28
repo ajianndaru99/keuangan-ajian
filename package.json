@@ -4,7 +4,7 @@
   "description": "Dashboard Keuangan Keluarga berbasis notifikasi otomatis MacroDroid",
   "type": "module",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 3001",
     "build": "next build",
     "start": "next start",
     "test": "node --experimental-strip-types --test tests/**/*.test.ts",
