@@ -27,6 +27,7 @@ yarn-error.log*
 
 # Supabase local temp
 .supabase/
+supabase/.temp/
 
 # OS files
 .DS_Store

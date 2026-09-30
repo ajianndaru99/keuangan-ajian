@@ -29,6 +29,7 @@ dashboard-keuangan-keluarga/
 │               ├── bca.ts
 │               ├── mandiri.ts
 │               ├── bri.ts
+│               ├── jago.ts
 │               ├── gopay.ts
 │               ├── shopeepay.ts
 │               ├── dana.ts
@@ -36,7 +37,7 @@ dashboard-keuangan-keluarga/
 │               ├── generic.ts
 │               └── index.ts
 ├── tests/
-│   ├── parsers.test.ts                     # 31 unit test format notifikasi
+│   ├── parsers.test.ts                     # 35 unit test format notifikasi
 │   └── webhook-flow.test.ts                # 6 integration test HTTP flow
 ├── scripts/
 │   └── serve-webhook-mock.ts               # Mock server lokal untuk test curl

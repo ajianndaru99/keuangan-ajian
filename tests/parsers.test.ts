@@ -293,10 +293,52 @@ describe('8. OVO Parser', () => {
   });
 });
 
-describe('9. Generic Fallback & Edge Cases', () => {
+describe('9. Bank Jago Parser', () => {
+  test('Jago Pembayaran QRIS Keluar', () => {
+    const text = 'Pembayaran QRIS Rp 35.000 di Kopi Kenangan berhasil.';
+    const res = parseNotification('Jago', text);
+    assert.equal(res.amount, 35000);
+    assert.equal(res.direction, 'out');
+    assert.equal(res.accountName, 'Jago');
+    assert.equal(res.merchant, 'Kopi Kenangan');
+    assert.equal(res.parsedSuccessfully, true);
+  });
+
+  test('Jago Transfer Keluar', () => {
+    const text = 'Kamu berhasil transfer Rp 150.000 ke Budi Santoso (BCA).';
+    const res = parseNotification('Bank Jago', text);
+    assert.equal(res.amount, 150000);
+    assert.equal(res.direction, 'out');
+    assert.equal(res.accountName, 'Jago');
+    assert.equal(res.merchant, 'Budi Santoso');
+    assert.equal(res.parsedSuccessfully, true);
+  });
+
+  test('Jago Uang Masuk / Transfer Masuk', () => {
+    const text = 'Kamu menerima Rp 500.000 dari Ahmad Fauzi.';
+    const res = parseNotification('Jago', text);
+    assert.equal(res.amount, 500000);
+    assert.equal(res.direction, 'in');
+    assert.equal(res.accountName, 'Jago');
+    assert.equal(res.merchant, 'Ahmad Fauzi');
+    assert.equal(res.parsedSuccessfully, true);
+  });
+
+  test('Jago Transaksi Kartu Debit Keluar', () => {
+    const text = 'Transaksi Kartu Debit Rp 85.000 di Indomaret berhasil.';
+    const res = parseNotification('Bank Jago', text);
+    assert.equal(res.amount, 85000);
+    assert.equal(res.direction, 'out');
+    assert.equal(res.accountName, 'Jago');
+    assert.equal(res.merchant, 'Indomaret');
+    assert.equal(res.parsedSuccessfully, true);
+  });
+});
+
+describe('10. Generic Fallback & Edge Cases', () => {
   test('Aplikasi tidak dikenal tetap berhasil mengekstrak nominal dan arah', () => {
     const text = 'Pembayaran sebesar Rp 88.000 di SPBU PERTAMINA Sukses';
-    const res = parseNotification('Bank Jago', text);
+    const res = parseNotification('BankKoperasiXYZ', text);
     assert.equal(res.amount, 88000);
     assert.equal(res.direction, 'out');
     assert.equal(res.merchant, 'SPBU PERTAMINA');

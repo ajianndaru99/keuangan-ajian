@@ -11,11 +11,12 @@ import { gopayParser } from './gopay.ts';
 import { shopeepayParser } from './shopeepay.ts';
 import { danaParser } from './dana.ts';
 import { ovoParser } from './ovo.ts';
+import { jagoParser } from './jago.ts';
 import { genericParser } from './generic.ts';
 
 export type * from './types.ts';
 export * from './utils.ts';
-export { bcaParser, mandiriParser, briParser, gopayParser, shopeepayParser, danaParser, ovoParser, genericParser };
+export { bcaParser, mandiriParser, briParser, gopayParser, shopeepayParser, danaParser, ovoParser, jagoParser, genericParser };
 
 /**
  * Daftar seluruh parser spesifik bank/e-wallet terdaftar.
@@ -25,6 +26,7 @@ export const registeredParsers: BankParser[] = [
   bcaParser,
   mandiriParser,
   briParser,
+  jagoParser,
   gopayParser,
   shopeepayParser,
   danaParser,

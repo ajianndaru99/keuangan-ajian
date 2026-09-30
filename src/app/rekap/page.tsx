@@ -10,6 +10,7 @@ import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
 import Navbar from '@/components/Navbar';
 import PeriodNavigator from '@/components/rekap/PeriodNavigator';
 import FinancialSummaryCard from '@/components/rekap/FinancialSummaryCard';
+import FinancialSpeedometerArc from '@/components/rekap/FinancialSpeedometerArc';
 import CategoryExpensesChart, { CategoryExpenseItem } from '@/components/rekap/CategoryExpensesChart';
 import DailyTrendChart, { DailyTrendItem } from '@/components/rekap/DailyTrendChart';
 import {
@@ -374,6 +375,21 @@ export default function RekapPage() {
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
           </button>
+        </div>
+
+        {/* Speedometer Radial Arc Gauge (Foto 2: Financial Report) */}
+        <div className="mb-3.5">
+          <FinancialSpeedometerArc
+            monthlyLimit={periodType === 'weekly' ? 2000000 : 8000000}
+            currentSpending={summary.totalExpense}
+            totalNetWorth={summary.totalIncome - summary.totalExpense + 12500000}
+            selectedPeriod={periodType === 'weekly' ? 'weekly' : 'monthly'}
+            onPeriodChange={(p) => {
+              if (p === 'weekly') handleTogglePeriodType('weekly');
+              else handleTogglePeriodType('monthly');
+            }}
+            onExportReport={() => window.print()}
+          />
         </div>
 
         {/* Ringkasan Finansial Periode & Perbandingan */}

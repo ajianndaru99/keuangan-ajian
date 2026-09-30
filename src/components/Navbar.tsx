@@ -9,7 +9,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { Inbox, Wallet, BarChart3, Settings, LogOut, Sun, Moon } from 'lucide-react';
+import { Inbox, Wallet, BarChart3, Target, Settings, LogOut, Sun, Moon } from 'lucide-react';
 
 interface NavbarProps {
   userRole?: 'suami' | 'istri';
@@ -60,9 +60,9 @@ export default function Navbar({
       badge: pendingCount > 0 ? pendingCount : undefined,
     },
     {
-      name: 'Akun',
-      href: '/accounts',
-      icon: Wallet,
+      name: 'Budget',
+      href: '/budget',
+      icon: Target,
     },
     {
       name: 'Rekap',
@@ -70,9 +70,9 @@ export default function Navbar({
       icon: BarChart3,
     },
     {
-      name: 'Pengaturan',
-      href: '/settings',
-      icon: Settings,
+      name: 'Akun',
+      href: '/accounts',
+      icon: Wallet,
     },
   ];
 

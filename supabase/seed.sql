@@ -20,6 +20,7 @@ begin
     insert into public.accounts (household_id, owner, name, type, balance, initial_balance, is_active) values
         (v_household_id, 'suami', 'BCA', 'bank', 0, 0, true),
         (v_household_id, 'suami', 'Mandiri', 'bank', 0, 0, true),
+        (v_household_id, 'suami', 'Jago', 'bank', 0, 0, true),
         (v_household_id, 'suami', 'GoPay', 'ewallet', 0, 0, true),
         (v_household_id, 'suami', 'OVO', 'ewallet', 0, 0, true)
     on conflict (household_id, owner, name) do nothing;
@@ -28,6 +29,7 @@ begin
     insert into public.accounts (household_id, owner, name, type, balance, initial_balance, is_active) values
         (v_household_id, 'istri', 'BCA', 'bank', 0, 0, true),
         (v_household_id, 'istri', 'BRI', 'bank', 0, 0, true),
+        (v_household_id, 'istri', 'Jago', 'bank', 0, 0, true),
         (v_household_id, 'istri', 'ShopeePay', 'ewallet', 0, 0, true),
         (v_household_id, 'istri', 'DANA', 'ewallet', 0, 0, true)
     on conflict (household_id, owner, name) do nothing;
