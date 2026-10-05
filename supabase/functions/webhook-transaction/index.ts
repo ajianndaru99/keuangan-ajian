@@ -13,6 +13,15 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS'
 };
 
+function isConstantTimeMatch(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let result = 0;
+  for (let i = 0; i < a.length; i++) {
+    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return result === 0;
+}
+
 Deno.serve(async (req: Request) => {
   // Tangani request OPTIONS (CORS preflight)
   if (req.method === 'OPTIONS') {
@@ -31,7 +40,7 @@ Deno.serve(async (req: Request) => {
   const expectedApiKey = Deno.env.get('WEBHOOK_API_KEY');
   const clientApiKey = req.headers.get('x-api-key') || req.headers.get('X-API-KEY');
 
-  if (!expectedApiKey || clientApiKey !== expectedApiKey) {
+  if (!expectedApiKey || !clientApiKey || !isConstantTimeMatch(expectedApiKey, clientApiKey)) {
     return new Response(
       JSON.stringify({ 
         error: 'Unauthorized: Header X-API-KEY tidak valid atau belum dikonfigurasi di secrets.' 
@@ -89,8 +98,15 @@ Deno.serve(async (req: Request) => {
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
   try {
-    // 5. Resolusi Household ID
-    let householdId = body.household_id || Deno.env.get('DEFAULT_HOUSEHOLD_ID');
+    // 5. Resolusi Household ID (prioritaskan environment DEFAULT_HOUSEHOLD_ID)
+    let householdId = Deno.env.get('DEFAULT_HOUSEHOLD_ID');
+
+    if (!householdId && body.household_id) {
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (uuidRegex.test(body.household_id)) {
+        householdId = body.household_id;
+      }
+    }
 
     if (!householdId) {
       // Ambil household pertama jika tidak ditentukan
@@ -218,9 +234,25 @@ Deno.serve(async (req: Request) => {
         needs_review: !parseResult.parsedSuccessfully
       })
       .select('*')
-      .single();
+    if (insertErr) {
+      const isDuplicate = 
+        (insertErr as { code?: string }).code === '23505' ||
+        insertErr.message?.toLowerCase().includes('duplicate key') ||
+        insertErr.message?.toLowerCase().includes('unique');
 
-    if (insertErr) throw insertErr;
+      if (isDuplicate) {
+        return new Response(
+          JSON.stringify({
+            status: 'success',
+            duplicate: true,
+            message: 'Transaksi ganda diabaikan (terdeteksi saat penyimpanan).',
+            dedupe_hash: dedupeHash
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      throw insertErr;
+    }
 
     return new Response(
       JSON.stringify({

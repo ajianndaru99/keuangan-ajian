@@ -157,7 +157,12 @@ create policy "User dapat melihat profil dalam household yang sama"
 
 create policy "User dapat memperbarui profil miliknya sendiri"
     on public.profiles for update
-    using (id = auth.uid());
+    using (id = auth.uid())
+    with check (
+        id = auth.uid()
+        and household_id = public.get_current_user_household_id()
+        and role = public.get_current_user_role()
+    );
 
 -- Policy: accounts
 create policy "User dapat melihat semua akun dalam household miliknya"

@@ -1,13 +1,21 @@
 -- ==============================================================================
--- MIGRATION: 20260928000001_phase3_and_phase4.sql
--- Dashboard Keuangan Keluarga - Fungsi Agregasi Database, Saldo & Rekapitulasi
--- Zona Waktu: Asia/Jakarta (WIB), Minggu mulai Senin (ISODOW 1)
+-- MIGRATION: 20261005000000_security_fixes.sql
+-- Penguatan Keamanan RLS, Validasi Household RPC, dan Pembatasan Izin Anon
 -- ==============================================================================
 
--- ==============================================================================
--- 1. FUNGSI: get_account_balances
--- Menghitung saldo riil tiap akun = initial_balance + transaksi reconciled
--- ==============================================================================
+-- 1. Penguatan Policy Update Profiles (mencegah manipulasi household_id dan role)
+drop policy if exists "User dapat memperbarui profil miliknya sendiri" on public.profiles;
+
+create policy "User dapat memperbarui profil miliknya sendiri"
+    on public.profiles for update
+    using (id = auth.uid())
+    with check (
+        id = auth.uid()
+        and household_id = public.get_current_user_household_id()
+        and role = public.get_current_user_role()
+    );
+
+-- 2. Validasi Otorisasi pada get_account_balances
 create or replace function public.get_account_balances(p_household_id uuid)
 returns table (
     account_id uuid,
@@ -65,10 +73,7 @@ $$;
 revoke execute on function public.get_account_balances(uuid) from public, anon;
 grant execute on function public.get_account_balances(uuid) to authenticated, service_role;
 
--- ==============================================================================
--- 2. FUNGSI: adjust_account_balance
--- Rekonsiliasi manual saldo akun dengan mencatat penyesuaian / initial balance
--- ==============================================================================
+-- 3. Validasi Otorisasi pada adjust_account_balance
 create or replace function public.adjust_account_balance(
     p_account_id uuid,
     p_target_balance numeric,
@@ -86,7 +91,6 @@ declare
     v_diff numeric;
     v_direction text;
 begin
-    -- Cek household dan owner akun
     select household_id, owner into v_household_id, v_owner
     from public.accounts
     where id = p_account_id;
@@ -95,12 +99,10 @@ begin
         raise exception 'Akun tidak ditemukan';
     end if;
 
-    -- Validasi otorisasi household
     if v_household_id != public.get_current_user_household_id() then
         raise exception 'Akses ditolak: akun bukan milik household pengguna saat ini';
     end if;
 
-    -- Hitung saldo saat ini
     select current_balance into v_current_balance
     from public.get_account_balances(v_household_id)
     where account_id = p_account_id;
@@ -117,7 +119,6 @@ begin
         v_direction := 'out';
     end if;
 
-    -- Masukkan transaksi penyesuaian berstatus 'reconciled'
     insert into public.transactions (
         household_id,
         account_id,
@@ -151,10 +152,7 @@ $$;
 revoke execute on function public.adjust_account_balance(uuid, numeric, text) from public, anon;
 grant execute on function public.adjust_account_balance(uuid, numeric, text) to authenticated, service_role;
 
--- ==============================================================================
--- 3. FUNGSI: get_financial_summary
--- Menghitung total pengeluaran, pemasukan, selisih, dan jumlah pending
--- ==============================================================================
+-- 4. Validasi Otorisasi pada get_financial_summary
 create or replace function public.get_financial_summary(
     p_household_id uuid,
     p_start_date timestamptz,
@@ -211,10 +209,7 @@ $$;
 revoke execute on function public.get_financial_summary(uuid, timestamptz, timestamptz, text, uuid) from public, anon;
 grant execute on function public.get_financial_summary(uuid, timestamptz, timestamptz, text, uuid) to authenticated, service_role;
 
--- ==============================================================================
--- 4. FUNGSI: get_category_expenses
--- Menghitung total pengeluaran per kategori (hanya reconciled & out) + ranking
--- ==============================================================================
+-- 5. Validasi Otorisasi pada get_category_expenses
 create or replace function public.get_category_expenses(
     p_household_id uuid,
     p_start_date timestamptz,
@@ -279,10 +274,7 @@ $$;
 revoke execute on function public.get_category_expenses(uuid, timestamptz, timestamptz, text, uuid) from public, anon;
 grant execute on function public.get_category_expenses(uuid, timestamptz, timestamptz, text, uuid) to authenticated, service_role;
 
--- ==============================================================================
--- 5. FUNGSI: get_daily_financial_trend
--- Menghitung agregasi harian timezone Asia/Jakarta (WIB) untuk grafik Recharts
--- ==============================================================================
+-- 6. Validasi Otorisasi pada get_daily_financial_trend
 create or replace function public.get_daily_financial_trend(
     p_household_id uuid,
     p_start_date timestamptz,
@@ -291,7 +283,7 @@ create or replace function public.get_daily_financial_trend(
     p_account_id uuid default null
 )
 returns table (
-    period_date text, -- Format: 'YYYY-MM-DD'
+    period_date text,
     expense_amount numeric,
     income_amount numeric
 )
