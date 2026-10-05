@@ -234,6 +234,8 @@ Deno.serve(async (req: Request) => {
         needs_review: !parseResult.parsedSuccessfully
       })
       .select('*')
+      .single();
+
     if (insertErr) {
       const isDuplicate = 
         (insertErr as { code?: string }).code === '23505' ||

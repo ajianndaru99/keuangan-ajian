@@ -57,15 +57,14 @@ Buka MacroDroid, pilih **Add Macro** (+), lalu atur tiga komponen berikut:
 {
   "source_device": "suami",
   "app_name": "[notif_app_name]",
-  "raw_text": "[notif_title] - [notif_text]",
-  "timestamp": "[year]-[month_digit]-[day_digit]T[hour_format_24]:[minute]:[second]+07:00"
+  "raw_text": "[notif_title] - [notif_text]"
 }
 ```
 
 > **Catatan Penting**:
 > 1. Pada ponsel istri, ganti `"source_device": "suami"` menjadi `"source_device": "istri"`.
 > 2. Field `raw_text` menggabungkan judul notifikasi dan isi teks agar regex parser dapat membaca nama merchant, jenis transfer, dan nominal secara lengkap.
-> 3. Field `timestamp` memastikan waktu transaksi akurat sesuai saat notifikasi muncul di HP dan menjaga ketepatan deduplikasi meski ada antrean pengiriman ulang (retry).
+> 3. Jika `timestamp` tidak disertakan, server webhook akan otomatis menggunakan waktu kedatangan notifikasi saat ini (`new Date().toISOString()`). Jika ingin mengirim waktu dari HP, sertakan field `"timestamp"` dalam format waktu yang valid.
 > 4. Pastikan `X-API-KEY` menggunakan kombinasi string acak panjang yang unik di lingkungan produksi (bukan nilai contoh).
 
 ---

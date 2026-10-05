@@ -7,8 +7,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
-import { Wallet, ShieldCheck, ArrowRight, Loader2, Users } from 'lucide-react';
+import { Wallet, ShieldCheck, ArrowRight, Loader2 } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -39,12 +38,6 @@ export default function LoginPage() {
       router.push('/inbox');
       router.refresh();
     }
-  };
-
-  const setPreset = (presetEmail: string) => {
-    setEmail(presetEmail);
-    setPassword('password123');
-    setErrorMessage(null);
   };
 
   return (
@@ -125,30 +118,6 @@ export default function LoginPage() {
             )}
           </button>
         </form>
-
-        {/* Preset Cepat untuk Pengujian */}
-        <div className="mt-6 pt-5 border-t border-slate-200/50 dark:border-white/10">
-          <p className="text-[11px] text-center font-medium text-slate-400 mb-2.5 flex items-center justify-center gap-1.5">
-            <Users className="w-3.5 h-3.5 text-sky-500" />
-            <span>Pilih Akun Cepat (Uji Coba):</span>
-          </p>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => setPreset('suami@keluarga.com')}
-              className="py-2 px-3 rounded-2xl liquid-pill hover:bg-white/90 text-slate-700 dark:text-slate-300 text-xs font-medium border border-white/80 dark:border-white/10 transition-all"
-            >
-              👨 Akun Suami
-            </button>
-            <button
-              type="button"
-              onClick={() => setPreset('istri@keluarga.com')}
-              className="py-2 px-3 rounded-2xl liquid-pill hover:bg-white/90 text-slate-700 dark:text-slate-300 text-xs font-medium border border-white/80 dark:border-white/10 transition-all"
-            >
-              👩 Akun Istri
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   );
