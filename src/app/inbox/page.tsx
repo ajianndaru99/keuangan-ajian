@@ -162,17 +162,17 @@ export default function InboxPage() {
         setDisplayName(profile.display_name);
       }
 
-      // 2. Transaksi Pending
+      // 2. Transaksi Pending (Urutkan dari yang paling baru masuk ke inbox)
       const { data: txData, error: txError } = await supabase
         .from('transactions')
         .select(`
           id, household_id, account_id, category_id, amount, direction,
           merchant, raw_notification, source_device, transaction_date,
-          status, dedupe_hash, needs_review,
+          status, dedupe_hash, needs_review, created_at,
           accounts (name, type)
         `)
         .eq('status', 'pending')
-        .order('transaction_date', { ascending: false });
+        .order('created_at', { ascending: false });
 
       if (!txError && txData) {
         const normalized = txData.map((item: any) => ({
