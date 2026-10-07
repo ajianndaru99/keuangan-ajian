@@ -41,6 +41,31 @@ export default function LoginPage() {
     }
   };
 
+  const handleQuickLogin = async (quickEmail: string, quickPass: string) => {
+    setEmail(quickEmail);
+    setPassword(quickPass);
+    setLoading(true);
+    setErrorMessage(null);
+
+    const supabase = createClient();
+    const { error } = await supabase.auth.signInWithPassword({
+      email: quickEmail,
+      password: quickPass,
+    });
+
+    if (error) {
+      setErrorMessage(
+        error.message === 'Invalid login credentials'
+          ? 'Email atau kata sandi tidak cocok. Silakan periksa kembali.'
+          : error.message
+      );
+      setLoading(false);
+    } else {
+      router.push('/inbox');
+      router.refresh();
+    }
+  };
+
   return (
     <div className="flex-1 flex flex-col justify-center px-6 py-12">
       {/* Brand Header */}
@@ -61,6 +86,33 @@ export default function LoginPage() {
         <div className="flex items-center gap-2 mb-6 text-xs font-semibold uppercase tracking-wider text-sky-600 dark:text-sky-400">
           <ShieldCheck className="w-4 h-4" />
           <span>Akses Masuk Terproteksi</span>
+        </div>
+
+        {/* 1-Tap Akses Cepat */}
+        <div className="mb-6 p-3 rounded-2xl bg-sky-50/70 dark:bg-sky-950/40 border border-sky-100 dark:border-sky-900/60">
+          <span className="text-[11px] font-bold text-sky-900 dark:text-sky-300 block mb-2">
+            Masuk Cepat 1-Tap:
+          </span>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() => handleQuickLogin('suami@keluarga.com', 'password123')}
+              className="py-2 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-sky-50 dark:hover:bg-slate-700 active:scale-95 text-xs font-bold text-slate-800 dark:text-slate-100 shadow-sm border border-slate-200/80 dark:border-slate-700 transition-all flex items-center justify-center gap-1.5"
+            >
+              <span>👨</span>
+              <span>Akun Suami</span>
+            </button>
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() => handleQuickLogin('istri@keluarga.com', 'password123')}
+              className="py-2 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-sky-50 dark:hover:bg-slate-700 active:scale-95 text-xs font-bold text-slate-800 dark:text-slate-100 shadow-sm border border-slate-200/80 dark:border-slate-700 transition-all flex items-center justify-center gap-1.5"
+            >
+              <span>👩</span>
+              <span>Akun Istri</span>
+            </button>
+          </div>
         </div>
 
         {errorMessage && (

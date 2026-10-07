@@ -6,6 +6,7 @@
 // ==============================================================================
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
 import Navbar from '@/components/Navbar';
 import TransactionCard, { TransactionItem } from '@/components/inbox/TransactionCard';
@@ -119,6 +120,7 @@ const initialDemoTransactions: TransactionItem[] = [
 ];
 
 export default function InboxPage() {
+  const router = useRouter();
   const [transactions, setTransactions] = useState<TransactionItem[]>(initialDemoTransactions);
   const [categories, setCategories] = useState<Category[]>(defaultMockCategories);
   const [accounts, setAccounts] = useState<AccountOption[]>(defaultMockAccounts);
@@ -144,17 +146,20 @@ export default function InboxPage() {
     try {
       // 1. Profil Pengguna
       const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role, display_name, household_id')
-          .eq('id', user.id)
-          .maybeSingle();
+      if (!user) {
+        router.push('/login');
+        return;
+      }
 
-        if (profile) {
-          setUserRole(profile.role);
-          setDisplayName(profile.display_name);
-        }
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role, display_name, household_id')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (profile) {
+        setUserRole(profile.role);
+        setDisplayName(profile.display_name);
       }
 
       // 2. Transaksi Pending
