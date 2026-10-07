@@ -68,8 +68,22 @@ export default function ScreenshotUploadZone({
         setState('analyzing');
         setStatusMessage('Vision AI membaca struk & nominal pembayaran...');
 
+        // Ambil session token jika ada
+        const headers: Record<string, string> = {};
+        try {
+          const { createClient } = await import('@/lib/supabase/client');
+          const supabase = createClient();
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.access_token) {
+            headers['Authorization'] = `Bearer ${session.access_token}`;
+          }
+        } catch {
+          // Abaikan jika offline
+        }
+
         const response = await fetch('/api/screenshot', {
           method: 'POST',
+          headers,
           body: formData,
         });
 

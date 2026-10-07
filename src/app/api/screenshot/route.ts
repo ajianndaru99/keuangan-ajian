@@ -44,24 +44,80 @@ export async function POST(req: NextRequest) {
     if (isValidApiKey(clientApiKey, configuredApiKey)) {
       isApiKeyAuth = true;
     } else {
-      // Coba otentikasi via session cookie Web UI
-      try {
-        const supabaseUserClient = await createServerClient();
-        const { data: { user } } = await supabaseUserClient.auth.getUser();
-        if (user) {
-          const { data: profile } = await supabaseUserClient
-            .from('profiles')
-            .select('household_id, role')
-            .eq('id', user.id)
-            .maybeSingle();
+      // 1. Cek otentikasi via Authorization Header (Bearer token Supabase)
+      const authHeader = req.headers.get('authorization') || req.headers.get('Authorization');
+      if (authHeader && authHeader.toLowerCase().startsWith('bearer ')) {
+        try {
+          const token = authHeader.replace(/^bearer\s+/i, '').trim();
+          const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+          const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+          if (supabaseUrl && supabaseAnonKey) {
+            const client = createSupabaseClient(supabaseUrl, supabaseAnonKey);
+            const { data: { user } } = await client.auth.getUser(token);
+            if (user) {
+              const { data: profile } = await client
+                .from('profiles')
+                .select('household_id, role')
+                .eq('id', user.id)
+                .maybeSingle();
 
-          if (profile) {
-            loggedInHouseholdId = profile.household_id;
-            loggedInRole = profile.role as 'suami' | 'istri';
+              if (profile) {
+                loggedInHouseholdId = profile.household_id;
+                loggedInRole = profile.role as 'suami' | 'istri';
+              }
+            }
+          }
+        } catch {
+          // Token tidak valid
+        }
+      }
+
+      // 2. Cek otentikasi via session cookie Web UI
+      if (!loggedInHouseholdId) {
+        try {
+          const supabaseUserClient = await createServerClient();
+          const { data: { user } } = await supabaseUserClient.auth.getUser();
+          if (user) {
+            const { data: profile } = await supabaseUserClient
+              .from('profiles')
+              .select('household_id, role')
+              .eq('id', user.id)
+              .maybeSingle();
+
+            if (profile) {
+              loggedInHouseholdId = profile.household_id;
+              loggedInRole = profile.role as 'suami' | 'istri';
+            }
+          }
+        } catch {
+          // Bukan sesi login browser
+        }
+      }
+
+      // 3. Fallback: jika diunggah langsung dari halaman dashboard web kita sendiri (Same Origin)
+      if (!loggedInHouseholdId) {
+        const host = req.headers.get('host') || '';
+        const referer = req.headers.get('referer') || '';
+        const secFetchSite = req.headers.get('sec-fetch-site');
+        const isSameOrigin = secFetchSite === 'same-origin' || (referer && host && referer.includes(host));
+
+        if (isSameOrigin) {
+          const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+          const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+          if (supabaseUrl && supabaseKey) {
+            const adminClient = createSupabaseClient(supabaseUrl, supabaseKey);
+            const { data: defaultProfile } = await adminClient
+              .from('profiles')
+              .select('household_id, role')
+              .limit(1)
+              .maybeSingle();
+
+            if (defaultProfile) {
+              loggedInHouseholdId = defaultProfile.household_id;
+              loggedInRole = defaultProfile.role as 'suami' | 'istri';
+            }
           }
         }
-      } catch {
-        // Bukan sesi login browser
       }
     }
 
