@@ -39,7 +39,7 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-screen text-slate-900 dark:text-slate-100 font-sans selection:bg-sky-400 selection:text-white antialiased">
-        <div className="mx-auto max-w-md md:max-w-xl min-h-screen flex flex-col bg-white/50 dark:bg-slate-950/60 backdrop-blur-2xl border-x border-white/70 dark:border-white/10 shadow-[0_0_40px_rgba(100,116,139,0.06)]">
+        <div className="min-h-screen flex flex-col">
           {children}
         </div>
       </body>

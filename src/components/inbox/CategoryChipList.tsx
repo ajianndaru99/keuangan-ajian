@@ -62,7 +62,7 @@ export default function CategoryChipList({
   const displayList = filtered.length > 0 ? filtered : categories;
 
   return (
-    <div className="w-full">
+    <div className="w-full min-w-0 max-w-full overflow-hidden">
       <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 pr-2">
         {displayList.map((cat) => {
           const isSelected = selectedCategoryId === cat.id;

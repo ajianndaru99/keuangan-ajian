@@ -79,54 +79,84 @@ export default function Navbar({
   return (
     <>
       {/* Top Header - Frosted Liquid Glass */}
-      <header className="sticky top-0 z-30 liquid-glass border-b border-white/80 dark:border-white/10 px-4 py-3 flex items-center justify-between transition-colors">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-2xl bg-gradient-to-tr from-sky-400 via-sky-500 to-indigo-500 flex items-center justify-center text-white shadow-sm shadow-sky-400/25 border border-white/40">
-            <Wallet className="w-4 h-4 text-white drop-shadow-sm" />
-          </div>
-          <div>
-            <h1 className="text-sm font-black tracking-tight text-slate-900 dark:text-white leading-none">
-              Keuangan Keluarga
-            </h1>
-            <div className="flex items-center gap-1.5 mt-1">
-              <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full liquid-pill text-slate-900 dark:text-slate-100 border border-slate-200/80 dark:border-white/10">
-                {userRole === 'suami' ? '👨 Suami' : '👩 Istri'}
-                {displayName ? ` (${displayName})` : ''}
-              </span>
-              {isRealtimeActive && (
-                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-400">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-sm shadow-emerald-400/50" />
-                  Live
+      <header className="sticky top-0 z-30 liquid-glass border-b border-white/80 dark:border-white/10 px-4 sm:px-6 lg:px-8 py-3 transition-colors">
+        <div className="max-w-7xl mx-auto w-full flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-2xl bg-gradient-to-tr from-sky-400 via-sky-500 to-indigo-500 flex items-center justify-center text-white shadow-sm shadow-sky-400/25 border border-white/40">
+              <Wallet className="w-4 h-4 text-white drop-shadow-sm" />
+            </div>
+            <div>
+              <h1 className="text-sm font-black tracking-tight text-slate-900 dark:text-white leading-none">
+                Keuangan Keluarga
+              </h1>
+              <div className="flex items-center gap-1.5 mt-1">
+                <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full liquid-pill text-slate-900 dark:text-slate-100 border border-slate-200/80 dark:border-white/10">
+                  {userRole === 'suami' ? '👨 Suami' : '👩 Istri'}
+                  {displayName ? ` (${displayName})` : ''}
                 </span>
-              )}
+                {isRealtimeActive && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-400">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-sm shadow-emerald-400/50" />
+                    Live
+                  </span>
+                )}
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="flex items-center gap-1">
-          {/* Tombol Ganti Tema */}
-          <button
-            onClick={toggleTheme}
-            aria-label={isDark ? 'Ganti ke Mode Terang' : 'Ganti ke Mode Gelap'}
-            title={isDark ? 'Ganti ke Mode Terang' : 'Ganti ke Mode Gelap'}
-            className="p-2 rounded-2xl text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/10 transition-all border border-slate-200/60 dark:border-transparent"
-          >
-            {isDark ? <Sun className="w-4 h-4 text-amber-300" /> : <Moon className="w-4 h-4 text-slate-700" />}
-          </button>
+          {/* Navigasi Desktop: Tampil rapi dan elegan di Monitor & Laptop */}
+          <nav className="hidden md:flex items-center gap-1.5 bg-slate-200/60 dark:bg-slate-900/80 p-1.5 rounded-2xl border border-slate-200/80 dark:border-white/10 shadow-inner">
+            {navItems.map((item) => {
+              const isActive = pathname === item.href;
+              const Icon = item.icon;
 
-          {/* Tombol Logout */}
-          <button
-            onClick={handleLogout}
-            title="Keluar"
-            className="p-2 rounded-2xl text-slate-500 hover:text-rose-600 hover:bg-rose-50/70 dark:hover:bg-rose-950/20 transition-all"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`flex items-center gap-2 px-4 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                    isActive
+                      ? 'bg-white dark:bg-slate-800 text-sky-700 dark:text-sky-400 shadow-sm shadow-sky-500/10 border border-slate-200/80 dark:border-white/10'
+                      : 'text-slate-700 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white hover:bg-white/40 dark:hover:bg-white/5'
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  <span>{item.name}</span>
+                  {item.badge !== undefined && (
+                    <span className="px-1.5 py-0.2 text-[9px] font-black rounded-full bg-rose-600 text-white shadow-xs animate-pulse">
+                      {item.badge}
+                    </span>
+                  )}
+                </Link>
+              );
+            })}
+          </nav>
+
+          <div className="flex items-center gap-1.5">
+            {/* Tombol Ganti Tema */}
+            <button
+              onClick={toggleTheme}
+              aria-label={isDark ? 'Ganti ke Mode Terang' : 'Ganti ke Mode Gelap'}
+              title={isDark ? 'Ganti ke Mode Terang' : 'Ganti ke Mode Gelap'}
+              className="p-2 rounded-2xl text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-white/60 dark:hover:bg-white/10 transition-all border border-slate-200/60 dark:border-transparent"
+            >
+              {isDark ? <Sun className="w-4 h-4 text-amber-300" /> : <Moon className="w-4 h-4 text-slate-700" />}
+            </button>
+
+            {/* Tombol Logout */}
+            <button
+              onClick={handleLogout}
+              title="Keluar"
+              className="p-2 rounded-2xl text-slate-500 hover:text-rose-600 hover:bg-rose-50/70 dark:hover:bg-rose-950/20 transition-all"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </header>
 
-      {/* Floating Bottom Dock (Liquid Glass Mobile-first) */}
-      <nav className="fixed bottom-3 left-4 right-4 z-30 mx-auto max-w-sm md:max-w-md liquid-glass rounded-3xl px-3 py-1.5 flex items-center justify-around shadow-[0_12px_36px_rgba(100,116,139,0.15)] border border-white/90 dark:border-white/10 transition-all">
+      {/* Floating Bottom Dock (Hanya untuk Mobile/HP — md:hidden) */}
+      <nav className="md:hidden fixed bottom-3 left-4 right-4 z-30 mx-auto max-w-sm liquid-glass rounded-3xl px-3 py-1.5 flex items-center justify-around shadow-[0_12px_36px_rgba(100,116,139,0.15)] border border-white/90 dark:border-white/10 transition-all">
         {navItems.map((item) => {
           const isActive = pathname === item.href;
           const Icon = item.icon;
