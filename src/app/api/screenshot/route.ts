@@ -14,6 +14,7 @@ import {
 } from '@/lib/vision/gemini';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // Izinkan hingga 60 detik untuk pemrosesan gambar besar
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
