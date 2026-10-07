@@ -2,7 +2,10 @@
 
 // ==============================================================================
 // INBOX PAGE: src/app/inbox/page.tsx
-// Halaman Inbox Transaksi Pending — Soft Pastel Liquid Glass dengan Kontras Tinggi
+// Halaman Inbox Transaksi Pending — Dioptimalkan untuk Monitor / Layar Laptop & HP
+// - Keterangan lengkap menyamping pada Monitor/Laptop
+// - Pop-up halus (Realtime Toast) di kanan bawah laptop / bawah layar HP
+// - Otomatisasi kategorisasi tanpa upload manual
 // ==============================================================================
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -11,7 +14,7 @@ import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
 import Navbar from '@/components/Navbar';
 import TransactionCard, { TransactionItem } from '@/components/inbox/TransactionCard';
 import ManualTransactionModal, { AccountOption } from '@/components/inbox/ManualTransactionModal';
-import ScreenshotUploadZone from '@/components/inbox/ScreenshotUploadZone';
+import RealtimeToast, { ToastTransactionData } from '@/components/inbox/RealtimeToast';
 import { Category } from '@/components/inbox/CategoryChipList';
 import {
   Plus,
@@ -21,6 +24,7 @@ import {
   RefreshCw,
   X,
   Sparkles,
+  CheckCheck,
 } from 'lucide-react';
 import { formatRupiah } from '@/lib/utils';
 
@@ -57,11 +61,11 @@ const initialDemoTransactions: TransactionItem[] = [
     id: 'demo-tx-1',
     household_id: 'demo-hh',
     account_id: 'acc-s-1',
-    category_id: null,
+    category_id: 'cat-2',
     amount: 45000,
     direction: 'out',
     merchant: 'KOPI KENANGAN',
-    raw_notification: 'QRIS BCA: Pembayaran Rp 45.000 di KOPI KENANGAN BERHASIL tgl 28/09/26',
+    raw_notification: '[Screenshot Vision] Pembayaran QRIS Rp 45.000 di KOPI KENANGAN via BCA',
     source_device: 'suami',
     transaction_date: new Date(Date.now() - 1000 * 60 * 12).toISOString(),
     status: 'pending',
@@ -73,11 +77,11 @@ const initialDemoTransactions: TransactionItem[] = [
     id: 'demo-tx-2',
     household_id: 'demo-hh',
     account_id: 'acc-s-2',
-    category_id: null,
+    category_id: 'cat-1',
     amount: 25000,
     direction: 'out',
     merchant: 'INDOMARET',
-    raw_notification: 'Pembayaran QRIS Rp 25.000 di INDOMARET berhasil.',
+    raw_notification: '[Screenshot Vision] Pembayaran QRIS Rp 25.000 di INDOMARET via Mandiri',
     source_device: 'suami',
     transaction_date: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
     status: 'pending',
@@ -101,22 +105,6 @@ const initialDemoTransactions: TransactionItem[] = [
     needs_review: true,
     accounts: { name: 'ShopeePay', type: 'ewallet' },
   },
-  {
-    id: 'demo-tx-4',
-    household_id: 'demo-hh',
-    account_id: 'acc-i-4',
-    category_id: null,
-    amount: 500000,
-    direction: 'in',
-    merchant: 'Isi Saldo via BCA OneKlik',
-    raw_notification: 'Isi Saldo Rp 500.000 via BCA OneKlik berhasil.',
-    source_device: 'istri',
-    transaction_date: new Date(Date.now() - 1000 * 60 * 180).toISOString(),
-    status: 'pending',
-    dedupe_hash: 'demo-hash-4',
-    needs_review: false,
-    accounts: { name: 'DANA', type: 'ewallet' },
-  },
 ];
 
 export default function InboxPage() {
@@ -132,6 +120,7 @@ export default function InboxPage() {
   const [isRealtimeActive, setIsRealtimeActive] = useState(false);
   const [isCloudConnected, setIsCloudConnected] = useState(false);
   const [showDemoNotice, setShowDemoNotice] = useState(true);
+  const [incomingToast, setIncomingToast] = useState<ToastTransactionData | null>(null);
 
   // Ambil data dari Supabase jika env sudah dikonfigurasi
   const fetchData = useCallback(async () => {
@@ -207,17 +196,37 @@ export default function InboxPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     fetchData();
 
     if (!isSupabaseConfigured()) return;
 
-    // Setup Supabase Realtime Subscription
+    // Setup Supabase Realtime Subscription dengan Pop-up Halus saat Screenshot Masuk
     const supabase = createClient();
     const channel = supabase
       .channel('realtime:transactions')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'transactions',
+        },
+        (payload) => {
+          const newTx = payload.new as any;
+          // Tampilkan pop-up notifikasi halus saat screenshot baru masuk
+          setIncomingToast({
+            merchant: newTx.merchant || 'Transaksi Digital',
+            amount: Number(newTx.amount) || 0,
+            direction: newTx.direction || 'out',
+            sourceDevice: newTx.source_device || 'suami',
+            accountName: newTx.raw_notification?.match(/via\s+([A-Za-z0-9]+)/i)?.[1],
+          });
+          fetchData();
+        }
+      )
       .on(
         'postgres_changes',
         {
@@ -351,6 +360,33 @@ export default function InboxPage() {
     }
   };
 
+  // Konfirmasi 1-klik untuk seluruh transaksi yang kategorinya sudah terdeteksi otomatis
+  const autoCategorizedTransactions = useMemo(() => {
+    return transactions.filter((t) => t.category_id && t.amount > 0 && !t.needs_review);
+  }, [transactions]);
+
+  const handleApproveAllAutoCategorized = async () => {
+    if (autoCategorizedTransactions.length === 0) return;
+    const ids = autoCategorizedTransactions.map((t) => t.id);
+
+    setTransactions((prev) => prev.filter((t) => !ids.includes(t.id)));
+
+    if (isSupabaseConfigured()) {
+      const supabase = createClient();
+      await Promise.all(
+        autoCategorizedTransactions.map((t) =>
+          supabase
+            .from('transactions')
+            .update({
+              status: 'reconciled',
+              needs_review: false,
+            })
+            .eq('id', t.id)
+        )
+      );
+    }
+  };
+
   // Filter transaksi
   const filteredTransactions = useMemo(() => {
     return transactions.filter((t) => {
@@ -385,8 +421,9 @@ export default function InboxPage() {
         isRealtimeActive={isRealtimeActive || !isCloudConnected}
       />
 
-      <main className="flex-1 pb-28 px-4 pt-3.5">
-        {/* Banner Ringkas Mode Demo - Liquid Pill dengan Teks Tajam */}
+      {/* Kontainer Responsif: Lebih lega dan maksimal di Layar Monitor / Laptop */}
+      <main className="flex-1 pb-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full pt-4">
+        {/* Banner Ringkas Mode Demo */}
         {!isCloudConnected && showDemoNotice && (
           <div className="mb-3 px-3.5 py-2 rounded-2xl liquid-pill bg-sky-100/80 dark:bg-sky-950/50 border border-sky-300/70 dark:border-sky-800/50 flex items-center justify-between text-xs text-sky-950 dark:text-sky-200 transition-all shadow-sm">
             <div className="flex items-center gap-2">
@@ -405,72 +442,92 @@ export default function InboxPage() {
           </div>
         )}
 
-        {/* Kartu Ringkasan Pending — Frosted Liquid Glass Card dengan Teks Kontras Tinggi */}
-        <div className="rounded-3xl p-5 mb-3.5 liquid-glass relative overflow-hidden transition-all">
-          <div className="flex items-center justify-between mb-4 relative z-10">
+        {/* Kartu Ringkasan Pending — Frosted Liquid Glass Lebar & Elegan */}
+        <div className="rounded-3xl p-5 md:p-6 mb-4 liquid-glass relative overflow-hidden transition-all shadow-sm">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 relative z-10">
             <div>
               <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 block">
-                Inbox Transaksi
+                Inbox Transaksi Realtime
               </span>
-              <p className="text-xl font-black text-slate-900 dark:text-white tracking-tight leading-none mt-1">
-                {pendingTally.totalCount} Perlu Diverifikasi
+              <p className="text-xl md:text-2xl font-black text-slate-900 dark:text-white tracking-tight leading-none mt-1">
+                {pendingTally.totalCount} Transaksi Menunggu Verifikasi
               </p>
             </div>
 
-            <button
-              onClick={() => setIsManualModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 active:scale-95 text-white font-bold text-xs shadow-md shadow-sky-500/25 transition-all border border-white/40"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Tambah Manual</span>
-            </button>
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Tombol Konfirmasi Semua Otomatis jika ada yang terkategori */}
+              {autoCategorizedTransactions.length > 0 && (
+                <button
+                  onClick={handleApproveAllAutoCategorized}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 active:scale-95 text-white font-bold text-xs shadow-md shadow-emerald-500/25 transition-all border border-white/30"
+                  title="Konfirmasi sekaligus seluruh transaksi yang kategorinya sudah terdeteksi otomatis"
+                >
+                  <CheckCheck className="w-4 h-4" />
+                  <span>Konfirmasi Semua ({autoCategorizedTransactions.length})</span>
+                </button>
+              )}
+
+              <button
+                onClick={() => setIsManualModalOpen(true)}
+                className="inline-flex items-center gap-1 px-3 py-2 rounded-2xl liquid-pill text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white font-bold text-xs border border-slate-200/80 dark:border-white/10 transition-all"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Input Manual</span>
+              </button>
+            </div>
           </div>
 
-          {/* Quick Stat Bar — Frosted Pills */}
-          <div className="grid grid-cols-2 gap-2 pt-3 border-t border-slate-200/80 dark:border-white/10 relative z-10">
-            <div className="flex items-center gap-2.5 p-2.5 rounded-2xl liquid-pill bg-white/70 dark:bg-white/5 border border-white/90 dark:border-white/10">
-              <div className="p-1.5 rounded-xl bg-rose-100 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200">
-                <ArrowUpRight className="w-3.5 h-3.5" />
+          {/* Quick Stat Bar — Frosted Pills di Desktop Berdampingan */}
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5 pt-4 mt-4 border-t border-slate-200/80 dark:border-white/10 relative z-10">
+            <div className="flex items-center gap-3 p-3 rounded-2xl liquid-pill bg-white/70 dark:bg-white/5 border border-white/90 dark:border-white/10">
+              <div className="p-2 rounded-xl bg-rose-100 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200">
+                <ArrowUpRight className="w-4 h-4" />
               </div>
               <div className="min-w-0">
                 <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 block leading-none mb-1">
                   Pending Keluar
                 </span>
-                <p className="text-xs font-black text-slate-900 dark:text-white truncate">
+                <p className="text-sm md:text-base font-black text-slate-900 dark:text-white truncate">
                   {formatRupiah(pendingTally.outTotal)}
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-2.5 p-2.5 rounded-2xl liquid-pill bg-white/70 dark:bg-white/5 border border-white/90 dark:border-white/10">
-              <div className="p-1.5 rounded-xl bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200">
-                <ArrowDownLeft className="w-3.5 h-3.5" />
+            <div className="flex items-center gap-3 p-3 rounded-2xl liquid-pill bg-white/70 dark:bg-white/5 border border-white/90 dark:border-white/10">
+              <div className="p-2 rounded-xl bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200">
+                <ArrowDownLeft className="w-4 h-4" />
               </div>
               <div className="min-w-0">
                 <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 block leading-none mb-1">
                   Pending Masuk
                 </span>
-                <p className="text-xs font-black text-slate-900 dark:text-white truncate">
+                <p className="text-sm md:text-base font-black text-slate-900 dark:text-white truncate">
                   {formatRupiah(pendingTally.inTotal)}
+                </p>
+              </div>
+            </div>
+
+            <div className="hidden md:flex items-center gap-3 p-3 rounded-2xl liquid-pill bg-white/70 dark:bg-white/5 border border-white/90 dark:border-white/10">
+              <div className="p-2 rounded-xl bg-sky-100 dark:bg-sky-950/40 text-sky-600 dark:text-sky-400 border border-sky-200">
+                <Sparkles className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 block leading-none mb-1">
+                  Terkategori Otomatis
+                </span>
+                <p className="text-sm md:text-base font-black text-slate-900 dark:text-white truncate">
+                  {autoCategorizedTransactions.length} dari {transactions.length}
                 </p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Area Unggah & Paste Bukti Screenshot (Vision AI) */}
-        <div className="mb-4">
-          <ScreenshotUploadZone
-            defaultOwner={userRole}
-            onTransactionCreated={fetchData}
-          />
-        </div>
-
         {/* Filter Bar Chips dengan Teks Kontras Tinggi */}
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar mb-3.5 py-0.5 pr-4">
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar mb-4 py-1">
           <button
             onClick={() => setFilterOwner('all')}
-            className={`px-3.5 py-1.5 rounded-2xl text-xs font-bold whitespace-nowrap transition-all border ${
+            className={`px-4 py-2 rounded-2xl text-xs font-bold whitespace-nowrap transition-all border ${
               filterOwner === 'all'
                 ? 'bg-gradient-to-r from-sky-500 to-blue-600 text-white border-transparent shadow-md shadow-sky-500/25'
                 : 'liquid-pill text-slate-800 dark:text-slate-200 hover:bg-white border-slate-200/80 dark:border-white/10'
@@ -480,7 +537,7 @@ export default function InboxPage() {
           </button>
           <button
             onClick={() => setFilterOwner('suami')}
-            className={`px-3.5 py-1.5 rounded-2xl text-xs font-bold whitespace-nowrap transition-all border ${
+            className={`px-4 py-2 rounded-2xl text-xs font-bold whitespace-nowrap transition-all border ${
               filterOwner === 'suami'
                 ? 'bg-gradient-to-r from-sky-500 to-blue-600 text-white border-transparent shadow-md shadow-sky-500/25'
                 : 'liquid-pill text-slate-800 dark:text-slate-200 hover:bg-white border-slate-200/80 dark:border-white/10'
@@ -490,7 +547,7 @@ export default function InboxPage() {
           </button>
           <button
             onClick={() => setFilterOwner('istri')}
-            className={`px-3.5 py-1.5 rounded-2xl text-xs font-bold whitespace-nowrap transition-all border ${
+            className={`px-4 py-2 rounded-2xl text-xs font-bold whitespace-nowrap transition-all border ${
               filterOwner === 'istri'
                 ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white border-transparent shadow-md shadow-pink-500/25'
                 : 'liquid-pill text-slate-800 dark:text-slate-200 hover:bg-white border-slate-200/80 dark:border-white/10'
@@ -501,7 +558,7 @@ export default function InboxPage() {
           {pendingTally.reviewCount > 0 && (
             <button
               onClick={() => setFilterOwner('review')}
-              className={`px-3.5 py-1.5 rounded-2xl text-xs font-bold whitespace-nowrap transition-all border ${
+              className={`px-4 py-2 rounded-2xl text-xs font-bold whitespace-nowrap transition-all border ${
                 filterOwner === 'review'
                   ? 'bg-amber-500 text-white border-amber-500 shadow-md shadow-amber-500/25'
                   : 'bg-amber-100/90 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200 border-amber-300 dark:border-amber-800/60 backdrop-blur-md'
@@ -514,27 +571,27 @@ export default function InboxPage() {
           <button
             onClick={fetchData}
             title="Refresh data"
-            className="p-2 rounded-2xl liquid-pill text-slate-700 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white ml-auto shrink-0 transition-all border border-slate-200/80 dark:border-white/10"
+            className="p-2.5 rounded-2xl liquid-pill text-slate-700 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white ml-auto shrink-0 transition-all border border-slate-200/80 dark:border-white/10"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
         </div>
 
-        {/* Daftar Transaksi Liquid Glass Cards */}
+        {/* Daftar Transaksi Menyamping / Grid Responsif */}
         {filteredTransactions.length === 0 ? (
-          <div className="text-center py-16 px-6 rounded-3xl liquid-glass border border-white/80 dark:border-white/10 my-4 shadow-sm">
-            <div className="w-14 h-14 rounded-2xl bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 flex items-center justify-center mx-auto mb-3 shadow-sm border border-emerald-300/60 dark:border-emerald-800/40">
-              <CheckCircle2 className="w-7 h-7" />
+          <div className="text-center py-20 px-6 rounded-3xl liquid-glass border border-white/80 dark:border-white/10 my-4 shadow-sm">
+            <div className="w-16 h-16 rounded-2xl bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 flex items-center justify-center mx-auto mb-3 shadow-sm border border-emerald-300/60 dark:border-emerald-800/40">
+              <CheckCircle2 className="w-8 h-8" />
             </div>
-            <h3 className="font-extrabold text-slate-900 dark:text-white text-base">
+            <h3 className="font-extrabold text-slate-900 dark:text-white text-lg">
               Semua Transaksi Sudah Beres! 🎉
             </h3>
-            <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 max-w-xs mx-auto leading-relaxed font-medium">
-              Tidak ada transaksi yang menunggu kategorisasi. Cukup screenshot bukti pembayaran di HP Anda atau tempel gambar di atas untuk mencatat transaksi baru.
+            <p className="text-xs md:text-sm text-slate-600 dark:text-slate-400 mt-1.5 max-w-md mx-auto leading-relaxed font-medium">
+              Tidak ada transaksi yang menunggu verifikasi. Saat Anda mengambil screenshot di HP Android, MacroDroid akan otomatis mengirimkannya ke sini secara realtime.
             </p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-3.5">
             {filteredTransactions.map((tx) => (
               <TransactionCard
                 key={tx.id}
@@ -548,6 +605,12 @@ export default function InboxPage() {
           </div>
         )}
       </main>
+
+      {/* Pop-up Halus (Realtime Toast Notification) */}
+      <RealtimeToast
+        data={incomingToast}
+        onClose={() => setIncomingToast(null)}
+      />
 
       {/* Modal Tambah Manual */}
       <ManualTransactionModal

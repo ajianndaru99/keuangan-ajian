@@ -152,35 +152,49 @@ export function suggestCategoryForMerchant(
 
   const keywordMap: Array<{ keywords: string[]; categoryMatch: string }> = [
     {
-      keywords: ['kopi', 'coffee', 'cafe', 'kafe', 'resto', 'warung', 'mie', 'bakso', 'makan', 'food', 'snack', 'roti', 'kfc', 'mcd'],
+      keywords: [
+        'kopi', 'coffee', 'cafe', 'kafe', 'resto', 'warung', 'mie', 'bakso', 'makan', 'food',
+        'snack', 'roti', 'kfc', 'mcd', 'hokben', 'solaria', 'chatime', 'mixue', 'kenangan',
+        'geprek', 'sate', 'nasi', 'bakmi', 'minuman', 'kuliner', 'ayam'
+      ],
       categoryMatch: 'Makan & Jajan',
     },
     {
-      keywords: ['indomaret', 'alfamart', 'superindo', 'sayur', 'pasar', 'hypermart', 'beras', 'lotte'],
+      keywords: [
+        'indomaret', 'alfamart', 'superindo', 'sayur', 'sayuran', 'buah', 'pasar', 'hypermart',
+        'beras', 'lotte', 'toko sakti', 'dunia buah', 'kelontong', 'sembako', 'daging', 'ikan',
+        'mart', 'minimarket', 'grosir', 'bumbu'
+      ],
       categoryMatch: 'Belanja Dapur',
     },
     {
-      keywords: ['spbu', 'pertamina', 'shell', 'bensin', 'solar', 'parkir', 'gojek', 'grab', 'toll', 'tol '],
+      keywords: [
+        'spbu', 'pertamina', 'shell', 'bensin', 'solar', 'parkir', 'gojek', 'grab', 'maxim',
+        'bluebird', 'toll', 'tol ', 'kereta', 'kai', 'krl', 'mrt'
+      ],
       categoryMatch: 'Transportasi/Bensin',
     },
     {
-      keywords: ['pln', 'listrik', 'pdam', 'air', 'indihome', 'wifi', 'bpjs', 'pulsa', 'paket data', 'telkomsel', 'indosat', 'xl'],
+      keywords: [
+        'pln', 'listrik', 'pdam', 'air', 'indihome', 'wifi', 'biznet', 'bpjs', 'pulsa',
+        'paket data', 'telkomsel', 'indosat', 'xl', 'tri', 'smartfren'
+      ],
       categoryMatch: 'Tagihan & Utilitas',
     },
     {
-      keywords: ['shopee', 'tokopedia', 'tiktok', 'lazada', 'zalora', 'blibli'],
+      keywords: ['shopee', 'tokopedia', 'tiktok', 'lazada', 'zalora', 'blibli', 'bukalapak'],
       categoryMatch: 'Belanja Online',
     },
     {
-      keywords: ['apotek', 'obat', 'kimia farma', 'k24', 'rs ', 'rumah sakit', 'klinik', 'dokter', 'halodoc'],
+      keywords: ['apotek', 'obat', 'kimia farma', 'k24', 'rs ', 'rumah sakit', 'klinik', 'dokter', 'halodoc', 'alodokter'],
       categoryMatch: 'Kesehatan',
     },
     {
-      keywords: ['bioskop', 'cinema', 'xxi', 'cgv', 'netflix', 'spotify', 'steam', 'game', 'playstation'],
+      keywords: ['bioskop', 'cinema', 'xxi', 'cgv', 'netflix', 'spotify', 'steam', 'game', 'playstation', 'wisata'],
       categoryMatch: 'Hiburan',
     },
     {
-      keywords: ['susu', 'pampers', 'popok', 'sekolah', 'les', 'buku anak'],
+      keywords: ['susu', 'pampers', 'popok', 'sekolah', 'les', 'buku anak', 'mainan', 'baby'],
       categoryMatch: 'Anak',
     },
     {

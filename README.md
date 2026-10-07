@@ -38,7 +38,7 @@ dashboard-keuangan-keluarga/
 │   │   ├── login/page.tsx                         # Autentikasi Pengguna
 │   │   └── rekap/page.tsx                         # Rekap Mingguan & Bulanan
 │   ├── components/                                # Komponen UI
-│   │   └── inbox/ScreenshotUploadZone.tsx         # Dropzone & Clipboard Paste Struk
+│   │   └── inbox/RealtimeToast.tsx                # Notifikasi Pop-up Halus Transaksi Realtime
 │   └── lib/
 │       └── vision/gemini.ts                       # Core Vision AI Multimodal Extractor
 ├── scripts/

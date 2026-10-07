@@ -32,6 +32,7 @@ interface CategoryChipListProps {
   categories: Category[];
   transactionDirection: 'out' | 'in';
   onSelect: (categoryId: string) => void;
+  selectedCategoryId?: string | null;
   disabled?: boolean;
 }
 
@@ -53,6 +54,7 @@ export default function CategoryChipList({
   categories,
   transactionDirection,
   onSelect,
+  selectedCategoryId,
   disabled = false,
 }: CategoryChipListProps) {
   const targetType = transactionDirection === 'in' ? 'income' : 'expense';
@@ -63,16 +65,28 @@ export default function CategoryChipList({
     <div className="w-full">
       <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 pr-2">
         {displayList.map((cat) => {
+          const isSelected = selectedCategoryId === cat.id;
           const IconComponent = (cat.icon && iconMap[cat.icon]) || Tag;
           return (
             <button
               key={cat.id}
               onClick={() => onSelect(cat.id)}
               disabled={disabled}
-              className="group shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-bold bg-white/90 dark:bg-slate-800/70 text-slate-900 dark:text-slate-100 hover:bg-gradient-to-r hover:from-sky-500 hover:to-blue-600 hover:text-white dark:hover:text-white active:scale-95 transition-all border border-slate-200/90 dark:border-white/10 shadow-sm disabled:opacity-50"
+              className={`group shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-bold transition-all border shadow-sm disabled:opacity-50 active:scale-95 ${
+                isSelected
+                  ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white border-transparent shadow-md shadow-emerald-500/25'
+                  : 'bg-white/90 dark:bg-slate-800/70 text-slate-900 dark:text-slate-100 hover:bg-gradient-to-r hover:from-sky-500 hover:to-blue-600 hover:text-white dark:hover:text-white border-slate-200/90 dark:border-white/10'
+              }`}
             >
-              <IconComponent className="w-3.5 h-3.5 group-hover:scale-110 transition-transform text-slate-600 group-hover:text-white dark:text-slate-300" />
+              <IconComponent
+                className={`w-3.5 h-3.5 transition-transform ${
+                  isSelected
+                    ? 'text-white'
+                    : 'text-slate-600 group-hover:text-white dark:text-slate-300'
+                }`}
+              />
               <span className="whitespace-nowrap">{cat.name}</span>
+              {isSelected && <span className="text-[10px] ml-0.5">✨</span>}
             </button>
           );
         })}
