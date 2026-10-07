@@ -14,12 +14,7 @@ import ManageAccountModal, { AccountData } from '@/components/accounts/ManageAcc
 import {
   Wallet,
   Plus,
-  ArrowDownLeft,
-  ArrowUpRight,
   RefreshCw,
-  Info,
-  ShieldCheck,
-  CheckCircle2,
 } from 'lucide-react';
 import { formatRupiah } from '@/lib/utils';
 
@@ -105,7 +100,6 @@ export default function AccountsPage() {
   const [displayName, setDisplayName] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [filterOwner, setFilterOwner] = useState<'all' | 'suami' | 'istri'>('all');
-  const [isCloudConnected, setIsCloudConnected] = useState(false);
 
   // State Modal
   const [adjustingAccount, setAdjustingAccount] = useState<AccountBalanceItem | null>(null);
@@ -115,7 +109,6 @@ export default function AccountsPage() {
   // Ambil saldo akun dari database Supabase (RPC get_account_balances)
   const fetchAccounts = useCallback(async () => {
     if (!isSupabaseConfigured()) {
-      setIsCloudConnected(false);
       return;
     }
 
@@ -142,7 +135,6 @@ export default function AccountsPage() {
 
           if (!balanceError && balanceData && balanceData.length > 0) {
             setAccounts(balanceData);
-            setIsCloudConnected(true);
           } else {
             // Fallback query tabel accounts biasa jika RPC belum dijalankan
             const { data: rawAccounts } = await supabase
@@ -158,7 +150,6 @@ export default function AccountsPage() {
                   current_balance: Number(a.balance || a.initial_balance || 0),
                 }))
               );
-              setIsCloudConnected(true);
             }
           }
         }

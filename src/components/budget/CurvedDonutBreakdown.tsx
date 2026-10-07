@@ -7,7 +7,7 @@
 
 import { useState } from 'react';
 import { formatRupiah } from '@/lib/utils';
-import { Sparkles, ArrowUpRight } from 'lucide-react';
+import { ArrowUpRight } from 'lucide-react';
 
 export interface BudgetSegment {
   id: string;

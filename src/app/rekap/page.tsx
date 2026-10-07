@@ -20,8 +20,6 @@ import {
   DateRange,
 } from '@/lib/date-utils';
 import {
-  BarChart3,
-  Filter,
   RefreshCw,
   FolderOpen,
 } from 'lucide-react';

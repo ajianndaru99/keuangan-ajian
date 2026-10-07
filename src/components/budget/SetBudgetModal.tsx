@@ -6,7 +6,7 @@
 // ==============================================================================
 
 import { useState, useEffect } from 'react';
-import { X, Target, Check } from 'lucide-react';
+import { X, Check } from 'lucide-react';
 import { formatRupiah } from '@/lib/utils';
 import { CategoryBudgetItem } from './CategoryBudgetCard';
 

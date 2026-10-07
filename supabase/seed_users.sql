@@ -1,7 +1,12 @@
 -- ==============================================================================
 -- SEED SCRIPT: supabase/seed_users.sql
--- Membuat Akun Pengguna Supabase Auth & Profil Suami-Istri
--- Password default: password123
+-- PERINGATAN KEAMANAN (PENTING):
+-- Berkas ini HANYA untuk lingkungan pengujian LOKAL (supabase start).
+-- JANGAN PERNAH menjalankan skrip ini di database Supabase PRODUKSI dengan kredensial default!
+-- Jika akun ini sudah terlanjur dibuat di Supabase Cloud:
+-- 1. Segera ubah password via Supabase Auth Dashboard -> Users -> Reset Password.
+-- 2. Atau hapus akun default ini dan buat user asli dengan email & password aman.
+-- Password default lokal: password123
 -- ==============================================================================
 
 do $$

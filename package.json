@@ -1,7 +1,7 @@
 {
   "name": "dashboard-keuangan-keluarga",
   "version": "1.0.0",
-  "description": "Dashboard Keuangan Keluarga berbasis notifikasi otomatis MacroDroid",
+  "description": "Dashboard Keuangan Keluarga berbasis penangkap screenshot bukti transfer otomatis (Vision AI Google Gemini)",
   "type": "module",
   "scripts": {
     "dev": "next dev -p 3001",
@@ -15,7 +15,9 @@
     "finance",
     "supabase",
     "nextjs",
-    "notification-parser"
+    "vision-ai",
+    "gemini",
+    "macrodroid"
   ],
   "author": "Antigravity",
   "license": "MIT",

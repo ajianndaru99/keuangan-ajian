@@ -7,7 +7,7 @@
 
 import { useState } from 'react';
 import { formatRupiah } from '@/lib/utils';
-import { Download, TrendingUp, CreditCard } from 'lucide-react';
+import { Download } from 'lucide-react';
 
 interface FinancialSpeedometerArcProps {
   monthlyLimit?: number;

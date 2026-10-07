@@ -5,7 +5,7 @@
 // Ringkasan Total Pengeluaran, Pemasukan, Selisih, & Transaksi Pending
 // ==============================================================================
 
-import { ArrowUpRight, ArrowDownLeft, TrendingUp, TrendingDown, Minus, AlertCircle } from 'lucide-react';
+import { ArrowDownLeft, TrendingUp, TrendingDown, Minus, AlertCircle } from 'lucide-react';
 import { formatRupiah } from '@/lib/utils';
 
 interface FinancialSummaryCardProps {
@@ -40,7 +40,7 @@ export default function FinancialSummaryCard({
       <div className="flex items-start justify-between gap-3 mb-4">
         <div>
           <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 block">
-            Pengeluaran Periode Ini
+            Pengeluaran {periodLabel}
           </span>
           <p className="text-2xl font-black text-rose-600 dark:text-rose-400 tracking-tight leading-none mt-1">
             {formatRupiah(totalExpense)}

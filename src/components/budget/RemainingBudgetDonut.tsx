@@ -5,7 +5,6 @@
 // Widget Donut Ring Sisa Budget mengadopsi referensi Foto 1 (Layar 2 & 3)
 // ==============================================================================
 
-import { useMemo } from 'react';
 import { formatRupiah } from '@/lib/utils';
 import { Calendar, Clock } from 'lucide-react';
 

@@ -11,8 +11,7 @@ import RemainingBudgetDonut from '@/components/budget/RemainingBudgetDonut';
 import CategoryBudgetCard, { CategoryBudgetItem } from '@/components/budget/CategoryBudgetCard';
 import CurvedDonutBreakdown, { BudgetSegment } from '@/components/budget/CurvedDonutBreakdown';
 import SetBudgetModal from '@/components/budget/SetBudgetModal';
-import { Plus, Sliders, PieChart, Sparkles } from 'lucide-react';
-import { formatRupiah } from '@/lib/utils';
+import { Plus, Sliders, PieChart } from 'lucide-react';
 
 // Data alokasi anggaran bawaan keluarga
 const initialBudgets: CategoryBudgetItem[] = [

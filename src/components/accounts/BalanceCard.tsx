@@ -5,7 +5,7 @@
 // Kartu Saldo Akun dengan Soft Pastel Liquid Glass & Aksi Koreksi
 // ==============================================================================
 
-import { Building2, Smartphone, Calculator, Settings2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Building2, Smartphone, Calculator, Settings2 } from 'lucide-react';
 import { formatRupiah } from '@/lib/utils';
 import { AccountData } from './ManageAccountModal';
 

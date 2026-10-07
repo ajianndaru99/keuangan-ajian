@@ -10,15 +10,14 @@ import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
 import Navbar from '@/components/Navbar';
 import TransactionCard, { TransactionItem } from '@/components/inbox/TransactionCard';
 import ManualTransactionModal, { AccountOption } from '@/components/inbox/ManualTransactionModal';
+import ScreenshotUploadZone from '@/components/inbox/ScreenshotUploadZone';
 import { Category } from '@/components/inbox/CategoryChipList';
 import {
-  Inbox as InboxIcon,
   Plus,
   CheckCircle2,
   ArrowDownLeft,
   ArrowUpRight,
   RefreshCw,
-  Info,
   X,
   Sparkles,
 } from 'lucide-react';
@@ -454,6 +453,14 @@ export default function InboxPage() {
           </div>
         </div>
 
+        {/* Area Unggah & Paste Bukti Screenshot (Vision AI) */}
+        <div className="mb-4">
+          <ScreenshotUploadZone
+            defaultOwner={userRole}
+            onTransactionCreated={fetchData}
+          />
+        </div>
+
         {/* Filter Bar Chips dengan Teks Kontras Tinggi */}
         <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar mb-3.5 py-0.5 pr-4">
           <button
@@ -518,7 +525,7 @@ export default function InboxPage() {
               Semua Transaksi Sudah Beres! 🎉
             </h3>
             <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 max-w-xs mx-auto leading-relaxed font-medium">
-              Tidak ada transaksi yang menunggu kategorisasi. Transaksi baru dari notifikasi HP akan otomatis masuk ke sini.
+              Tidak ada transaksi yang menunggu kategorisasi. Cukup screenshot bukti pembayaran di HP Anda atau tempel gambar di atas untuk mencatat transaksi baru.
             </p>
           </div>
         ) : (

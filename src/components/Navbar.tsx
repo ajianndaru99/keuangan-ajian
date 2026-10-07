@@ -9,7 +9,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { Inbox, Wallet, BarChart3, Target, Settings, LogOut, Sun, Moon } from 'lucide-react';
+import { Inbox, Wallet, BarChart3, Target, LogOut, Sun, Moon } from 'lucide-react';
 
 interface NavbarProps {
   userRole?: 'suami' | 'istri';

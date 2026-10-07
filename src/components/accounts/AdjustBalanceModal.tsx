@@ -6,7 +6,7 @@
 // ==============================================================================
 
 import { useState } from 'react';
-import { X, Check, Calculator, ArrowRight } from 'lucide-react';
+import { X, Check, Calculator } from 'lucide-react';
 import { formatRupiah } from '@/lib/utils';
 
 interface AdjustBalanceModalProps {

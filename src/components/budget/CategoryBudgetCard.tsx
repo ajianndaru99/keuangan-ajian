@@ -6,7 +6,7 @@
 // ==============================================================================
 
 import { formatRupiah } from '@/lib/utils';
-import { MoreVertical, ChevronRight } from 'lucide-react';
+import { MoreVertical } from 'lucide-react';
 
 export interface CategoryBudgetItem {
   id: string;

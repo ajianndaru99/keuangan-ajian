@@ -13,7 +13,6 @@ import {
   Edit3,
   Building2,
   Smartphone,
-  ArrowUpRight,
   ArrowDownLeft,
 } from 'lucide-react';
 import { formatRupiah, formatRelativeWIB } from '@/lib/utils';
