@@ -79,6 +79,17 @@ export async function POST(req: NextRequest) {
     let sourceDevice: 'suami' | 'istri' = loggedInRole || 'suami';
     let isDryRun = false;
 
+    // Ambil parameter source_device dan dry_run dari query URL atau header (sangat memudahkan MacroDroid)
+    const reqUrl = new URL(req.url);
+    const queryDev = reqUrl.searchParams.get('source_device') || req.headers.get('x-source-device');
+    if (queryDev && ['suami', 'istri'].includes(queryDev.toLowerCase())) {
+      sourceDevice = queryDev.toLowerCase() as 'suami' | 'istri';
+    }
+    const queryDry = reqUrl.searchParams.get('dry_run') || req.headers.get('x-dry-run');
+    if (queryDry) {
+      isDryRun = queryDry === 'true' || queryDry === '1';
+    }
+
     if (contentType.includes('multipart/form-data')) {
       const formData = await req.formData();
       const file = (formData.get('file') || formData.get('image') || formData.get('screenshot')) as File | null;
@@ -96,11 +107,16 @@ export async function POST(req: NextRequest) {
       }
 
       const rawDry = formData.get('dry_run');
-      isDryRun = rawDry === 'true' || rawDry === '1';
+      if (rawDry) isDryRun = rawDry === 'true' || rawDry === '1';
 
       const arrayBuffer = await file.arrayBuffer();
       imageBuffer = Buffer.from(arrayBuffer);
       mimeType = file.type || 'image/jpeg';
+    } else if (contentType.startsWith('image/') || contentType.includes('application/octet-stream')) {
+      // Dukungan langsung Raw Binary Image (mode Berkas image/jpeg dari MacroDroid)
+      const arrayBuffer = await req.arrayBuffer();
+      imageBuffer = Buffer.from(arrayBuffer);
+      mimeType = contentType.split(';')[0].trim() || 'image/jpeg';
     } else {
       // JSON body (base64)
       const body = await req.json().catch(() => ({}));
@@ -121,7 +137,7 @@ export async function POST(req: NextRequest) {
       if (body.source_device && ['suami', 'istri'].includes(String(body.source_device).toLowerCase())) {
         sourceDevice = String(body.source_device).toLowerCase() as 'suami' | 'istri';
       }
-      isDryRun = Boolean(body.dry_run);
+      if (body.dry_run !== undefined) isDryRun = Boolean(body.dry_run);
     }
 
     if (!imageBuffer || imageBuffer.length === 0) {
