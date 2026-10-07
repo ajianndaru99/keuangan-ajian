@@ -221,85 +221,100 @@ export async function analyzeReceiptWithVision(
   options?: { apiKey?: string; modelName?: string }
 ): Promise<ReceiptVisionResult> {
   const apiKey = options?.apiKey || process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY;
-  const modelName = options?.modelName || process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+  const preferredModel = options?.modelName || process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 
   // Jika API key tidak dikonfigurasi (misalnya saat pengujian unit offline tanpa internet)
   if (!apiKey) {
-    // Cek apakah buffer memiliki metadata uji mock
     return generateFallbackMockReceipt(imageBuffer);
   }
 
   const base64Data = Buffer.from(imageBuffer).toString('base64');
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+  const candidateModels = [preferredModel, 'gemini-2.5-flash', 'gemini-flash-latest'];
+  const uniqueModels = [...new Set(candidateModels)];
 
-  const payload = {
-    contents: [
-      {
-        parts: [
-          { text: VISION_RECEIPT_SYSTEM_PROMPT },
+  let lastError: Error | null = null;
+
+  for (const model of uniqueModels) {
+    try {
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+      const payload = {
+        contents: [
           {
-            inline_data: {
-              mime_type: mimeType,
-              data: base64Data,
-            },
+            parts: [
+              { text: VISION_RECEIPT_SYSTEM_PROMPT },
+              {
+                inline_data: {
+                  mime_type: mimeType,
+                  data: base64Data,
+                },
+              },
+            ],
           },
         ],
-      },
-    ],
-    generationConfig: {
-      response_mime_type: 'application/json',
-      temperature: 0.1,
-    },
-  };
+        generationConfig: {
+          response_mime_type: 'application/json',
+          temperature: 0.1,
+        },
+      };
 
-  const response = await fetch(endpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Gemini Vision API error (HTTP ${response.status}): ${errorText}`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        if (response.status === 404 && model !== uniqueModels[uniqueModels.length - 1]) {
+          continue;
+        }
+        throw new Error(`Gemini Vision API (${model}) HTTP ${response.status}: ${errorText}`);
+      }
+
+      const resultData = await response.json();
+      const rawCandidateText = resultData.candidates?.[0]?.content?.parts?.[0]?.text;
+
+      if (!rawCandidateText) {
+        throw new Error(`Gemini Vision (${model}) tidak mengembalikan teks konten transaksi.`);
+      }
+
+      const cleanJsonText = extractJsonFromResponse(rawCandidateText);
+      let parsed: Partial<ReceiptVisionResult>;
+
+      try {
+        parsed = JSON.parse(cleanJsonText);
+      } catch (_err) {
+        throw new Error(`Gagal mem-parsing keluaran JSON dari Gemini Vision: ${cleanJsonText}`);
+      }
+
+      // Normalisasi dan sanitasi data hasil analisis
+      const accountNormalized = normalizeAccount(parsed.accountName || '');
+      const amount = Math.max(0, Math.round(Number(parsed.amount) || 0));
+      const adminFee = Math.max(0, Math.round(Number(parsed.adminFee) || 0));
+      const totalAmount = Math.max(0, Math.round(Number(parsed.totalAmount) || amount + adminFee));
+
+      return {
+        isValidReceipt: Boolean(parsed.isValidReceipt),
+        amount: amount,
+        adminFee: adminFee,
+        totalAmount: totalAmount,
+        direction: parsed.direction === 'in' ? 'in' : 'out',
+        merchant: (parsed.merchant || 'Merchant / Transaksi').trim(),
+        accountName: accountNormalized.name,
+        accountType: accountNormalized.type,
+        transactionDate: parsed.transactionDate || new Date().toISOString(),
+        referenceNumber: (parsed.referenceNumber || '').trim(),
+        senderName: parsed.senderName ? parsed.senderName.trim() : undefined,
+        rawSummary: parsed.rawSummary || `Transaksi ${accountNormalized.name} Rp ${totalAmount.toLocaleString('id-ID')}`,
+        confidenceScore: parsed.confidenceScore ?? 0.9,
+      };
+    } catch (err: any) {
+      lastError = err;
+    }
   }
 
-  const resultData = await response.json();
-  const rawCandidateText = resultData.candidates?.[0]?.content?.parts?.[0]?.text;
-
-  if (!rawCandidateText) {
-    throw new Error('Gemini Vision tidak mengembalikan teks konten transaksi.');
-  }
-
-  const cleanJsonText = extractJsonFromResponse(rawCandidateText);
-  let parsed: Partial<ReceiptVisionResult>;
-
-  try {
-    parsed = JSON.parse(cleanJsonText);
-  } catch (err) {
-    throw new Error(`Gagal mem-parsing keluaran JSON dari Gemini Vision: ${cleanJsonText}`);
-  }
-
-  // Normalisasi dan sanitasi data hasil analisis
-  const accountNormalized = normalizeAccount(parsed.accountName || '');
-  const amount = Math.max(0, Math.round(Number(parsed.amount) || 0));
-  const adminFee = Math.max(0, Math.round(Number(parsed.adminFee) || 0));
-  const totalAmount = Math.max(0, Math.round(Number(parsed.totalAmount) || amount + adminFee));
-
-  return {
-    isValidReceipt: Boolean(parsed.isValidReceipt),
-    amount: amount,
-    adminFee: adminFee,
-    totalAmount: totalAmount,
-    direction: parsed.direction === 'in' ? 'in' : 'out',
-    merchant: (parsed.merchant || 'Merchant / Transaksi').trim(),
-    accountName: accountNormalized.name,
-    accountType: accountNormalized.type,
-    transactionDate: parsed.transactionDate || new Date().toISOString(),
-    referenceNumber: (parsed.referenceNumber || '').trim(),
-    senderName: parsed.senderName ? parsed.senderName.trim() : undefined,
-    rawSummary: parsed.rawSummary || `Transaksi ${accountNormalized.name} Rp ${totalAmount.toLocaleString('id-ID')}`,
-    confidenceScore: parsed.confidenceScore ?? 0.9,
-  };
+  throw lastError || new Error('Gagal memproses gambar melalui semua model Gemini Vision.');
 }
 
 /**
