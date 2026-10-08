@@ -2,31 +2,141 @@
 @tailwind components;
 @tailwind utilities;
 
+/* =======================================================
+   STRUKTUR UNTUK TEKS ANGKA DAN SIMBOL AGAR RAPI (TABULAR)
+   ======================================================= */
+.angka-keuangan {
+  font-family: var(--font-roboto), 'Roboto', 'Inter', sans-serif;
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* =======================================================
+   PENGATURAN WARNA DENGAN KODE WARNA PILIHAN ANDA 
+   ======================================================= */
+
+/* DEFAULT: MODE TERANG (LIGHT MODE) */
 :root {
-  color-scheme: light;
-  --background: #f8fafc;
-  --foreground: #0f172a;
+  --bg-main: #e0f7f1;        /* Mint Sangat Terang */
+  --bg-card: #b2e0d4;        /* Mint Lembut untuk kotak tabel/card */
+  --text-main: #004d00;      /* Hijau Tua untuk Angka & Teks Utama */
+  --text-muted: #007a33;     /* Hijau Finansial untuk label */
+  --accent-color: #007a33;   /* Warna tombol utama */
+  --border-color: #b2e0d4;   /* Border lembut */
+  --background: #e0f7f1;
+  --foreground: #004d00;
+
+  /* WARNA KHUSUS FINANSIAL */
+  --color-expense: #DC3545;  /* Merah bata yang diredam (Muted Red) */
+  --color-income: #198754;   /* Hijau teduh finansial */
+  --color-gridline: #E2E8F0; /* Abu-abu sangat tipis untuk garis kisi tabel */
+}
+
+/* MODE GELAP (DARK MODE) */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-main: #05140f;      /* Midnight Mint (Dasar layar gelap & nyaman) */
+    --bg-card: #0b241d;      /* Hijau Tua untuk wadah tabel/komponen */
+    --text-main: #e0f7f1;    /* Mint Sangat Terang menjadi warna Angka/Judul */
+    --text-muted: #b2e0d4;   /* Mint Lembut menjadi label sekunder */
+    --accent-color: #66b3a1; /* Mint Cerah menjadi tombol utama yang stand-out */
+    --border-color: #0b241d;
+    --background: #05140f;
+    --foreground: #e0f7f1;
+    --color-expense: #DC3545;
+    --color-income: #198754;
+    --color-gridline: rgba(226, 232, 240, 0.15);
+  }
 }
 
 html.light {
-  color-scheme: light;
-  --background: #f8fafc;
-  --foreground: #0f172a;
+  --bg-main: #e0f7f1;
+  --bg-card: #b2e0d4;
+  --text-main: #004d00;
+  --text-muted: #007a33;
+  --accent-color: #007a33;
+  --border-color: #b2e0d4;
+  --background: #e0f7f1;
+  --foreground: #004d00;
+  --color-expense: #DC3545;
+  --color-income: #198754;
+  --color-gridline: #E2E8F0;
 }
 
 html.dark {
-  color-scheme: dark;
-  --background: #0f172a;
-  --foreground: #f8fafc;
+  --bg-main: #05140f;
+  --bg-card: #0b241d;
+  --text-main: #e0f7f1;
+  --text-muted: #b2e0d4;
+  --accent-color: #66b3a1;
+  --border-color: #0b241d;
+  --background: #05140f;
+  --foreground: #e0f7f1;
+  --color-expense: #DC3545;
+  --color-income: #198754;
+  --color-gridline: rgba(226, 232, 240, 0.15);
 }
 
 body {
-  color: var(--foreground);
-  background-color: var(--background);
+  background-color: var(--bg-main);
+  color: var(--text-main);
+  font-family: var(--font-roboto), 'Roboto', sans-serif;
+  transition: background-color 0.3s, color 0.3s;
   font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-tap-highlight-color: transparent;
+}
+
+/* FONT: JUDUL MENGGUNAKAN INTER */
+h1, h2, h3, h4, h5, h6, .font-heading {
+  font-family: var(--font-inter), 'Inter', sans-serif;
+  letter-spacing: -0.015em;
+}
+
+/* FONT: TEKS ISI & DATA MENGGUNAKAN ROBOTO */
+p, span, div, input, button, select, textarea, table, td, th {
+  font-family: var(--font-roboto), 'Roboto', sans-serif;
+}
+
+/* CONTOH ELEMEN LAMIRAN */
+.card-anggaran {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  padding: 20px;
+  border-radius: 12px;
+}
+
+.tombol-simpan {
+  background-color: var(--accent-color);
+  color: var(--bg-main);
+  font-weight: bold;
+}
+
+/* WARNA KHUSUS FINANSIAL */
+.text-expense {
+  color: #DC3545 !important;
+}
+.bg-expense {
+  background-color: #DC3545 !important;
+}
+.border-expense {
+  border-color: #DC3545 !important;
+}
+
+.text-income {
+  color: #198754 !important;
+}
+.bg-income {
+  background-color: #198754 !important;
+}
+.border-income {
+  border-color: #198754 !important;
+}
+
+/* GARIS KISI TABEL TIPIS */
+.gridline-border {
+  border-color: #E2E8F0 !important;
 }
 
 /* ==============================================================================

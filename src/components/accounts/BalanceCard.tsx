@@ -120,23 +120,23 @@ export default function BalanceCard({
       </div>
 
       {/* Saldo Terkini */}
-      <div className="my-3 p-3.5 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-slate-200/50 dark:border-white/5 shadow-2xs">
-        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block mb-0.5">
+      <div className="my-3 p-3.5 rounded-2xl bg-white/70 border border-[#E2E8F0] shadow-2xs">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-0.5">
           Estimasi Saldo Riil
         </span>
-        <p className={`text-lg font-black tracking-tight ${theme.amount}`}>
+        <p className={`text-lg font-black tracking-tight angka-keuangan ${theme.amount}`}>
           {formatMaskedRupiah(account.current_balance, isHideBalance)}
         </p>
-        <span className="text-[10px] text-slate-500 dark:text-slate-400 block mt-1">
+        <span className="text-[10px] text-slate-500 block mt-1 angka-keuangan">
           Saldo Awal: {formatMaskedRupiah(account.initial_balance, isHideBalance)}
         </span>
       </div>
 
       {/* Tombol Aksi */}
-      <div className="flex items-center gap-2 pt-2 border-t border-slate-200/60 dark:border-white/5">
+      <div className="flex items-center gap-2 pt-2 border-t border-[#E2E8F0]">
         <button
           onClick={() => onOpenAdjust(account)}
-          className="flex-1 py-1.5 px-3 rounded-xl border border-slate-200 dark:border-white/10 bg-white/90 dark:bg-white/5 hover:bg-white text-slate-800 dark:text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-2xs"
+          className="flex-1 py-1.5 px-3 rounded-xl border border-[#E2E8F0] bg-white/90 hover:bg-white text-slate-800 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-2xs"
         >
           <Calculator className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
           <span>Koreksi Saldo</span>

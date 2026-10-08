@@ -88,11 +88,11 @@ export default function TransactionTable({
   };
 
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800/80 shadow-2xs overflow-hidden">
+    <div className="bg-white rounded-3xl border border-[#E2E8F0] shadow-2xs overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-left text-xs">
-          {/* Header Tabel Monexa */}
-          <thead className="bg-slate-50/70 dark:bg-slate-800/40 text-slate-400 dark:text-slate-500 border-b border-slate-100 dark:border-slate-800 font-semibold select-none">
+          {/* Header Tabel Monexa dengan Gridline Tipis #E2E8F0 */}
+          <thead className="bg-[#e0f7f1]/40 text-[#007a33] border-b border-[#E2E8F0] font-semibold select-none">
             <tr>
               <th className="py-3.5 px-4 font-semibold whitespace-nowrap">Transaction Date</th>
               <th className="py-3.5 px-4 font-semibold whitespace-nowrap">Transaction Name</th>
@@ -103,8 +103,8 @@ export default function TransactionTable({
             </tr>
           </thead>
 
-          {/* Baris Data Transaksi Monexa */}
-          <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+          {/* Baris Data Transaksi Monexa dengan Garis Kisi Tipis #E2E8F0 */}
+          <tbody className="divide-y divide-[#E2E8F0]">
             {transactions.map((tx) => {
               const isIncome = tx.direction === 'in';
               const isPending = tx.status === 'pending';
@@ -112,22 +112,22 @@ export default function TransactionTable({
               return (
                 <tr
                   key={tx.id}
-                  className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors group cursor-pointer"
+                  className="hover:bg-[#e0f7f1]/30 transition-colors group cursor-pointer"
                   onClick={() => onSelectTransaction(tx)}
                 >
                   {/* 1. Transaction Date */}
-                  <td className="py-3.5 px-4 font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                  <td className="py-3.5 px-4 font-medium text-slate-500 whitespace-nowrap angka-keuangan">
                     {formatTableDate(tx.transaction_date)}
                   </td>
 
-                  {/* 2. Transaction Name (Ikon Bundar Pastel + Nama Merchant + Sumber Akun) */}
+                  {/* 2. Transaction Name */}
                   <td className="py-3.5 px-4 whitespace-nowrap">
                     <div className="flex items-center gap-3">
                       <div
                         className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 border ${
                           isIncome
-                            ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border-emerald-200/80 dark:border-emerald-800/80'
-                            : 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border-rose-200/80 dark:border-rose-800/80'
+                            ? 'bg-[#e8f5e9] text-[#198754] border-[#198754]/30'
+                            : 'bg-[#fde8ea] text-[#DC3545] border-[#DC3545]/30'
                         }`}
                       >
                         {isIncome ? (
@@ -138,17 +138,17 @@ export default function TransactionTable({
                       </div>
 
                       <div className="min-w-0">
-                        <span className="font-bold text-slate-900 dark:text-white block truncate max-w-xs">
+                        <span className="font-bold text-[#004d00] block truncate max-w-xs">
                           {tx.merchant || 'Transaksi Digital'}
                         </span>
-                        <div className="flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
+                        <div className="flex items-center gap-1.5 text-[11px] text-slate-400 mt-0.5">
                           <span>{tx.account_name || 'Rekening'}</span>
                           <span>•</span>
                           <span className="capitalize">{tx.source_device || 'Suami'}</span>
                           {tx.category_name && (
                             <>
                               <span>•</span>
-                              <span className="text-indigo-600 dark:text-indigo-400 font-medium">
+                              <span className="text-[#007a33] font-medium">
                                 {tx.category_name}
                               </span>
                             </>
@@ -158,33 +158,33 @@ export default function TransactionTable({
                     </div>
                   </td>
 
-                  {/* 3. Total Amount */}
+                  {/* 3. Total Amount (Muted Red #DC3545 vs Hijau Teduh #198754) */}
                   <td className="py-3.5 px-4 font-bold tracking-tight whitespace-nowrap">
                     <span
-                      className={
+                      className={`angka-keuangan font-bold ${
                         isIncome
-                          ? 'text-emerald-600 dark:text-emerald-400'
-                          : 'text-slate-900 dark:text-white'
-                      }
+                          ? 'text-[#198754]'
+                          : 'text-[#DC3545]'
+                      }`}
                     >
                       {isIncome ? '+' : '-'}
                       {formatMaskedRupiah(tx.amount, isHideBalance)}
                     </span>
                   </td>
 
-                  {/* 4. Status Badge Kapsul Pastel */}
+                  {/* 4. Status Badge Kapsul */}
                   <td className="py-3.5 px-4 whitespace-nowrap">
                     {isPending ? (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200/80 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/80 animate-pulse">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200 animate-pulse">
                         <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
                         Pending Review
                       </span>
                     ) : isIncome ? (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/80 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/80">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#e8f5e9] text-[#198754] border border-[#198754]/30">
                         Income
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200/80 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/80">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#fde8ea] text-[#DC3545] border border-[#DC3545]/30">
                         Expense
                       </span>
                     )}

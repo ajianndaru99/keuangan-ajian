@@ -289,60 +289,62 @@ export default function AnalyticsPage() {
           </div>
         </div>
 
-        {/* 4 KARTU METRIK UTAMA ANALITIK (WARNA PASTEL CERAH & TEKS TAJAM) */}
+        {/* 4 KARTU METRIK UTAMA ANALITIK (SPESIFIKASI WARNA FINANSIAL) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-          {/* 1. Pengeluaran (Pastel Coral/Rose) */}
-          <div className="p-4 rounded-3xl bg-rose-50/90 border border-rose-200/90 shadow-xs">
-            <div className="flex items-center justify-between text-rose-800 mb-1.5">
+          {/* 1. Pengeluaran (Merah Bata Muted #DC3545) */}
+          <div className="p-4 rounded-3xl bg-[#fde8ea]/70 border border-[#DC3545]/25 shadow-xs">
+            <div className="flex items-center justify-between text-[#DC3545] mb-1.5">
               <span className="text-[11px] font-bold uppercase tracking-wider">Total Pengeluaran</span>
-              <ArrowUpRight className="w-4 h-4 text-rose-600" />
+              <ArrowUpRight className="w-4 h-4 text-[#DC3545]" />
             </div>
-            <p className="text-xl font-extrabold text-rose-950 tracking-tight">
+            <p className="text-xl font-extrabold text-[#DC3545] tracking-tight angka-keuangan">
               -{formatRupiah(totalExpense)}
             </p>
-            <span className="text-[10px] text-rose-700/80 mt-1 block font-medium">
+            <span className="text-[10px] text-slate-500 mt-1 block font-medium">
               Akumulasi belanja & tagihan terverifikasi
             </span>
           </div>
 
-          {/* 2. Pemasukan (Pastel Mint) */}
-          <div className="p-4 rounded-3xl bg-emerald-50/90 border border-emerald-200/90 shadow-xs">
-            <div className="flex items-center justify-between text-emerald-800 mb-1.5">
+          {/* 2. Pemasukan (Hijau Teduh #198754) */}
+          <div className="p-4 rounded-3xl bg-[#e8f5e9]/70 border border-[#198754]/25 shadow-xs">
+            <div className="flex items-center justify-between text-[#198754] mb-1.5">
               <span className="text-[11px] font-bold uppercase tracking-wider">Total Pemasukan</span>
-              <ArrowDownLeft className="w-4 h-4 text-emerald-600" />
+              <ArrowDownLeft className="w-4 h-4 text-[#198754]" />
             </div>
-            <p className="text-xl font-extrabold text-emerald-950 tracking-tight">
+            <p className="text-xl font-extrabold text-[#198754] tracking-tight angka-keuangan">
               +{formatRupiah(totalIncome)}
             </p>
-            <span className="text-[10px] text-emerald-700/80 mt-1 block font-medium">
+            <span className="text-[10px] text-slate-500 mt-1 block font-medium">
               Gaji & transfer masuk terverifikasi
             </span>
           </div>
 
-          {/* 3. Rata-rata Harian (Pastel Sky) */}
-          <div className="p-4 rounded-3xl bg-sky-50/90 border border-sky-200/90 shadow-xs">
-            <div className="flex items-center justify-between text-sky-800 mb-1.5">
+          {/* 3. Rata-rata Harian */}
+          <div className="p-4 rounded-3xl bg-white border border-[#b2e0d4] shadow-xs">
+            <div className="flex items-center justify-between text-[#007a33] mb-1.5">
               <span className="text-[11px] font-bold uppercase tracking-wider">Rata-rata Pengeluaran</span>
-              <TrendingDown className="w-4 h-4 text-sky-600" />
+              <TrendingDown className="w-4 h-4 text-[#007a33]" />
             </div>
-            <p className="text-xl font-extrabold text-sky-950 tracking-tight">
+            <p className="text-xl font-extrabold text-[#004d00] tracking-tight angka-keuangan">
               {formatRupiah(dailyAverage)}/hari
             </p>
-            <span className="text-[10px] text-sky-700/80 mt-1 block font-medium">
+            <span className="text-[10px] text-slate-500 mt-1 block font-medium">
               Rata-rata belanja per hari ({activeDateInfo.totalDays} hari)
             </span>
           </div>
 
-          {/* 4. Arus Kas Bersih (Pastel Lavender) */}
-          <div className="p-4 rounded-3xl bg-purple-50/90 border border-purple-200/90 shadow-xs">
-            <div className="flex items-center justify-between text-purple-800 mb-1.5">
+          {/* 4. Arus Kas Bersih (Net) */}
+          <div className="p-4 rounded-3xl bg-white border border-[#b2e0d4] shadow-xs">
+            <div className="flex items-center justify-between text-[#007a33] mb-1.5">
               <span className="text-[11px] font-bold uppercase tracking-wider">Arus Kas Bersih (Net)</span>
-              <Wallet className="w-4 h-4 text-purple-600" />
+              <Wallet className="w-4 h-4 text-[#007a33]" />
             </div>
-            <p className={`text-xl font-extrabold tracking-tight ${netDifference >= 0 ? 'text-purple-950' : 'text-rose-950'}`}>
+            <p className={`text-xl font-extrabold tracking-tight angka-keuangan ${
+              netDifference >= 0 ? 'text-[#198754]' : 'text-[#DC3545]'
+            }`}>
               {netDifference >= 0 ? '+' : ''}{formatRupiah(netDifference)}
             </p>
-            <span className="text-[10px] text-purple-700/80 mt-1 block font-medium">
+            <span className="text-[10px] text-slate-500 mt-1 block font-medium">
               {netDifference >= 0 ? 'Surplus tabungan bulan ini' : 'Defisit kas bulan ini'}
             </span>
           </div>

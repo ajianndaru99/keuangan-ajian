@@ -72,14 +72,14 @@ function CustomBarTooltip({ active, payload }: any) {
           )}
         </div>
         <div className="space-y-1">
-          <div className="flex items-center justify-between text-rose-600 font-bold">
+          <div className="flex items-center justify-between text-[#DC3545] font-bold">
             <span>Pengeluaran:</span>
-            <span>{formatRupiah(item.expenseAmount)}</span>
+            <span className="angka-keuangan">{formatRupiah(item.expenseAmount)}</span>
           </div>
           {item.incomeAmount > 0 && (
-            <div className="flex items-center justify-between text-emerald-600 font-bold">
+            <div className="flex items-center justify-between text-[#198754] font-bold">
               <span>Pemasukan:</span>
-              <span>{formatRupiah(item.incomeAmount)}</span>
+              <span className="angka-keuangan">{formatRupiah(item.incomeAmount)}</span>
             </div>
           )}
         </div>
@@ -100,15 +100,15 @@ export default function MonthlyPeakSpendingChart({
 
   return (
     <div className="space-y-4">
-      {/* 1. KARTU GRAFIK 1 BULAN (BERSIH & PASTEL) */}
-      <div className="rounded-3xl p-6 bg-white border border-slate-200 shadow-xs">
+      {/* 1. KARTU GRAFIK 1 BULAN (BERSIH DENGAN GRIDLINE TIPIS #E2E8F0) */}
+      <div className="rounded-3xl p-6 bg-white border border-[#E2E8F0] shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
           <div>
             <div className="flex items-center gap-2">
-              <div className="p-2 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100">
+              <div className="p-2 rounded-xl bg-[#e0f7f1] text-[#007a33] border border-[#b2e0d4]">
                 <TrendingUp className="w-4 h-4" />
               </div>
-              <h3 className="text-base font-extrabold text-slate-900 tracking-tight">
+              <h3 className="text-base font-extrabold text-[#004d00] tracking-tight">
                 Grafik Penggunaan Selama 1 Bulan ({monthName})
               </h3>
             </div>
@@ -120,16 +120,16 @@ export default function MonthlyPeakSpendingChart({
           {peakInsight.dateStr && (
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold">
               <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-              <span>Titik Tertinggi: {formatRupiah(peakInsight.totalExpense)}</span>
+              <span>Titik Tertinggi: <strong className="angka-keuangan">{formatRupiah(peakInsight.totalExpense)}</strong></span>
             </div>
           )}
         </div>
 
-        {/* Visualisasi Grafik Batang Recharts */}
+        {/* Visualisasi Grafik Batang Recharts dengan Gridline #E2E8F0 */}
         <div className="h-64 w-full -ml-2 my-2">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={data} margin={{ top: 15, right: 10, left: -10, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
               <XAxis
                 dataKey="dayLabel"
                 stroke="#64748b"
@@ -157,7 +157,7 @@ export default function MonthlyPeakSpendingChart({
                       entry.isPeak && entry.expenseAmount > 0
                         ? '#f59e0b' // Warna Emas Amber untuk Titik Tertinggi
                         : entry.expenseAmount > 0
-                        ? '#fb7185' // Warna Pastel Coral untuk hari dengan transaksi
+                        ? '#DC3545' // Warna Merah Bata Muted #DC3545 untuk Hari Pengeluaran Biasa
                         : '#f1f5f9' // Warna Soft Gray untuk hari nol pengeluaran
                     }
                   />
@@ -168,13 +168,13 @@ export default function MonthlyPeakSpendingChart({
         </div>
 
         {/* Legend Informasi Grafik */}
-        <div className="flex items-center justify-center gap-6 pt-3 border-t border-slate-100 text-xs">
+        <div className="flex items-center justify-center gap-6 pt-3 border-t border-[#E2E8F0] text-xs">
           <div className="flex items-center gap-2">
             <span className="w-3 h-3 rounded-md bg-amber-500 shadow-xs" />
             <span className="text-slate-700 font-bold">Titik Pengeluaran Tertinggi (Peak)</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="w-3 h-3 rounded-md bg-rose-400" />
+            <span className="w-3 h-3 rounded-md bg-[#DC3545]" />
             <span className="text-slate-600 font-medium">Hari Pengeluaran Biasa</span>
           </div>
           <div className="flex items-center gap-2">
@@ -184,17 +184,17 @@ export default function MonthlyPeakSpendingChart({
         </div>
       </div>
 
-      {/* 2. KARTU PENJELASAN CERDAS KENAPA GRAFIK TINGGI PADA HARI ITU (PASTEL AMBER WARM) */}
-      <div className="rounded-3xl p-6 bg-amber-50/90 border border-amber-200/90 shadow-xs">
+      {/* 2. KARTU PENJELASAN CERDAS KENAPA GRAFIK TINGGI PADA HARI ITU */}
+      <div className="rounded-3xl p-6 bg-white/90 border border-[#b2e0d4] shadow-xs">
         <div className="flex items-center gap-2.5 mb-3">
           <div className="p-2 rounded-xl bg-amber-100 text-amber-800 border border-amber-200">
             <Sparkles className="w-5 h-5" />
           </div>
           <div>
-            <h4 className="text-base font-extrabold text-amber-950 tracking-tight">
+            <h4 className="text-base font-extrabold text-[#004d00] tracking-tight">
               Analisis Mendalam: Kenapa Pengeluaran Tertinggi pada Hari Itu?
             </h4>
-            <span className="text-xs text-amber-800/80 font-medium">
+            <span className="text-xs text-[#007a33] font-medium">
               Evaluasi faktor pemicu lonjakan pengeluaran keluarga di bulan {monthName}
             </span>
           </div>
@@ -203,14 +203,14 @@ export default function MonthlyPeakSpendingChart({
         {hasExpenseData && peakInsight.dateStr ? (
           <div className="space-y-4 pt-1">
             {/* Ringkasan Fakta */}
-            <div className="p-4 rounded-2xl bg-white/90 border border-amber-200/70 shadow-2xs space-y-2">
+            <div className="p-4 rounded-2xl bg-[#e0f7f1]/30 border border-[#E2E8F0] shadow-2xs space-y-2">
               <p className="text-xs text-slate-800 leading-relaxed">
                 Puncak pengeluaran keluarga pada bulan ini jatuh pada{' '}
-                <strong className="text-amber-900 font-extrabold underline">
+                <strong className="text-[#004d00] font-extrabold underline">
                   {peakInsight.formattedDate}
                 </strong>{' '}
                 dengan total pengeluaran mencapai{' '}
-                <strong className="text-rose-600 font-extrabold">
+                <strong className="text-[#DC3545] font-extrabold angka-keuangan">
                   {formatRupiah(peakInsight.totalExpense)}
                 </strong>
                 .
@@ -218,10 +218,10 @@ export default function MonthlyPeakSpendingChart({
 
               {peakInsight.percentageAboveAverage > 0 && (
                 <div className="flex items-center gap-2 text-xs text-slate-700">
-                  <ArrowUpRight className="w-4 h-4 text-rose-600 shrink-0" />
+                  <ArrowUpRight className="w-4 h-4 text-[#DC3545] shrink-0" />
                   <span>
                     Angka ini{' '}
-                    <strong className="text-rose-600 font-extrabold">
+                    <strong className="text-[#DC3545] font-extrabold angka-keuangan">
                       +{peakInsight.percentageAboveAverage}%
                     </strong>{' '}
                     lebih tinggi dari rata-rata harian ({formatRupiah(peakInsight.dailyAverage)}/hari).
@@ -232,7 +232,7 @@ export default function MonthlyPeakSpendingChart({
 
             {/* Rincian Transaksi Pemicu Lonjakan */}
             <div>
-              <span className="text-xs font-bold text-amber-950 block mb-2.5">
+              <span className="text-xs font-bold text-[#004d00] block mb-2.5">
                 Daftar Transaksi Pemicu Lonjakan pada Tanggal Tersebut:
               </span>
 
@@ -241,23 +241,23 @@ export default function MonthlyPeakSpendingChart({
                   {peakInsight.transactions.map((tx) => (
                     <div
                       key={tx.id}
-                      className="p-3 rounded-2xl bg-white/90 border border-amber-200/70 flex items-center justify-between gap-3 text-xs shadow-2xs"
+                      className="p-3 rounded-2xl bg-white border border-[#E2E8F0] flex items-center justify-between gap-3 text-xs shadow-2xs"
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="w-8 h-8 rounded-xl bg-rose-100 text-rose-700 border border-rose-200 flex items-center justify-center shrink-0">
+                        <div className="w-8 h-8 rounded-xl bg-[#fde8ea] text-[#DC3545] border border-[#DC3545]/20 flex items-center justify-center shrink-0">
                           <Receipt className="w-4 h-4" />
                         </div>
                         <div className="min-w-0">
                           <span className="font-bold text-slate-900 block truncate">
                             {tx.merchant}
                           </span>
-                          <span className="text-[11px] text-indigo-600 font-medium">
+                          <span className="text-[11px] text-[#007a33] font-medium">
                             {tx.categoryName || 'Pengeluaran'}
                           </span>
                         </div>
                       </div>
 
-                      <span className="font-extrabold text-rose-600 shrink-0">
+                      <span className="font-extrabold text-[#DC3545] shrink-0 angka-keuangan">
                         -{formatRupiah(tx.amount)}
                       </span>
                     </div>

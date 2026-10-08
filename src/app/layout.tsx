@@ -1,5 +1,19 @@
 import type { Metadata, Viewport } from 'next';
+import { Inter, Roboto } from 'next/font/google';
 import './globals.css';
+
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-inter',
+  display: 'swap',
+});
+
+const roboto = Roboto({
+  weight: ['300', '400', '500', '700', '900'],
+  subsets: ['latin'],
+  variable: '--font-roboto',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   title: 'Dashboard Keuangan Keluarga',
@@ -41,7 +55,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="min-h-screen text-slate-900 dark:text-slate-100 font-sans selection:bg-sky-400 selection:text-white antialiased">
+      <body className={`${roboto.variable} ${inter.variable} font-sans min-h-screen text-[var(--text-main)] bg-[var(--bg-main)] selection:bg-[#007a33] selection:text-white antialiased`}>
         <div className="min-h-screen flex flex-col">
           {children}
         </div>

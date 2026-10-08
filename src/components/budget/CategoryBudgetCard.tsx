@@ -32,17 +32,16 @@ export default function CategoryBudgetCard({
     : 0;
 
   // Variasi warna progress bar berdasarkan tingkat pemakaian
-  // Variasi warna progress bar berdasarkan tingkat pemakaian
   const getProgressColor = () => {
-    if (percentage >= 90) return 'bg-rose-500';
+    if (percentage >= 90) return 'bg-[#DC3545]';
     if (percentage >= 70) return 'bg-amber-500';
-    return 'bg-emerald-500';
+    return 'bg-[#198754]';
   };
 
   const getBadgeColor = () => {
-    if (percentage >= 90) return 'text-rose-800 bg-rose-100 border-rose-200';
+    if (percentage >= 90) return 'text-[#DC3545] bg-[#fde8ea] border-[#DC3545]/30';
     if (percentage >= 70) return 'text-amber-800 bg-amber-100 border-amber-200';
-    return 'text-emerald-800 bg-emerald-100 border-emerald-200';
+    return 'text-[#198754] bg-[#e8f5e9] border-[#198754]/30';
   };
 
   // Tema warna pastel cerah & teks tajam berdasarkan kategori
@@ -50,7 +49,7 @@ export default function CategoryBudgetCard({
     const n = item.name.toLowerCase();
     if (n.includes('dapur')) {
       return {
-        card: 'bg-emerald-50/90 border-emerald-200/90 text-emerald-950',
+        card: 'bg-emerald-50/90 border-[#E2E8F0] text-emerald-950',
         avatarBg: 'bg-emerald-100 text-emerald-800 border-emerald-200',
         title: 'text-emerald-950',
         sub: 'text-emerald-700/80',
@@ -60,7 +59,7 @@ export default function CategoryBudgetCard({
     }
     if (n.includes('makan') || n.includes('jajan')) {
       return {
-        card: 'bg-rose-50/90 border-rose-200/90 text-rose-950',
+        card: 'bg-rose-50/90 border-[#E2E8F0] text-rose-950',
         avatarBg: 'bg-rose-100 text-rose-800 border-rose-200',
         title: 'text-rose-950',
         sub: 'text-rose-700/80',
@@ -70,7 +69,7 @@ export default function CategoryBudgetCard({
     }
     if (n.includes('transportasi') || n.includes('bensin')) {
       return {
-        card: 'bg-amber-50/90 border-amber-200/90 text-amber-950',
+        card: 'bg-amber-50/90 border-[#E2E8F0] text-amber-950',
         avatarBg: 'bg-amber-100 text-amber-800 border-amber-200',
         title: 'text-amber-950',
         sub: 'text-amber-700/80',
@@ -80,7 +79,7 @@ export default function CategoryBudgetCard({
     }
     if (n.includes('tagihan') || n.includes('utilitas')) {
       return {
-        card: 'bg-sky-50/90 border-sky-200/90 text-sky-950',
+        card: 'bg-sky-50/90 border-[#E2E8F0] text-sky-950',
         avatarBg: 'bg-sky-100 text-sky-800 border-sky-200',
         title: 'text-sky-950',
         sub: 'text-sky-700/80',
@@ -90,7 +89,7 @@ export default function CategoryBudgetCard({
     }
     if (n.includes('rumah')) {
       return {
-        card: 'bg-purple-50/90 border-purple-200/90 text-purple-950',
+        card: 'bg-purple-50/90 border-[#E2E8F0] text-purple-950',
         avatarBg: 'bg-purple-100 text-purple-800 border-purple-200',
         title: 'text-purple-950',
         sub: 'text-purple-700/80',
@@ -100,7 +99,7 @@ export default function CategoryBudgetCard({
     }
     if (n.includes('jalan')) {
       return {
-        card: 'bg-indigo-50/90 border-indigo-200/90 text-indigo-950',
+        card: 'bg-indigo-50/90 border-[#E2E8F0] text-indigo-950',
         avatarBg: 'bg-indigo-100 text-indigo-800 border-indigo-200',
         title: 'text-indigo-950',
         sub: 'text-indigo-700/80',
@@ -110,7 +109,7 @@ export default function CategoryBudgetCard({
     }
     if (n.includes('mendadak')) {
       return {
-        card: 'bg-pink-50/90 border-pink-200/90 text-pink-950',
+        card: 'bg-pink-50/90 border-[#E2E8F0] text-pink-950',
         avatarBg: 'bg-pink-100 text-pink-800 border-pink-200',
         title: 'text-pink-950',
         sub: 'text-pink-700/80',
@@ -119,7 +118,7 @@ export default function CategoryBudgetCard({
       };
     }
     return {
-      card: 'bg-slate-50/90 border-slate-200/90 text-slate-900',
+      card: 'bg-slate-50/90 border-[#E2E8F0] text-slate-900',
       avatarBg: 'bg-slate-200 text-slate-800 border-slate-300',
       title: 'text-slate-900',
       sub: 'text-slate-600',
@@ -139,7 +138,7 @@ export default function CategoryBudgetCard({
             <span>{item.emoji || '📁'}</span>
           </div>
           <div>
-            <h3 className={`text-sm font-bold leading-tight ${theme.title}`}>
+            <h3 className={`text-sm font-bold leading-tight font-heading ${theme.title}`}>
               {item.name}
             </h3>
             <p className={`text-[11px] font-medium ${theme.sub}`}>
@@ -149,7 +148,7 @@ export default function CategoryBudgetCard({
         </div>
 
         <div className="flex items-center gap-1.5">
-          <span className={`text-[11px] font-extrabold px-2.5 py-0.5 rounded-full border ${getBadgeColor()}`}>
+          <span className={`text-[11px] font-extrabold px-2.5 py-0.5 rounded-full border angka-keuangan ${getBadgeColor()}`}>
             {percentage}%
           </span>
           {onEdit && (
@@ -166,16 +165,16 @@ export default function CategoryBudgetCard({
 
       {/* Target & Baris Nominal */}
       <div className="mb-2 flex items-baseline justify-between">
-        <span className={`text-xs font-bold ${theme.statVal}`}>
-          Target: {formatRupiah(item.budgetLimit)}
+        <span className="text-xs font-bold text-slate-700">
+          Target: <strong className="angka-keuangan">{formatRupiah(item.budgetLimit)}</strong>
         </span>
-        <span className={`text-[11px] font-semibold ${theme.sub}`}>
+        <span className={`text-[11px] font-semibold ${percentage >= 100 ? 'text-[#DC3545]' : theme.sub}`}>
           {percentage >= 100 ? 'Melebihi Limit' : `${formatRupiah(remaining)} sisa`}
         </span>
       </div>
 
       {/* Horizontal Progress Bar */}
-      <div className="w-full h-2 rounded-full bg-slate-200/70 overflow-hidden p-0.5 border border-slate-300/40 mb-3">
+      <div className="w-full h-2 rounded-full bg-slate-200/70 overflow-hidden p-0.5 border border-[#E2E8F0] mb-3">
         <div
           className={`h-full rounded-full transition-all duration-700 ease-out ${getProgressColor()}`}
           style={{ width: `${percentage}%` }}
@@ -183,16 +182,16 @@ export default function CategoryBudgetCard({
       </div>
 
       {/* Split Stats: Sisa vs Terpakai */}
-      <div className="grid grid-cols-2 gap-2 pt-2.5 border-t border-slate-200/60 text-xs">
+      <div className="grid grid-cols-2 gap-2 pt-2.5 border-t border-[#E2E8F0] text-xs">
         <div>
           <span className={`text-[10px] block font-medium ${theme.statLabel}`}>Terpakai Bulan Ini</span>
-          <p className={`font-extrabold mt-0.5 ${theme.statVal}`}>
+          <p className="font-extrabold mt-0.5 text-[#DC3545] angka-keuangan">
             {formatRupiah(item.spentAmount)}
           </p>
         </div>
         <div className="text-right">
           <span className={`text-[10px] block font-medium ${theme.statLabel}`}>Sisa Anggaran</span>
-          <p className={`font-extrabold mt-0.5 ${theme.statVal}`}>
+          <p className={`font-extrabold mt-0.5 angka-keuangan ${remaining > 0 ? 'text-[#198754]' : 'text-[#DC3545]'}`}>
             {formatRupiah(remaining)}
           </p>
         </div>

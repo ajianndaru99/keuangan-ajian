@@ -10,8 +10,33 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        background: 'var(--background)',
-        foreground: 'var(--foreground)',
+        background: 'var(--bg-main)',
+        foreground: 'var(--text-main)',
+        'bg-main': 'var(--bg-main)',
+        'bg-card': 'var(--bg-card)',
+        'text-main': 'var(--text-main)',
+        'text-muted': 'var(--text-muted)',
+        'accent': 'var(--accent-color)',
+        'gridline': '#E2E8F0',
+        expense: {
+          light: '#fde8ea',
+          DEFAULT: '#DC3545',
+          muted: '#DC3545',
+          dark: '#b02a37',
+        },
+        income: {
+          light: '#e8f5e9',
+          DEFAULT: '#198754',
+          soft: '#198754',
+          dark: '#146c43',
+        },
+        mint: {
+          bg: '#e0f7f1',
+          card: '#b2e0d4',
+          main: '#004d00',
+          muted: '#007a33',
+          accent: '#007a33',
+        },
         pastel: {
           sky: {
             light: '#e0f2fe',
@@ -39,23 +64,16 @@ const config: Config = {
             dark: '#ea580c',
           },
         },
-        expense: {
-          light: '#ffe4e6',
-          DEFAULT: '#f43f5e',
-          dark: '#e11d48',
-        },
-        income: {
-          light: '#dcfce7',
-          DEFAULT: '#10b981',
-          dark: '#059669',
-        }
       },
       borderRadius: {
         '2xl': '1.25rem',
         '3xl': '1.75rem',
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        sans: ['var(--font-roboto)', 'Roboto', 'sans-serif'],
+        heading: ['var(--font-inter)', 'Inter', 'sans-serif'],
+        inter: ['var(--font-inter)', 'Inter', 'sans-serif'],
+        roboto: ['var(--font-roboto)', 'Roboto', 'sans-serif'],
       },
       backdropBlur: {
         '2xl': '24px',
