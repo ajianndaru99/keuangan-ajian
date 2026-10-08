@@ -64,6 +64,31 @@ export function formatDateWIB(dateStr: string | Date): string {
 }
 
 /**
+ * Format tanggal dan waktu lengkap bahasa Indonesia di zona waktu Asia/Jakarta
+ * Contoh: "Kamis, 8 Oktober 2026 • 10:45 WIB"
+ */
+export function formatFullWIB(dateStr: string | Date): string {
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return '-';
+
+  const dateFormatted = new Intl.DateTimeFormat('id-ID', {
+    timeZone: 'Asia/Jakarta',
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(d);
+
+  const timeFormatted = new Intl.DateTimeFormat('id-ID', {
+    timeZone: 'Asia/Jakarta',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(d);
+
+  return `${dateFormatted} • ${timeFormatted} WIB`;
+}
+
+/**
  * Mendapatkan format waktu ramah pengguna (contoh: "Hari ini, 14:20 WIB" atau "Kemarin")
  */
 export function formatRelativeWIB(dateStr: string | Date): string {

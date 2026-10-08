@@ -2,11 +2,11 @@
 
 // ==============================================================================
 // COMPONENT: src/components/inbox/ManualTransactionModal.tsx
-// Formulir tambah transaksi manual — Soft Pastel Liquid Glass
+// Formulir Tambah Transaksi Manual: Desain Minimalis & Profesional
 // ==============================================================================
 
 import { useState } from 'react';
-import { X, Plus } from 'lucide-react';
+import { X, Plus, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { formatRupiah } from '@/lib/utils';
 import { Category } from './CategoryChipList';
 
@@ -82,45 +82,47 @@ export default function ManualTransactionModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="w-full max-w-sm rounded-3xl liquid-glass border border-white/80 dark:border-white/10 p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+    <div
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="w-full max-w-sm rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <span className="p-2 rounded-2xl bg-sky-100/70 dark:bg-sky-950/50 text-sky-600 dark:text-sky-400 border border-sky-200/50">
-              <Plus className="w-4 h-4" />
-            </span>
-            <h3 className="font-bold text-slate-800 dark:text-white text-base">
-              Tambah Transaksi Manual
-            </h3>
-          </div>
+          <h3 className="font-bold text-slate-900 dark:text-white text-base">
+            Tambah Transaksi Manual
+          </h3>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-full text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-white/10 transition-all"
+            className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Pemilik Rekening */}
+          {/* Pemilik Transaksi */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
               Pemilik Transaksi
             </label>
-            <div className="grid grid-cols-2 gap-2 p-1 rounded-2xl liquid-pill bg-white/40 dark:bg-slate-800/40">
+            <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-slate-100 dark:bg-slate-800">
               <button
                 type="button"
                 onClick={() => {
                   setDevice('suami');
                   setSelectedAccountId('');
                 }}
-                className={`py-2 text-xs font-semibold rounded-xl transition-all ${
+                className={`py-2 text-xs font-semibold rounded-lg transition-colors ${
                   device === 'suami'
-                    ? 'bg-gradient-to-r from-sky-400 to-indigo-400 text-white shadow-sm shadow-sky-400/20'
+                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
                     : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
                 }`}
               >
-                👨 Suami
+                Suami
               </button>
               <button
                 type="button"
@@ -128,66 +130,73 @@ export default function ManualTransactionModal({
                   setDevice('istri');
                   setSelectedAccountId('');
                 }}
-                className={`py-2 text-xs font-semibold rounded-xl transition-all ${
+                className={`py-2 text-xs font-semibold rounded-lg transition-colors ${
                   device === 'istri'
-                    ? 'bg-gradient-to-r from-pink-400 to-rose-400 text-white shadow-sm shadow-pink-400/20'
+                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
                     : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
                 }`}
               >
-                👩 Istri
+                Istri
               </button>
             </div>
           </div>
 
-          {/* Pilihan Akun Bank / E-Wallet */}
+          {/* Jenis Transaksi */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-              Rekening / E-Wallet
+              Jenis Transaksi
+            </label>
+            <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-slate-100 dark:bg-slate-800">
+              <button
+                type="button"
+                onClick={() => setDirection('out')}
+                className={`py-2 text-xs font-semibold rounded-lg transition-colors flex items-center justify-center gap-1.5 ${
+                  direction === 'out'
+                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
+                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
+                }`}
+              >
+                <ArrowUpRight className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
+                <span>Pengeluaran</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setDirection('in')}
+                className={`py-2 text-xs font-semibold rounded-lg transition-colors flex items-center justify-center gap-1.5 ${
+                  direction === 'in'
+                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
+                    : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
+                }`}
+              >
+                <ArrowDownLeft className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span>Pemasukan</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Akun Rekening */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+              Rekening / Sumber Dana
             </label>
             <select
               value={activeAccountId}
               onChange={(e) => setSelectedAccountId(e.target.value)}
               required
-              className="w-full px-4 py-2.5 rounded-2xl liquid-pill bg-white/60 dark:bg-black/30 border border-white/80 dark:border-white/10 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400 text-slate-800 dark:text-white"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-white text-slate-900 dark:text-white"
             >
               {filteredAccounts.map((acc) => (
-                <option key={acc.id} value={acc.id} className="bg-white dark:bg-slate-900 text-slate-800 dark:text-white">
+                <option key={acc.id} value={acc.id}>
                   {acc.name} ({acc.type === 'bank' ? 'Bank' : 'E-Wallet'})
                 </option>
               ))}
             </select>
           </div>
 
-          {/* Toggle Arah Transaksi */}
-          <div className="grid grid-cols-2 gap-2 p-1 rounded-2xl liquid-pill bg-white/40 dark:bg-slate-800/40">
-            <button
-              type="button"
-              onClick={() => setDirection('out')}
-              className={`py-2 text-xs font-semibold rounded-xl transition-all ${
-                direction === 'out'
-                  ? 'bg-gradient-to-r from-rose-400 to-pink-500 text-white shadow-sm shadow-rose-500/20'
-                  : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
-              }`}
-            >
-              💸 Pengeluaran
-            </button>
-            <button
-              type="button"
-              onClick={() => setDirection('in')}
-              className={`py-2 text-xs font-semibold rounded-xl transition-all ${
-                direction === 'in'
-                  ? 'bg-gradient-to-r from-emerald-400 to-teal-500 text-white shadow-sm shadow-emerald-500/20'
-                  : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
-              }`}
-            >
-              💰 Pemasukan
-            </button>
-          </div>
-
           {/* Nominal */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-              Nominal Transaksi
+              Nominal (Rupiah)
             </label>
             <input
               type="text"
@@ -195,30 +204,30 @@ export default function ManualTransactionModal({
               required
               value={amountStr ? formatRupiah(amountStr) : ''}
               onChange={(e) => {
-                const num = e.target.value.replace(/[^\d]/g, '');
-                setAmountStr(num);
+                const numeric = e.target.value.replace(/[^\d]/g, '');
+                setAmountStr(numeric);
               }}
               placeholder="Rp 0"
-              className="w-full px-4 py-3 rounded-2xl liquid-pill bg-white/60 dark:bg-black/30 border border-white/80 dark:border-white/10 text-base font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-sky-400"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-base font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-white"
             />
           </div>
 
           {/* Merchant */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-              Merchant / Keterangan
+              Keterangan / Merchant
             </label>
             <input
               type="text"
               required
               value={merchant}
               onChange={(e) => setMerchant(e.target.value)}
-              placeholder="Contoh: Alfamart / Kopi Janji Jiwa"
-              className="w-full px-4 py-2.5 rounded-2xl liquid-pill bg-white/60 dark:bg-black/30 border border-white/80 dark:border-white/10 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400 text-slate-800 dark:text-white"
+              placeholder="Contoh: Belanja Pasar / Listrik"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-white text-slate-900 dark:text-white"
             />
           </div>
 
-          {/* Kategori Langsung */}
+          {/* Kategori Opsional */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
               Kategori (Opsional)
@@ -226,29 +235,30 @@ export default function ManualTransactionModal({
             <select
               value={categoryId}
               onChange={(e) => setCategoryId(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-2xl liquid-pill bg-white/60 dark:bg-black/30 border border-white/80 dark:border-white/10 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400 text-slate-800 dark:text-white"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-white text-slate-900 dark:text-white"
             >
-              <option value="" className="bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300">-- Kategorikan Nanti di Inbox --</option>
+              <option value="">-- Masukkan ke Inbox (Pending) --</option>
               {categories
-                .filter((c) => c.type === (direction === 'in' ? 'income' : 'expense'))
+                .filter((c) => (direction === 'in' ? c.type === 'income' : c.type === 'expense'))
                 .map((cat) => (
-                  <option key={cat.id} value={cat.id} className="bg-white dark:bg-slate-900 text-slate-800 dark:text-white">
+                  <option key={cat.id} value={cat.id}>
                     {cat.name}
                   </option>
                 ))}
             </select>
           </div>
 
-          {/* Waktu Transaksi */}
+          {/* Tanggal */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-              Waktu Transaksi (WIB)
+              Waktu Transaksi
             </label>
             <input
               type="datetime-local"
+              required
               value={transactionDate}
               onChange={(e) => setTransactionDate(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-2xl liquid-pill bg-white/60 dark:bg-black/30 border border-white/80 dark:border-white/10 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400 text-slate-800 dark:text-white"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-white text-slate-900 dark:text-white"
             />
           </div>
 
@@ -256,17 +266,17 @@ export default function ManualTransactionModal({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-3 px-4 rounded-2xl liquid-pill border border-white/80 dark:border-white/10 text-slate-600 dark:text-slate-300 text-xs font-semibold hover:bg-white/80 dark:hover:bg-white/10 transition-all"
+              className="flex-1 py-2.5 px-4 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
             >
               Batal
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 py-3 px-4 rounded-2xl bg-gradient-to-r from-sky-400 via-sky-500 to-indigo-500 hover:from-sky-500 hover:to-indigo-600 text-white text-xs font-semibold flex items-center justify-center gap-1.5 shadow-md shadow-sky-400/20 active:scale-95 transition-all disabled:opacity-50 border border-white/30"
+              className="flex-1 py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-white text-white dark:text-slate-900 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50"
             >
-              <Plus className="w-4 h-4" />
-              <span>{loading ? 'Menyimpan...' : 'Simpan Transaksi'}</span>
+              <Plus className="w-3.5 h-3.5" />
+              <span>{loading ? 'Menyimpan...' : 'Simpan'}</span>
             </button>
           </div>
         </form>

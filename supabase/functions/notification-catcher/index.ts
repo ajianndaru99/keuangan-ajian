@@ -166,6 +166,74 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Database error' }), { status: 500 });
     }
 
+    // 4. Jika hasil parsing merupakan transaksi atau butuh review, catat ke tabel transactions (Inbox Realtime)
+    if (parsedResult && parsedResult.outcome !== 'ignored') {
+      const sourceDevice = (clientInfo.role || clientInfo.device_id || 'suami').toLowerCase();
+      
+      let accountId: string | null = null;
+      const targetBank = parsedResult.bank || parsedResult.accountName || app_name;
+
+      const { data: matchedAcc } = await supabase
+        .from('accounts')
+        .select('id')
+        .eq('household_id', householdId)
+        .eq('owner', sourceDevice)
+        .ilike('name', `%${targetBank}%`)
+        .limit(1)
+        .maybeSingle();
+
+      if (matchedAcc) {
+        accountId = matchedAcc.id;
+      } else {
+        const { data: fallbackAcc } = await supabase
+          .from('accounts')
+          .select('id')
+          .eq('household_id', householdId)
+          .eq('owner', sourceDevice)
+          .limit(1)
+          .maybeSingle();
+        accountId = fallbackAcc?.id || null;
+      }
+
+      if (!accountId) {
+        const { data: anyAcc } = await supabase
+          .from('accounts')
+          .select('id')
+          .eq('household_id', householdId)
+          .limit(1)
+          .maybeSingle();
+        accountId = anyAcc?.id || null;
+      }
+
+      if (accountId) {
+        const txAmount = parsedResult.amount || 0;
+        const txDirection = parsedResult.direction === 'in' ? 'in' : 'out';
+        const txMerchant = parsedResult.merchant || parsedResult.bank || app_name;
+        const txDate = parsedResult.transactionDate || (receivedAtParsed.iso ? receivedAtParsed.iso : new Date().toISOString());
+
+        const encoder = new TextEncoder();
+        const rawSeed = `notif:${clientInfo.device_id}:${app_name}:${received_at_raw || Date.now()}:${txAmount}:${parsedResult.reference || ''}`;
+        const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(rawSeed));
+        const dedupeHash = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+
+        await supabase
+          .from('transactions')
+          .upsert({
+            household_id: householdId,
+            account_id: accountId,
+            amount: txAmount,
+            direction: txDirection,
+            merchant: txMerchant,
+            raw_notification: `[Notifikasi ${parsedResult.bank || app_name}] ${title}: ${content}`,
+            source_device: sourceDevice,
+            transaction_date: txDate,
+            status: 'pending',
+            dedupe_hash: dedupeHash,
+            needs_review: parsedResult.outcome === 'needs_review' || txAmount === 0,
+          }, { onConflict: 'dedupe_hash', ignoreDuplicates: true });
+      }
+    }
+
     return new Response(JSON.stringify({ status: 'success', message: 'Notifikasi dicatat.' }), { 
       status: 201, 
       headers: { 'Content-Type': 'application/json' } 

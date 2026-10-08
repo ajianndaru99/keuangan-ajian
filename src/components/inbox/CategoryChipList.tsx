@@ -2,7 +2,7 @@
 
 // ==============================================================================
 // COMPONENT: src/components/inbox/CategoryChipList.tsx
-// Deretan tombol kategori untuk kategorisasi 1-tap — Kontras Tinggi & Jelas
+// Deretan Tombol Kategori 1-Tap: Tampilan Minimalis & Profesional
 // ==============================================================================
 
 import {
@@ -18,6 +18,7 @@ import {
   MoreHorizontal,
   Wallet,
   Tag,
+  Check,
 } from 'lucide-react';
 
 export interface Category {
@@ -70,23 +71,21 @@ export default function CategoryChipList({
           return (
             <button
               key={cat.id}
+              type="button"
               onClick={() => onSelect(cat.id)}
               disabled={disabled}
-              className={`group shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-bold transition-all border shadow-sm disabled:opacity-50 active:scale-95 ${
+              className={`shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors border disabled:opacity-50 active:scale-95 ${
                 isSelected
-                  ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white border-transparent shadow-md shadow-emerald-500/25'
-                  : 'bg-white/90 dark:bg-slate-800/70 text-slate-900 dark:text-slate-100 hover:bg-gradient-to-r hover:from-sky-500 hover:to-blue-600 hover:text-white dark:hover:text-white border-slate-200/90 dark:border-white/10'
+                  ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 border-slate-900 dark:border-white shadow-xs'
+                  : 'bg-slate-50 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-700'
               }`}
             >
-              <IconComponent
-                className={`w-3.5 h-3.5 transition-transform ${
-                  isSelected
-                    ? 'text-white'
-                    : 'text-slate-600 group-hover:text-white dark:text-slate-300'
-                }`}
-              />
+              {isSelected ? (
+                <Check className="w-3 h-3 text-white dark:text-slate-900" />
+              ) : (
+                <IconComponent className="w-3 h-3 text-slate-500 dark:text-slate-400" />
+              )}
               <span className="whitespace-nowrap">{cat.name}</span>
-              {isSelected && <span className="text-[10px] ml-0.5">✨</span>}
             </button>
           );
         })}

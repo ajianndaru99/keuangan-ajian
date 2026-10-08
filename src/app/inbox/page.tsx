@@ -2,10 +2,10 @@
 
 // ==============================================================================
 // INBOX PAGE: src/app/inbox/page.tsx
-// Halaman Inbox Transaksi Pending — Dioptimalkan untuk Monitor / Layar Laptop & HP
-// - Keterangan lengkap menyamping pada Monitor/Laptop
-// - Pop-up halus (Realtime Toast) di kanan bawah laptop / bawah layar HP
-// - Otomatisasi kategorisasi tanpa upload manual
+// Halaman Inbox Transaksi Pending — Desain Finansial Bersih & Profesional
+// - Pop-up Realtime Toast responsif saat notifikasi masuk
+// - Pop-up Modal Detail Transaksi lengkap (1-tap review & categorise)
+// - Ringkasan statistik & filter bersih tanpa simbol/emoji berlebih
 // ==============================================================================
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -15,15 +15,14 @@ import Navbar from '@/components/Navbar';
 import TransactionCard, { TransactionItem } from '@/components/inbox/TransactionCard';
 import ManualTransactionModal, { AccountOption } from '@/components/inbox/ManualTransactionModal';
 import RealtimeToast, { ToastTransactionData } from '@/components/inbox/RealtimeToast';
+import TransactionDetailModal from '@/components/inbox/TransactionDetailModal';
+import QuickEditModal from '@/components/inbox/QuickEditModal';
 import { Category } from '@/components/inbox/CategoryChipList';
 import {
   Plus,
   CheckCircle2,
-  ArrowDownLeft,
-  ArrowUpRight,
   RefreshCw,
   X,
-  Sparkles,
   CheckCheck,
 } from 'lucide-react';
 import { formatRupiah } from '@/lib/utils';
@@ -47,8 +46,8 @@ const defaultMockCategories: Category[] = [
 const defaultMockAccounts: AccountOption[] = [
   { id: 'acc-s-1', name: 'BCA', owner: 'suami', type: 'bank' },
   { id: 'acc-s-2', name: 'Mandiri', owner: 'suami', type: 'bank' },
-  { id: 'acc-s-3', name: 'GoPay', owner: 'suami', type: 'ewallet' },
-  { id: 'acc-s-4', name: 'OVO', owner: 'suami', type: 'ewallet' },
+  { id: 'acc-s-3', name: 'Bank Jago', owner: 'suami', type: 'bank' },
+  { id: 'acc-s-4', name: 'GoPay', owner: 'suami', type: 'ewallet' },
   { id: 'acc-i-1', name: 'BCA', owner: 'istri', type: 'bank' },
   { id: 'acc-i-2', name: 'BRI', owner: 'istri', type: 'bank' },
   { id: 'acc-i-3', name: 'ShopeePay', owner: 'istri', type: 'ewallet' },
@@ -65,7 +64,7 @@ const initialDemoTransactions: TransactionItem[] = [
     amount: 45000,
     direction: 'out',
     merchant: 'KOPI KENANGAN',
-    raw_notification: '[Screenshot Vision] Pembayaran QRIS Rp 45.000 di KOPI KENANGAN via BCA',
+    raw_notification: 'Pembayaran QRIS Rp 45.000 di KOPI KENANGAN via BCA',
     source_device: 'suami',
     transaction_date: new Date(Date.now() - 1000 * 60 * 12).toISOString(),
     status: 'pending',
@@ -81,7 +80,7 @@ const initialDemoTransactions: TransactionItem[] = [
     amount: 25000,
     direction: 'out',
     merchant: 'INDOMARET',
-    raw_notification: '[Screenshot Vision] Pembayaran QRIS Rp 25.000 di INDOMARET via Mandiri',
+    raw_notification: 'Pembayaran QRIS Rp 25.000 di INDOMARET via Mandiri',
     source_device: 'suami',
     transaction_date: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
     status: 'pending',
@@ -120,7 +119,12 @@ export default function InboxPage() {
   const [isRealtimeActive, setIsRealtimeActive] = useState(false);
   const [isCloudConnected, setIsCloudConnected] = useState(false);
   const [showDemoNotice, setShowDemoNotice] = useState(true);
+
+  // Pop-up States
   const [incomingToast, setIncomingToast] = useState<ToastTransactionData | null>(null);
+  const [detailTransaction, setDetailTransaction] = useState<TransactionItem | null>(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState<TransactionItem | null>(null);
 
   // Ambil data dari Supabase jika env sudah dikonfigurasi
   const fetchData = useCallback(async () => {
@@ -151,7 +155,7 @@ export default function InboxPage() {
         setDisplayName(profile.display_name);
       }
 
-      // 2. Transaksi Pending (Urutkan dari yang paling baru masuk ke inbox)
+      // 2. Transaksi Pending
       const { data: txData, error: txError } = await supabase
         .from('transactions')
         .select(`
@@ -203,10 +207,10 @@ export default function InboxPage() {
 
     if (!isSupabaseConfigured()) return;
 
-    // Setup Supabase Realtime Subscription dengan Pop-up Halus saat Screenshot Masuk
+    // Realtime Subscription: Dengarkan tabel transactions DAN raw_notifications
     const supabase = createClient();
     const channel = supabase
-      .channel('realtime:transactions')
+      .channel('realtime:inbox_transactions')
       .on(
         'postgres_changes',
         {
@@ -216,13 +220,44 @@ export default function InboxPage() {
         },
         (payload) => {
           const newTx = payload.new as any;
-          // Tampilkan pop-up notifikasi halus saat screenshot baru masuk
           setIncomingToast({
+            id: newTx.id,
             merchant: newTx.merchant || 'Transaksi Digital',
             amount: Number(newTx.amount) || 0,
             direction: newTx.direction || 'out',
             sourceDevice: newTx.source_device || 'suami',
             accountName: newTx.raw_notification?.match(/via\s+([A-Za-z0-9]+)/i)?.[1],
+            rawNotification: newTx.raw_notification,
+          });
+          fetchData();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'raw_notifications',
+        },
+        (payload) => {
+          const raw = payload.new as any;
+          const app = raw.app_name || 'Bank';
+          const title = raw.title || '';
+          const content = raw.content || '';
+
+          // Ekstrak perkiraan nominal jika ada di teks
+          const amountMatch = content.match(/Rp\s*([0-9.,]+)/i);
+          const rawAmount = amountMatch ? parseInt(amountMatch[1].replace(/[.,]/g, ''), 10) : 0;
+          const isTransferMasuk = /masuk|terima|kredit|berhasil ditransfer ke/i.test(title + ' ' + content);
+
+          setIncomingToast({
+            id: raw.id,
+            merchant: title || app,
+            amount: rawAmount,
+            direction: isTransferMasuk ? 'in' : 'out',
+            sourceDevice: raw.device_id === 'hp_istri' ? 'istri' : 'suami',
+            accountName: app,
+            rawNotification: `${title}: ${content}`,
           });
           fetchData();
         }
@@ -412,6 +447,35 @@ export default function InboxPage() {
     return { outTotal, inTotal, reviewCount, totalCount: transactions.length };
   }, [transactions]);
 
+  // Handler Buka Pop-up Detail dari Toast
+  const handleOpenDetailFromToast = (toastData: ToastTransactionData) => {
+    const found = transactions.find((t) => t.id === toastData.id);
+    if (found) {
+      setDetailTransaction(found);
+      setIsDetailModalOpen(true);
+    } else {
+      // Fallback virtual item untuk preview
+      const fallbackItem: TransactionItem = {
+        id: toastData.id || `notif-${Date.now()}`,
+        household_id: '',
+        account_id: '',
+        category_id: null,
+        amount: toastData.amount,
+        direction: toastData.direction,
+        merchant: toastData.merchant,
+        raw_notification: toastData.rawNotification || toastData.merchant,
+        source_device: toastData.sourceDevice || 'suami',
+        transaction_date: new Date().toISOString(),
+        status: 'pending',
+        dedupe_hash: '',
+        needs_review: toastData.amount === 0,
+        accounts: toastData.accountName ? { name: toastData.accountName, type: 'bank' } : undefined,
+      };
+      setDetailTransaction(fallbackItem);
+      setIsDetailModalOpen(true);
+    }
+  };
+
   return (
     <>
       <Navbar
@@ -421,20 +485,16 @@ export default function InboxPage() {
         isRealtimeActive={isRealtimeActive || !isCloudConnected}
       />
 
-      {/* Kontainer Responsif: Dioptimalkan Khusus Layar Monitor & Layar Laptop */}
       <main className="flex-1 pb-24 px-4 sm:px-6 lg:px-8 xl:px-10 max-w-[1440px] mx-auto w-full pt-4">
         {/* Banner Ringkas Mode Demo */}
         {!isCloudConnected && showDemoNotice && (
-          <div className="mb-3 px-3.5 py-2 rounded-2xl liquid-pill bg-sky-100/80 dark:bg-sky-950/50 border border-sky-300/70 dark:border-sky-800/50 flex items-center justify-between text-xs text-sky-950 dark:text-sky-200 transition-all shadow-sm">
-            <div className="flex items-center gap-2">
-              <Sparkles className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400 shrink-0" />
-              <span className="text-[11px] font-semibold leading-tight text-slate-800 dark:text-sky-200">
-                <strong className="text-sky-900 dark:text-white">Mode Pratinjau Demo</strong>: Menggunakan data simulasi interaktif.
-              </span>
-            </div>
+          <div className="mb-4 px-4 py-2.5 rounded-2xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 flex items-center justify-between text-xs text-slate-700 dark:text-slate-300">
+            <span>
+              <strong className="text-slate-900 dark:text-white">Mode Pratinjau Demo</strong>: Menampilkan data simulasi transaksi interaktif.
+            </span>
             <button
               onClick={() => setShowDemoNotice(false)}
-              className="text-slate-500 hover:text-slate-800 dark:text-sky-200 p-0.5 rounded-lg transition-colors"
+              className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 p-0.5 rounded transition-colors"
               title="Tutup pemberitahuan"
             >
               <X className="w-3.5 h-3.5" />
@@ -442,34 +502,33 @@ export default function InboxPage() {
           </div>
         )}
 
-        {/* Kartu Ringkasan Pending — Frosted Liquid Glass Lebar & Elegan */}
-        <div className="rounded-3xl p-5 md:p-6 mb-4 liquid-glass relative overflow-hidden transition-all shadow-sm">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 relative z-10">
+        {/* Kartu Ringkasan Pending — Bersih, Elegan, & Rapi */}
+        <div className="rounded-3xl p-5 md:p-6 mb-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 block">
-                Inbox Transaksi Realtime
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 block">
+                Inbox Transaksi
               </span>
-              <p className="text-xl md:text-2xl font-black text-slate-900 dark:text-white tracking-tight leading-none mt-1">
+              <h2 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-white tracking-tight mt-1">
                 {pendingTally.totalCount} Transaksi Menunggu Verifikasi
-              </p>
+              </h2>
             </div>
 
             <div className="flex items-center gap-2 flex-wrap">
-              {/* Tombol Konfirmasi Semua Otomatis jika ada yang terkategori */}
               {autoCategorizedTransactions.length > 0 && (
                 <button
                   onClick={handleApproveAllAutoCategorized}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 active:scale-95 text-white font-bold text-xs shadow-md shadow-emerald-500/25 transition-all border border-white/30"
-                  title="Konfirmasi sekaligus seluruh transaksi yang kategorinya sudah terdeteksi otomatis"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-white text-white dark:text-slate-900 font-semibold text-xs transition-colors shadow-xs"
+                  title="Konfirmasi seluruh transaksi yang sudah terkategori otomatis"
                 >
-                  <CheckCheck className="w-4 h-4" />
+                  <CheckCheck className="w-3.5 h-3.5" />
                   <span>Konfirmasi Semua ({autoCategorizedTransactions.length})</span>
                 </button>
               )}
 
               <button
                 onClick={() => setIsManualModalOpen(true)}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-2xl liquid-pill text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white font-bold text-xs border border-slate-200/80 dark:border-white/10 transition-all"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 font-semibold text-xs transition-colors"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Input Manual</span>
@@ -477,135 +536,115 @@ export default function InboxPage() {
             </div>
           </div>
 
-          {/* Quick Stat Bar — 4 Kolom di Monitor & Laptop */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 pt-4 mt-4 border-t border-slate-200/80 dark:border-white/10 relative z-10">
-            <div className="flex items-center gap-3 p-3 rounded-2xl liquid-pill bg-white/70 dark:bg-white/5 border border-white/90 dark:border-white/10">
-              <div className="p-2 rounded-xl bg-sky-100 dark:bg-sky-950/40 text-sky-600 dark:text-sky-400 border border-sky-200">
-                <CheckCircle2 className="w-4 h-4" />
-              </div>
-              <div className="min-w-0">
-                <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 block leading-none mb-1">
-                  Total Pending
-                </span>
-                <p className="text-sm md:text-base font-black text-slate-900 dark:text-white truncate">
-                  {pendingTally.totalCount} Transaksi
-                </p>
-              </div>
+          {/* Quick Stat Bar: 4 Kolom di Monitor & Laptop */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 pt-4 mt-4 border-t border-slate-100 dark:border-slate-800">
+            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/70 dark:border-slate-800">
+              <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block mb-1">
+                Total Pending
+              </span>
+              <p className="text-base font-bold text-slate-900 dark:text-white">
+                {pendingTally.totalCount} Transaksi
+              </p>
             </div>
 
-            <div className="flex items-center gap-3 p-3 rounded-2xl liquid-pill bg-white/70 dark:bg-white/5 border border-white/90 dark:border-white/10">
-              <div className="p-2 rounded-xl bg-rose-100 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200">
-                <ArrowUpRight className="w-4 h-4" />
-              </div>
-              <div className="min-w-0">
-                <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 block leading-none mb-1">
-                  Pending Keluar
-                </span>
-                <p className="text-sm md:text-base font-black text-slate-900 dark:text-white truncate">
-                  {formatRupiah(pendingTally.outTotal)}
-                </p>
-              </div>
+            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/70 dark:border-slate-800">
+              <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block mb-1">
+                Pending Keluar
+              </span>
+              <p className="text-base font-bold text-slate-900 dark:text-white">
+                {formatRupiah(pendingTally.outTotal)}
+              </p>
             </div>
 
-            <div className="flex items-center gap-3 p-3 rounded-2xl liquid-pill bg-white/70 dark:bg-white/5 border border-white/90 dark:border-white/10">
-              <div className="p-2 rounded-xl bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200">
-                <ArrowDownLeft className="w-4 h-4" />
-              </div>
-              <div className="min-w-0">
-                <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 block leading-none mb-1">
-                  Pending Masuk
-                </span>
-                <p className="text-sm md:text-base font-black text-slate-900 dark:text-white truncate">
-                  {formatRupiah(pendingTally.inTotal)}
-                </p>
-              </div>
+            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/70 dark:border-slate-800">
+              <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block mb-1">
+                Pending Masuk
+              </span>
+              <p className="text-base font-bold text-emerald-600 dark:text-emerald-400">
+                {formatRupiah(pendingTally.inTotal)}
+              </p>
             </div>
 
-            <div className="flex items-center gap-3 p-3 rounded-2xl liquid-pill bg-white/70 dark:bg-white/5 border border-white/90 dark:border-white/10">
-              <div className="p-2 rounded-xl bg-teal-100 dark:bg-teal-950/40 text-teal-600 dark:text-teal-400 border border-teal-200">
-                <Sparkles className="w-4 h-4" />
-              </div>
-              <div className="min-w-0">
-                <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 block leading-none mb-1">
-                  Terkategori Otomatis
-                </span>
-                <p className="text-sm md:text-base font-black text-slate-900 dark:text-white truncate">
-                  {autoCategorizedTransactions.length} dari {transactions.length}
-                </p>
-              </div>
+            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/70 dark:border-slate-800">
+              <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block mb-1">
+                Terkategori Otomatis
+              </span>
+              <p className="text-base font-bold text-slate-900 dark:text-white">
+                {autoCategorizedTransactions.length} dari {transactions.length}
+              </p>
             </div>
           </div>
         </div>
 
-        {/* Filter Bar Chips dengan Teks Kontras Tinggi */}
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar mb-4 py-1">
+        {/* Filter Bar Segmented Tabs Tanpa Simbol Berlebih */}
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar mb-4 py-1">
           <button
             onClick={() => setFilterOwner('all')}
-            className={`px-4 py-2 rounded-2xl text-xs font-bold whitespace-nowrap transition-all border ${
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors border ${
               filterOwner === 'all'
-                ? 'bg-gradient-to-r from-sky-500 to-blue-600 text-white border-transparent shadow-md shadow-sky-500/25'
-                : 'liquid-pill text-slate-800 dark:text-slate-200 hover:bg-white border-slate-200/80 dark:border-white/10'
+                ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 border-slate-900 dark:border-white shadow-xs'
+                : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'
             }`}
           >
             Semua ({transactions.length})
           </button>
           <button
             onClick={() => setFilterOwner('suami')}
-            className={`px-4 py-2 rounded-2xl text-xs font-bold whitespace-nowrap transition-all border ${
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors border ${
               filterOwner === 'suami'
-                ? 'bg-gradient-to-r from-sky-500 to-blue-600 text-white border-transparent shadow-md shadow-sky-500/25'
-                : 'liquid-pill text-slate-800 dark:text-slate-200 hover:bg-white border-slate-200/80 dark:border-white/10'
+                ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 border-slate-900 dark:border-white shadow-xs'
+                : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'
             }`}
           >
-            👨 Suami ({transactions.filter((t) => t.source_device === 'suami').length})
+            Suami ({transactions.filter((t) => t.source_device === 'suami').length})
           </button>
           <button
             onClick={() => setFilterOwner('istri')}
-            className={`px-4 py-2 rounded-2xl text-xs font-bold whitespace-nowrap transition-all border ${
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors border ${
               filterOwner === 'istri'
-                ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white border-transparent shadow-md shadow-pink-500/25'
-                : 'liquid-pill text-slate-800 dark:text-slate-200 hover:bg-white border-slate-200/80 dark:border-white/10'
+                ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 border-slate-900 dark:border-white shadow-xs'
+                : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'
             }`}
           >
-            👩 Istri ({transactions.filter((t) => t.source_device === 'istri').length})
+            Istri ({transactions.filter((t) => t.source_device === 'istri').length})
           </button>
           {pendingTally.reviewCount > 0 && (
             <button
               onClick={() => setFilterOwner('review')}
-              className={`px-4 py-2 rounded-2xl text-xs font-bold whitespace-nowrap transition-all border ${
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors border ${
                 filterOwner === 'review'
-                  ? 'bg-amber-500 text-white border-amber-500 shadow-md shadow-amber-500/25'
-                  : 'bg-amber-100/90 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200 border-amber-300 dark:border-amber-800/60 backdrop-blur-md'
+                  ? 'bg-amber-600 text-white border-amber-600 shadow-xs'
+                  : 'bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200 border-amber-200 dark:border-amber-800'
               }`}
             >
-              ⚠️ Perlu Cek ({pendingTally.reviewCount})
+              Perlu Cek ({pendingTally.reviewCount})
             </button>
           )}
 
           <button
             onClick={fetchData}
-            title="Refresh data"
-            className="p-2.5 rounded-2xl liquid-pill text-slate-700 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white ml-auto shrink-0 transition-all border border-slate-200/80 dark:border-white/10"
+            title="Muat ulang data"
+            className="p-2 rounded-xl bg-white dark:bg-slate-800 text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white border border-slate-200 dark:border-slate-700 ml-auto shrink-0 transition-colors"
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
           </button>
         </div>
 
-        {/* Daftar Transaksi Menyamping / Grid Responsif */}
+        {/* Daftar Kartu Transaksi */}
         {filteredTransactions.length === 0 ? (
-          <div className="text-center py-20 px-6 rounded-3xl liquid-glass border border-white/80 dark:border-white/10 my-4 shadow-sm">
-            <div className="w-16 h-16 rounded-2xl bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 flex items-center justify-center mx-auto mb-3 shadow-sm border border-emerald-300/60 dark:border-emerald-800/40">
-              <CheckCircle2 className="w-8 h-8" />
+          <div className="text-center py-20 px-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 my-4 shadow-xs">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto mb-3 border border-emerald-200 dark:border-emerald-800">
+              <CheckCircle2 className="w-6 h-6" />
             </div>
-            <h3 className="font-extrabold text-slate-900 dark:text-white text-lg">
-              Semua Transaksi Sudah Beres! 🎉
+            <h3 className="font-bold text-slate-900 dark:text-white text-base">
+              Semua Transaksi Sudah Diverifikasi
             </h3>
-            <p className="text-xs md:text-sm text-slate-600 dark:text-slate-400 mt-1.5 max-w-md mx-auto leading-relaxed font-medium">
-              Tidak ada transaksi yang menunggu verifikasi. Saat Anda mengambil screenshot di HP Android, MacroDroid akan otomatis mengirimkannya ke sini secara realtime.
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm mx-auto leading-relaxed">
+              Tidak ada transaksi yang menunggu verifikasi saat ini. Notifikasi baru dari aplikasi perbankan akan otomatis muncul di sini.
             </p>
           </div>
         ) : (
-          <div className="space-y-3.5">
+          <div className="space-y-3">
             {filteredTransactions.map((tx) => (
               <TransactionCard
                 key={tx.id}
@@ -614,17 +653,54 @@ export default function InboxPage() {
                 onCategorize={handleCategorize}
                 onIgnore={handleIgnore}
                 onUpdate={handleUpdate}
+                onOpenDetail={(item) => {
+                  setDetailTransaction(item);
+                  setIsDetailModalOpen(true);
+                }}
               />
             ))}
           </div>
         )}
       </main>
 
-      {/* Pop-up Halus (Realtime Toast Notification) */}
+      {/* Pop-up Notifikasi Realtime (Toast) */}
       <RealtimeToast
         data={incomingToast}
         onClose={() => setIncomingToast(null)}
+        onViewDetail={handleOpenDetailFromToast}
       />
+
+      {/* Pop-up Modal Detail Transaksi */}
+      <TransactionDetailModal
+        transaction={detailTransaction}
+        isOpen={isDetailModalOpen}
+        onClose={() => {
+          setIsDetailModalOpen(false);
+          setDetailTransaction(null);
+        }}
+        categories={categories}
+        onCategorize={handleCategorize}
+        onIgnore={handleIgnore}
+        onEdit={(tx) => {
+          setEditingTransaction(tx);
+        }}
+      />
+
+      {/* Modal Koreksi Transaksi */}
+      {editingTransaction && (
+        <QuickEditModal
+          isOpen={Boolean(editingTransaction)}
+          onClose={() => setEditingTransaction(null)}
+          onSave={async (amount, merchant, direction) => {
+            await handleUpdate(editingTransaction.id, amount, merchant, direction);
+            setEditingTransaction(null);
+          }}
+          initialAmount={editingTransaction.amount}
+          initialMerchant={editingTransaction.merchant}
+          initialDirection={editingTransaction.direction}
+          rawNotification={editingTransaction.raw_notification}
+        />
+      )}
 
       {/* Modal Tambah Manual */}
       <ManualTransactionModal

@@ -2,12 +2,12 @@
 
 // ==============================================================================
 // LOGIN PAGE: src/app/login/page.tsx
-// Halaman otentikasi Supabase Auth — Soft Pastel Liquid Glass
+// Halaman Otentikasi Pengguna: Desain Minimalis & Profesional
 // ==============================================================================
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Wallet, ShieldCheck, ArrowRight, Loader2 } from 'lucide-react';
+import { Wallet, ShieldCheck, ArrowRight, Loader2, User } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
 export default function LoginPage() {
@@ -67,56 +67,56 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex-1 flex flex-col justify-center px-6 py-12">
+    <div className="flex-1 flex flex-col justify-center max-w-sm mx-auto w-full px-4 py-12">
       {/* Brand Header */}
       <div className="text-center mb-8">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-3xl bg-gradient-to-tr from-sky-400 via-sky-300 to-indigo-300 text-white shadow-lg shadow-sky-400/25 border border-white/60 mb-3">
-          <Wallet className="w-8 h-8 text-white drop-shadow-sm" />
+        <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-sm mb-3">
+          <Wallet className="w-6 h-6" />
         </div>
-        <h1 className="text-2xl font-black tracking-tight text-slate-800 dark:text-white">
+        <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
           Keuangan Keluarga
         </h1>
         <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-          Rekap & Pemetaan Pengeluaran Digital Suami & Istri
+          Akses Masuk Dashboard Suami & Istri
         </p>
       </div>
 
-      {/* Login Card — Frosted Liquid Glass */}
-      <div className="liquid-glass rounded-3xl p-6 shadow-xl border border-white/80 dark:border-white/10">
-        <div className="flex items-center gap-2 mb-6 text-xs font-semibold uppercase tracking-wider text-sky-600 dark:text-sky-400">
-          <ShieldCheck className="w-4 h-4" />
-          <span>Akses Masuk Terproteksi</span>
+      {/* Login Card */}
+      <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-sm border border-slate-200 dark:border-slate-800">
+        <div className="flex items-center gap-2 mb-5 text-xs font-semibold text-slate-500 dark:text-slate-400">
+          <ShieldCheck className="w-4 h-4 text-emerald-600" />
+          <span>Autentikasi Terproteksi</span>
         </div>
 
         {/* 1-Tap Akses Cepat */}
-        <div className="mb-6 p-3 rounded-2xl bg-sky-50/70 dark:bg-sky-950/40 border border-sky-100 dark:border-sky-900/60">
-          <span className="text-[11px] font-bold text-sky-900 dark:text-sky-300 block mb-2">
-            Masuk Cepat 1-Tap:
+        <div className="mb-5 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-800">
+          <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block mb-2">
+            Pilih Akun Demo:
           </span>
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
               disabled={loading}
               onClick={() => handleQuickLogin('suami@keluarga.com', 'password123')}
-              className="py-2 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-sky-50 dark:hover:bg-slate-700 active:scale-95 text-xs font-bold text-slate-800 dark:text-slate-100 shadow-sm border border-slate-200/80 dark:border-slate-700 transition-all flex items-center justify-center gap-1.5"
+              className="py-2 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs font-semibold text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition-colors flex items-center justify-center gap-1.5"
             >
-              <span>👨</span>
-              <span>Akun Suami</span>
+              <User className="w-3.5 h-3.5 text-slate-400" />
+              <span>Suami</span>
             </button>
             <button
               type="button"
               disabled={loading}
               onClick={() => handleQuickLogin('istri@keluarga.com', 'password123')}
-              className="py-2 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-sky-50 dark:hover:bg-slate-700 active:scale-95 text-xs font-bold text-slate-800 dark:text-slate-100 shadow-sm border border-slate-200/80 dark:border-slate-700 transition-all flex items-center justify-center gap-1.5"
+              className="py-2 px-3 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs font-semibold text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition-colors flex items-center justify-center gap-1.5"
             >
-              <span>👩</span>
-              <span>Akun Istri</span>
+              <User className="w-3.5 h-3.5 text-slate-400" />
+              <span>Istri</span>
             </button>
           </div>
         </div>
 
         {errorMessage && (
-          <div className="mb-4 p-3 rounded-2xl liquid-pill bg-rose-50/70 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-600 dark:text-rose-300 text-xs font-medium">
+          <div className="mb-4 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-600 dark:text-rose-300 text-xs font-medium">
             {errorMessage}
           </div>
         )}
@@ -124,7 +124,7 @@ export default function LoginPage() {
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-              Email Pengguna
+              Email
             </label>
             <input
               id="login-email"
@@ -133,7 +133,7 @@ export default function LoginPage() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="suami@keluarga.com"
               required
-              className="w-full px-4 py-2.5 rounded-2xl liquid-pill bg-white/60 dark:bg-black/30 border border-white/80 dark:border-white/10 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400 transition-all text-slate-800 dark:text-white"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-white transition-colors text-slate-900 dark:text-white"
             />
           </div>
 
@@ -148,7 +148,7 @@ export default function LoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
               required
-              className="w-full px-4 py-2.5 rounded-2xl liquid-pill bg-white/60 dark:bg-black/30 border border-white/80 dark:border-white/10 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400 transition-all text-slate-800 dark:text-white"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 dark:focus:ring-white transition-colors text-slate-900 dark:text-white"
             />
           </div>
 
@@ -156,17 +156,17 @@ export default function LoginPage() {
             id="login-submit-btn"
             type="submit"
             disabled={loading}
-            className="w-full mt-2 py-3 px-4 rounded-2xl bg-gradient-to-r from-sky-400 via-sky-500 to-indigo-500 hover:from-sky-500 hover:to-indigo-600 active:scale-[0.99] text-white font-semibold text-sm shadow-md shadow-sky-400/25 flex items-center justify-center gap-2 transition-all disabled:opacity-70 border border-white/30"
+            className="w-full mt-2 py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-white text-white dark:text-slate-900 font-semibold text-xs flex items-center justify-center gap-2 transition-colors disabled:opacity-70"
           >
             {loading ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
                 <span>Memproses...</span>
               </>
             ) : (
               <>
                 <span>Masuk ke Dashboard</span>
-                <ArrowRight className="w-4 h-4" />
+                <ArrowRight className="w-3.5 h-3.5" />
               </>
             )}
           </button>
