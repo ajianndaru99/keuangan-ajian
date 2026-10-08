@@ -168,7 +168,8 @@ Deno.serve(async (req) => {
 
     // 4. Jika hasil parsing merupakan transaksi atau butuh review, catat ke tabel transactions (Inbox Realtime)
     if (parsedResult && parsedResult.outcome !== 'ignored') {
-      const sourceDevice = (clientInfo.role || clientInfo.device_id || 'suami').toLowerCase();
+      const rawRole = (clientInfo.role || clientInfo.device_id || 'suami').toLowerCase();
+      const sourceDevice: 'suami' | 'istri' = rawRole.includes('istri') ? 'istri' : 'suami';
       
       let accountId: string | null = null;
       const targetBank = parsedResult.bank || parsedResult.accountName || app_name;
@@ -216,7 +217,7 @@ Deno.serve(async (req) => {
         const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(rawSeed));
         const dedupeHash = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
 
-        await supabase
+        const { error: txError } = await supabase
           .from('transactions')
           .upsert({
             household_id: householdId,
@@ -231,6 +232,10 @@ Deno.serve(async (req) => {
             dedupe_hash: dedupeHash,
             needs_review: parsedResult.outcome === 'needs_review' || txAmount === 0,
           }, { onConflict: 'dedupe_hash', ignoreDuplicates: true });
+
+        if (txError) {
+          console.error('Database transaction insert error:', txError.message);
+        }
       }
     }
 

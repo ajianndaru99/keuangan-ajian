@@ -5,7 +5,7 @@
 // Modal Tambah Transaksi: Input Manual & Pemindaian Foto Struk (Vision AI)
 // ==============================================================================
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   X,
   Camera,
@@ -34,6 +34,16 @@ interface AccountOption {
   owner: 'suami' | 'istri';
 }
 
+export interface PreloadedTransactionData {
+  merchant?: string;
+  amount?: number;
+  direction?: 'out' | 'in';
+  notes?: string;
+  transactionDate?: string;
+  accountName?: string;
+  rawNotificationId?: string;
+}
+
 interface AddTransactionModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -41,6 +51,7 @@ interface AddTransactionModalProps {
   accounts: AccountOption[];
   onSuccess: () => void;
   userRole?: 'suami' | 'istri';
+  preloadedData?: PreloadedTransactionData | null;
 }
 
 export default function AddTransactionModal({
@@ -50,6 +61,7 @@ export default function AddTransactionModal({
   accounts,
   onSuccess,
   userRole = 'suami',
+  preloadedData,
 }: AddTransactionModalProps) {
   const [activeTab, setActiveTab] = useState<'scan' | 'manual'>('scan');
 
@@ -71,6 +83,30 @@ export default function AddTransactionModal({
   const [scanError, setScanError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Otomatis terapkan data bawaan (misal dari notifikasi mentah) jika ada
+  useEffect(() => {
+    if (preloadedData && isOpen) {
+      setActiveTab('manual');
+      if (preloadedData.merchant) setMerchant(preloadedData.merchant);
+      if (preloadedData.amount !== undefined) setAmount(preloadedData.amount);
+      if (preloadedData.direction) setDirection(preloadedData.direction);
+      if (preloadedData.notes) setNotes(preloadedData.notes);
+      if (preloadedData.transactionDate) {
+        try {
+          setTransactionDate(new Date(preloadedData.transactionDate).toISOString().slice(0, 16));
+        } catch {
+          // Abaikan kesalahan parse
+        }
+      }
+      if (preloadedData.accountName && accounts.length > 0) {
+        const found = accounts.find((a) =>
+          a.name.toLowerCase().includes(preloadedData.accountName!.toLowerCase())
+        );
+        if (found) setAccountId(found.id);
+      }
+    }
+  }, [preloadedData, isOpen, accounts]);
 
   if (!isOpen) return null;
 
@@ -176,6 +212,7 @@ export default function AddTransactionModal({
           .maybeSingle();
 
         if (profile) {
+          const dedupeHash = `manual:${profile.household_id}:${payload.source_device}:${Date.now()}:${payload.amount}:${Math.random().toString(36).slice(2, 8)}`;
           await supabase.from('transactions').insert({
             household_id: profile.household_id,
             account_id: payload.account_id,
@@ -187,8 +224,17 @@ export default function AddTransactionModal({
             source_device: payload.source_device,
             transaction_date: payload.transaction_date,
             status: 'reconciled',
+            dedupe_hash: dedupeHash,
             needs_review: false,
           });
+
+          // Jika transaksi ini berasal dari konversi notifikasi mentah, tandai sebagai tervalidasi
+          if (preloadedData?.rawNotificationId) {
+            await supabase
+              .from('raw_notifications')
+              .update({ validated_at: new Date().toISOString() })
+              .eq('id', preloadedData.rawNotificationId);
+          }
         }
       }
 

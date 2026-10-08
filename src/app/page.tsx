@@ -320,7 +320,7 @@ export default function DashboardPage() {
               Ringkasan Keuangan Keluarga
             </span>
             <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight mt-0.5">
-              Halo, {displayName || (userRole === 'suami' ? 'Suami' : 'Istri')}
+              Selamat Datang di Keuangan Keluarga Ajian
             </h1>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
               {formatFullWIB(new Date())}

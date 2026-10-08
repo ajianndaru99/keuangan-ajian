@@ -28,13 +28,22 @@ export const JAGO_PROFILE: BankProfile = {
   outPatterns: [
     /\btransferred\b/i,
     /\bspent\b/i,
-    /\bmentransfer\b/i,
-    /\bpembayaran\b/i,
+    /\bpaid\b/i,
+    /\bpay\b/i,
     /\bpayment\b/i,
+    /\bpembayaran\b/i,
+    /\bmentransfer\b/i,
+    /\bmembayar\b/i,
+    /\bbayar\b/i,
     /\btop\s*up\b/i,
     /\btarik\s+tunai\b/i,
     /\bwithdrew\b/i,
     /\btransfer\s+(?:berhasil|sukses|ke)\b/i,
+  ],
+
+  successPatterns: [
+    /\bpaid\b/i,
+    /\bhave\s+paid\b/i,
   ],
 };
 

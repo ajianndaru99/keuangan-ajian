@@ -78,6 +78,8 @@ export const SUCCESS_PATTERNS: RegExp[] = [
   /\b(?:dana|uang|saldo|transfer)\s+masuk\b/,
   /\btransferred\b/,
   /\bspent\b/,
+  /\bpaid\b/,
+  /\bmembayar\b/,
   /\breceived\b/,
   /\bsuccessful\b/,
 ];

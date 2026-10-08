@@ -2,12 +2,11 @@
 
 // ==============================================================================
 // TRANSACTIONS / INBOX PAGE: src/app/inbox/page.tsx
-// Halaman Transaksi Finansial Mengadopsi Desain Monexa (Foto 2)
-// - Sidebar & TopBar "Keluarga Ajian" via AppShell
-// - Toolbar: Filter Pill All/Income/Expense, Filter Kalender, Ekspor CSV, + Add Transaction
-// - Tabel Transaksi Monexa dengan Palet Pastel Soft
-// - Dukungan Upload Foto Struk / Bukti Transfer via Google Gemini Vision AI
-// - Pop-up Realtime Toast & Modal Detail
+// Halaman Transaksi Finansial Mengadopsi Desain Monexa & Tab Raw Stream
+// - Tab 1: Transaksi Terurai (Parser Otomatis & Vision AI)
+// - Tab 2: Seluruh Notifikasi HP (Raw Stream) untuk Semua Aplikasi Bank/E-Wallet
+// - Konversi Cepat 1-Klik dari Notifikasi Mentah ke Transaksi Resmi
+// - Sinkronisasi Realtime Listener Supabase
 // ==============================================================================
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -17,14 +16,15 @@ import AppShell from '@/components/layout/AppShell';
 import TableToolbar, { FlowFilterType } from '@/components/transactions/TableToolbar';
 import TransactionTable, { MonexaTransactionRow } from '@/components/transactions/TransactionTable';
 import DateRangePickerModal, { DateRangeValue } from '@/components/transactions/DateRangePickerModal';
-import AddTransactionModal from '@/components/transactions/AddTransactionModal';
+import AddTransactionModal, { PreloadedTransactionData } from '@/components/transactions/AddTransactionModal';
 import TransactionDetailModal from '@/components/inbox/TransactionDetailModal';
 import QuickEditModal from '@/components/inbox/QuickEditModal';
 import RealtimeToast, { ToastTransactionData } from '@/components/inbox/RealtimeToast';
+import RawNotificationTable, { RawNotificationItem } from '@/components/inbox/RawNotificationTable';
 import { TransactionItem } from '@/components/inbox/TransactionCard';
 import { Category } from '@/components/inbox/CategoryChipList';
 import { exportTransactionsToCsv } from '@/lib/export-excel';
-import { RefreshCw } from 'lucide-react';
+import { CheckCircle2, Smartphone, RefreshCw } from 'lucide-react';
 
 const defaultCategories: Category[] = [
   { id: 'cat-1', name: 'Belanja Dapur', type: 'expense', sort_order: 1 },
@@ -43,6 +43,9 @@ const defaultCategories: Category[] = [
 export default function InboxTransactionsPage() {
   const router = useRouter();
 
+  // Tab Utama Inbox: 'parsed' (Transaksi Terurai) vs 'raw' (Semua Notifikasi HP)
+  const [inboxTab, setInboxTab] = useState<'parsed' | 'raw'>('parsed');
+
   // State Pengguna
   const [userRole, setUserRole] = useState<'suami' | 'istri'>('suami');
   const [displayName, setDisplayName] = useState<string>('');
@@ -50,6 +53,7 @@ export default function InboxTransactionsPage() {
 
   // State Transaksi & Metadata
   const [transactions, setTransactions] = useState<TransactionItem[]>([]);
+  const [rawNotifications, setRawNotifications] = useState<RawNotificationItem[]>([]);
   const [categories, setCategories] = useState<Category[]>(defaultCategories);
   const [accounts, setAccounts] = useState<any[]>([]);
 
@@ -66,12 +70,13 @@ export default function InboxTransactionsPage() {
   // State Modals & Dialogs
   const [isDateModalOpen, setIsDateModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [preloadedData, setPreloadedData] = useState<PreloadedTransactionData | null>(null);
   const [detailTransaction, setDetailTransaction] = useState<TransactionItem | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<TransactionItem | null>(null);
   const [incomingToast, setIncomingToast] = useState<ToastTransactionData | null>(null);
 
-  // Ambil Data dari Supabase
+  // Ambil Data dari Supabase (Transaksi Terurai & Raw Notifications)
   const fetchData = useCallback(async () => {
     if (!isSupabaseConfigured()) return;
 
@@ -145,9 +150,21 @@ export default function InboxTransactionsPage() {
           }));
           setTransactions(normalized);
         }
+
+        // 4. Ambil Seluruh Log Notifikasi Mentah (Raw Stream)
+        const { data: rawData } = await supabase
+          .from('raw_notifications')
+          .select('*')
+          .eq('household_id', householdId)
+          .order('created_at', { ascending: false })
+          .limit(100);
+
+        if (rawData) {
+          setRawNotifications(rawData as RawNotificationItem[]);
+        }
       }
     } catch (err) {
-      console.warn('Gagal memuat transaksi:', err);
+      console.warn('Gagal memuat data inbox:', err);
     } finally {
       setLoading(false);
     }
@@ -158,7 +175,7 @@ export default function InboxTransactionsPage() {
 
     if (!isSupabaseConfigured()) return;
 
-    // Realtime Listener
+    // Realtime Listener untuk transaksi baru & notifikasi mentah baru
     const supabase = createClient();
     const channel = supabase
       .channel('realtime:inbox_transactions')
@@ -174,6 +191,23 @@ export default function InboxTransactionsPage() {
             direction: newTx.direction || 'out',
             sourceDevice: newTx.source_device || 'suami',
             rawNotification: newTx.raw_notification,
+          });
+          fetchData();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'raw_notifications' },
+        (payload) => {
+          const raw = payload.new as any;
+          // Tampilkan pop-up toast notifikasi baru masuk dari HP
+          setIncomingToast({
+            id: raw.id,
+            merchant: raw.title || raw.app_name || 'Notifikasi Masuk',
+            amount: 0,
+            direction: 'out',
+            sourceDevice: (raw.device_id || '').toLowerCase().includes('istri') ? 'istri' : 'suami',
+            rawNotification: `${raw.title}: ${raw.content}`,
           });
           fetchData();
         }
@@ -283,6 +317,71 @@ export default function InboxTransactionsPage() {
     fetchData();
   };
 
+  // --------------------------------------------------------------------------
+  // Handler Aksi Raw Notifications
+  // --------------------------------------------------------------------------
+
+  // Konversi Notifikasi Mentah menjadi Transaksi Resmi
+  const handleConvertToTransaction = (notif: RawNotificationItem) => {
+    // 1. Ekstrak nominal jika ada pola Rp
+    const amountMatch = notif.content.match(/\b(?:rp|idr)\.?\s*(\d[\d.,]*)/i);
+    let parsedAmt: number | undefined = undefined;
+    if (amountMatch) {
+      const clean = amountMatch[1].replace(/[.,]/g, '');
+      const val = parseInt(clean, 10);
+      if (!isNaN(val) && val > 0) parsedAmt = val;
+    }
+
+    // 2. Ekstrak arah transaksi
+    const combined = `${notif.title} ${notif.content}`.toLowerCase();
+    const isIncome = /masuk|terima|kredit|received|from\b/i.test(combined);
+    const direction: 'in' | 'out' = isIncome ? 'in' : 'out';
+
+    // 3. Ekstrak calon nama merchant
+    let merchantCandidate = notif.title || notif.app_name;
+    const toMatch = notif.content.match(/\b(?:to|ke|di|kepada|at)\s+([A-Za-z0-9\s&'.-]+?)(?:\.|\s+need|\s+hubungi|\s+pada|\s+via|\s+dengan|$)/i);
+    if (toMatch && toMatch[1]) {
+      merchantCandidate = toMatch[1].trim();
+    }
+
+    setPreloadedData({
+      merchant: merchantCandidate,
+      amount: parsedAmt,
+      direction,
+      notes: `[Notifikasi ${notif.app_name}] ${notif.title}: ${notif.content}`,
+      transactionDate: notif.server_received_at || notif.created_at,
+      accountName: notif.app_name,
+      rawNotificationId: notif.id,
+    });
+
+    setIsAddModalOpen(true);
+  };
+
+  // Tandai notifikasi mentah sebagai diabaikan / non-transaksi
+  const handleIgnoreRawNotification = async (id: string) => {
+    if (isSupabaseConfigured()) {
+      const supabase = createClient();
+      await supabase
+        .from('raw_notifications')
+        .update({ validated_at: new Date().toISOString() })
+        .eq('id', id);
+
+      setRawNotifications((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, validated_at: new Date().toISOString() } : n))
+      );
+    }
+  };
+
+  // Hapus log notifikasi mentah
+  const handleDeleteRawNotification = async (id: string) => {
+    if (!confirm('Hapus baris log notifikasi mentah ini?')) return;
+    if (isSupabaseConfigured()) {
+      const supabase = createClient();
+      await supabase.from('raw_notifications').delete().eq('id', id);
+      setRawNotifications((prev) => prev.filter((n) => n.id !== id));
+    }
+  };
+
   return (
     <AppShell
       userRole={userRole}
@@ -291,33 +390,97 @@ export default function InboxTransactionsPage() {
       searchQuery={searchQuery}
       onSearchChange={setSearchQuery}
     >
-      {/* Toolbar Monexa: Title, Filter Pill, Kalender, Export, + Add Transaction */}
-      <TableToolbar
-        currentFlow={flowFilter}
-        onFlowChange={setFlowFilter}
-        dateRange={dateRange}
-        onOpenDateModal={() => setIsDateModalOpen(true)}
-        onExport={handleExportCsv}
-        onAddTransaction={() => setIsAddModalOpen(true)}
-        totalCount={filteredTransactions.length}
-      />
+      {/* Switcher Tab Utama: Transaksi Terurai vs Log Notifikasi Mentah */}
+      <div className="flex items-center justify-between border-b border-[var(--border-color)]/70 pb-3 mb-5 gap-3 flex-wrap">
+        <div className="flex items-center gap-2">
+          {/* Tab 1: Transaksi Terurai */}
+          <button
+            onClick={() => setInboxTab('parsed')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              inboxTab === 'parsed'
+                ? 'bg-[#007a33] text-white shadow-xs'
+                : 'text-slate-600 dark:text-slate-300 hover:bg-[var(--bg-card)] border border-transparent'
+            }`}
+          >
+            <CheckCircle2 className="w-4 h-4" />
+            <span>Transaksi Terurai</span>
+            {pendingCount > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-amber-400 text-slate-900 font-extrabold">
+                {pendingCount} Pending
+              </span>
+            )}
+          </button>
 
-      {/* Tabel Transaksi Monexa */}
-      <TransactionTable
-        transactions={filteredTransactions}
-        onSelectTransaction={(row) => {
-          const found = transactions.find((t) => t.id === row.id);
-          if (found) {
-            setDetailTransaction(found);
-            setIsDetailModalOpen(true);
-          }
-        }}
-        onEditTransaction={(row) => {
-          const found = transactions.find((t) => t.id === row.id);
-          if (found) setEditingTransaction(found);
-        }}
-        onDeleteTransaction={handleDelete}
-      />
+          {/* Tab 2: Seluruh Notifikasi Masuk (Raw Stream) */}
+          <button
+            onClick={() => setInboxTab('raw')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              inboxTab === 'raw'
+                ? 'bg-[#007a33] text-white shadow-xs'
+                : 'text-slate-600 dark:text-slate-300 hover:bg-[var(--bg-card)] border border-transparent'
+            }`}
+          >
+            <Smartphone className="w-4 h-4" />
+            <span>Semua Notifikasi HP</span>
+            <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold">
+              {rawNotifications.length}
+            </span>
+          </button>
+        </div>
+
+        <button
+          onClick={fetchData}
+          title="Muat ulang data"
+          className="p-2 rounded-xl bg-[var(--bg-card)] border border-[var(--border-color)] text-[#007a33] hover:text-[#004d00] transition-colors shadow-2xs"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+        </button>
+      </div>
+
+      {/* KONTEN TAB 1: Transaksi Terurai (Tampilan Monexa Asli) */}
+      {inboxTab === 'parsed' && (
+        <>
+          <TableToolbar
+            currentFlow={flowFilter}
+            onFlowChange={setFlowFilter}
+            dateRange={dateRange}
+            onOpenDateModal={() => setIsDateModalOpen(true)}
+            onExport={handleExportCsv}
+            onAddTransaction={() => {
+              setPreloadedData(null);
+              setIsAddModalOpen(true);
+            }}
+            totalCount={filteredTransactions.length}
+          />
+
+          <TransactionTable
+            transactions={filteredTransactions}
+            onSelectTransaction={(row) => {
+              const found = transactions.find((t) => t.id === row.id);
+              if (found) {
+                setDetailTransaction(found);
+                setIsDetailModalOpen(true);
+              }
+            }}
+            onEditTransaction={(row) => {
+              const found = transactions.find((t) => t.id === row.id);
+              if (found) setEditingTransaction(found);
+            }}
+            onDeleteTransaction={handleDelete}
+          />
+        </>
+      )}
+
+      {/* KONTEN TAB 2: Seluruh Notifikasi HP (Raw Stream) */}
+      {inboxTab === 'raw' && (
+        <RawNotificationTable
+          notifications={rawNotifications}
+          onConvertToTransaction={handleConvertToTransaction}
+          onIgnoreNotification={handleIgnoreRawNotification}
+          onDeleteNotification={handleDeleteRawNotification}
+          loading={loading}
+        />
+      )}
 
       {/* Modal Filter Tanggal */}
       <DateRangePickerModal
@@ -329,14 +492,18 @@ export default function InboxTransactionsPage() {
         }}
       />
 
-      {/* Modal Tambah Transaksi (Manual & Scan Foto Struk Gemini Vision AI) */}
+      {/* Modal Tambah / Konversi Transaksi */}
       <AddTransactionModal
         isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
+        onClose={() => {
+          setIsAddModalOpen(false);
+          setPreloadedData(null);
+        }}
         categories={categories}
         accounts={accounts}
         onSuccess={fetchData}
         userRole={userRole}
+        preloadedData={preloadedData}
       />
 
       {/* Pop-up Modal Detail Transaksi */}
@@ -353,7 +520,7 @@ export default function InboxTransactionsPage() {
         onEdit={(tx) => setEditingTransaction(tx)}
       />
 
-      {/* Modal Koreksi Data Transaksi */}
+      {/* Modal Koreksi Cepat Transaksi */}
       {editingTransaction && (
         <QuickEditModal
           isOpen={Boolean(editingTransaction)}
@@ -369,7 +536,7 @@ export default function InboxTransactionsPage() {
         />
       )}
 
-      {/* Pop-up Toast Realtime Saat Transaksi Masuk */}
+      {/* Pop-up Toast Realtime Saat Notifikasi / Transaksi Masuk */}
       <RealtimeToast
         data={incomingToast}
         onClose={() => setIncomingToast(null)}
@@ -378,6 +545,9 @@ export default function InboxTransactionsPage() {
           if (found) {
             setDetailTransaction(found);
             setIsDetailModalOpen(true);
+          } else {
+            // Jika notifikasi mentah, beralih ke tab raw
+            setInboxTab('raw');
           }
         }}
       />

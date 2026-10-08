@@ -55,15 +55,16 @@ describe('Bank Jago - Transaksi Valid dari Notifikasi Nyata', () => {
     });
   });
 
-  it('berhasil mem-parse pembayaran: "Payment of Rp75.000 to Toko ABC successful"', () => {
-    const result = run('Jago', 'Payment of Rp75.000 to Toko ABC successful');
+  it('berhasil mem-parse pembayaran merchant: "You have paid Rp 25.000 to Ajian Store. Need help? Contact Tanya Jago at 1500 746."', () => {
+    const result = run('Jago', 'You have paid Rp 25.000 to Ajian Store. Need help? Contact Tanya Jago at 1500 746.');
     expect(result).toMatchObject({
       outcome: 'transaction',
       isValid: true,
       bank: 'jago',
       direction: 'out',
-      amount: 75_000,
-      merchant: 'Toko ABC',
+      amount: 25_000,
+      merchant: 'Ajian Store',
     });
   });
 });
+
