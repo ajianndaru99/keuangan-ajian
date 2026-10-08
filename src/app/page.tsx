@@ -330,17 +330,17 @@ export default function DashboardPage() {
           <div className="flex items-center gap-2">
             <button
               onClick={togglePrivacy}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-semibold transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] text-[var(--text-main)] hover:bg-[var(--bg-main)] text-xs font-semibold transition-colors shadow-xs"
               title="Sembunyikan atau tampilkan nominal saldo sensitif"
             >
               {isHideBalance ? (
                 <>
-                  <EyeOff className="w-3.5 h-3.5 text-slate-400" />
+                  <EyeOff className="w-3.5 h-3.5 text-[#007a33]" />
                   <span>Saldo Disembunyikan</span>
                 </>
               ) : (
                 <>
-                  <Eye className="w-3.5 h-3.5 text-slate-400" />
+                  <Eye className="w-3.5 h-3.5 text-[#007a33]" />
                   <span>Sembunyikan Saldo</span>
                 </>
               )}
@@ -349,7 +349,7 @@ export default function DashboardPage() {
             <button
               onClick={fetchData}
               title="Muat ulang data"
-              className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors"
+              className="p-2 rounded-xl bg-[var(--bg-card)] border border-[var(--border-color)] text-[#007a33] hover:text-[#004d00] transition-colors shadow-xs"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
             </button>
@@ -357,17 +357,17 @@ export default function DashboardPage() {
         </div>
 
         {/* =========================================================================
-            ROW 1: KARTU SALDO TOTAL & ARUS KAS BULAN INI (PASTEL THEMATIC)
+            ROW 1: KARTU SALDO TOTAL & ARUS KAS BULAN INI (SESUAI TEMA TXT)
             ========================================================================= */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          {/* Kartu Saldo Kas Gabungan (Mint Theme) */}
-          <div className="md:col-span-2 rounded-3xl p-6 bg-white/90 border border-[#b2e0d4] shadow-xs relative overflow-hidden">
+          {/* Kartu Saldo Kas Gabungan (Warna Mint Sesuai Lampiran TXT) */}
+          <div className="md:col-span-2 rounded-3xl p-6 bg-[var(--bg-card)] border border-[var(--border-color)] shadow-xs relative overflow-hidden">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <span className="text-xs font-bold text-[#007a33] uppercase tracking-wider">
                   Total Kas Keluarga
                 </span>
-                <p className="text-2xl sm:text-3xl font-extrabold text-[#004d00] tracking-tight mt-1 angka-keuangan">
+                <p className="text-2xl sm:text-3xl font-extrabold text-[var(--text-main)] tracking-tight mt-1 angka-keuangan">
                   {formatMaskedRupiah(balanceSummary.totalAll, isHideBalance)}
                 </p>
                 <p className="text-[11px] text-[#007a33] font-medium mt-1">
@@ -375,27 +375,27 @@ export default function DashboardPage() {
                 </p>
               </div>
 
-              <div className="p-3 rounded-2xl bg-[#e0f7f1] text-[#007a33] border border-[#b2e0d4] shadow-xs">
+              <div className="p-3 rounded-2xl bg-[var(--bg-main)] text-[#007a33] border border-[var(--border-color)] shadow-xs">
                 <Wallet className="w-6 h-6" />
               </div>
             </div>
 
             {/* Perincian Kas Suami vs Istri */}
-            <div className="grid grid-cols-2 gap-3 pt-4 mt-5 border-t border-[#E2E8F0]">
-              <div className="p-3.5 rounded-2xl bg-[#e0f7f1]/50 border border-[#b2e0d4]/60 shadow-xs">
+            <div className="grid grid-cols-2 gap-3 pt-4 mt-5 border-t border-[var(--border-color)]/70">
+              <div className="p-3.5 rounded-2xl bg-[var(--bg-main)]/60 border border-[var(--border-color)]/80 shadow-xs">
                 <span className="text-[11px] font-bold text-[#007a33] block mb-0.5">
                   Kas Suami
                 </span>
-                <p className="text-sm sm:text-base font-extrabold text-[#004d00] angka-keuangan">
+                <p className="text-sm sm:text-base font-extrabold text-[var(--text-main)] angka-keuangan">
                   {formatMaskedRupiah(balanceSummary.totalSuami, isHideBalance)}
                 </p>
               </div>
 
-              <div className="p-3.5 rounded-2xl bg-[#e0f7f1]/50 border border-[#b2e0d4]/60 shadow-xs">
+              <div className="p-3.5 rounded-2xl bg-[var(--bg-main)]/60 border border-[var(--border-color)]/80 shadow-xs">
                 <span className="text-[11px] font-bold text-[#007a33] block mb-0.5">
                   Kas Istri
                 </span>
-                <p className="text-sm sm:text-base font-extrabold text-[#004d00] angka-keuangan">
+                <p className="text-sm sm:text-base font-extrabold text-[var(--text-main)] angka-keuangan">
                   {formatMaskedRupiah(balanceSummary.totalIstri, isHideBalance)}
                 </p>
               </div>
@@ -405,13 +405,13 @@ export default function DashboardPage() {
           {/* Kartu Status Inbox Pending */}
           <div className={`rounded-3xl p-6 shadow-xs flex flex-col justify-between border ${
             pendingCount > 0
-              ? 'bg-amber-50/90 border-amber-200/90'
-              : 'bg-white/90 border-[#b2e0d4]'
+              ? 'bg-amber-50/90 border-amber-200/90 dark:bg-amber-950/30 dark:border-amber-800/60'
+              : 'bg-[var(--bg-card)] border-[var(--border-color)]'
           }`}>
             <div>
               <div className="flex items-center justify-between mb-3">
                 <span className={`text-xs font-bold uppercase tracking-wider ${
-                  pendingCount > 0 ? 'text-amber-800' : 'text-[#007a33]'
+                  pendingCount > 0 ? 'text-amber-800 dark:text-amber-300' : 'text-[#007a33]'
                 }`}>
                   Status Inbox
                 </span>
@@ -422,10 +422,10 @@ export default function DashboardPage() {
 
               {pendingCount > 0 ? (
                 <>
-                  <h3 className="text-2xl font-extrabold text-amber-950 tracking-tight angka-keuangan">
+                  <h3 className="text-2xl font-extrabold text-amber-950 dark:text-amber-100 tracking-tight angka-keuangan">
                     {pendingCount} Transaksi
                   </h3>
-                  <p className="text-xs text-amber-800 mt-1 font-semibold leading-relaxed">
+                  <p className="text-xs text-amber-800 dark:text-amber-200/90 mt-1 font-semibold leading-relaxed">
                     Menunggu verifikasi kategori di tab Transactions.
                   </p>
                 </>
@@ -433,7 +433,7 @@ export default function DashboardPage() {
                 <>
                   <div className="flex items-center gap-2 text-[#007a33] mt-1">
                     <CheckCircle2 className="w-5 h-5 text-[#198754]" />
-                    <span className="font-extrabold text-base text-[#004d00]">Inbox Bersih</span>
+                    <span className="font-extrabold text-base text-[var(--text-main)]">Inbox Bersih</span>
                   </div>
                   <p className="text-xs text-[#007a33] mt-1 font-medium leading-relaxed">
                     Semua transaksi telah tervalidasi dan tercatat rapi.
@@ -444,10 +444,10 @@ export default function DashboardPage() {
 
             <Link
               href="/inbox"
-              className={`mt-5 w-full py-2.5 px-4 rounded-xl font-bold text-xs transition-colors flex items-center justify-center gap-1.5 shadow-xs text-white ${
+              className={`mt-5 w-full py-2.5 px-4 rounded-xl font-bold text-xs transition-colors flex items-center justify-center gap-1.5 shadow-xs ${
                 pendingCount > 0
-                  ? 'bg-amber-600 hover:bg-amber-700 shadow-amber-600/20'
-                  : 'bg-[#007a33] hover:bg-[#004d00] shadow-sm'
+                  ? 'bg-amber-600 hover:bg-amber-700 text-white shadow-amber-600/20'
+                  : 'bg-[var(--accent-color)] text-[var(--bg-main)] hover:opacity-90'
               }`}
             >
               <Inbox className="w-3.5 h-3.5" />
@@ -458,7 +458,7 @@ export default function DashboardPage() {
 
         {/* Quick Cashflow Summary Bar (Hijau Teduh #198754 & Merah Bata #DC3545) */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
-          <div className="p-4 rounded-2xl bg-white/90 border border-[#b2e0d4] shadow-xs">
+          <div className="p-4 rounded-2xl bg-[var(--bg-card)] border border-[var(--border-color)] shadow-xs">
             <div className="flex items-center justify-between text-[#007a33] mb-1">
               <span className="text-xs font-bold">Pemasukan Terverifikasi</span>
               <ArrowDownLeft className="w-4 h-4 text-[#198754]" />
@@ -468,8 +468,8 @@ export default function DashboardPage() {
             </p>
           </div>
 
-          <div className="p-4 rounded-2xl bg-white/90 border border-[#E2E8F0] shadow-xs">
-            <div className="flex items-center justify-between text-slate-600 mb-1">
+          <div className="p-4 rounded-2xl bg-[var(--bg-card)] border border-[var(--border-color)] shadow-xs">
+            <div className="flex items-center justify-between text-[#007a33] mb-1">
               <span className="text-xs font-bold">Pengeluaran Terverifikasi</span>
               <ArrowUpRight className="w-4 h-4 text-[#DC3545]" />
             </div>
@@ -478,8 +478,8 @@ export default function DashboardPage() {
             </p>
           </div>
 
-          <div className="p-4 rounded-2xl bg-white/90 border border-[#E2E8F0] shadow-xs">
-            <div className="flex items-center justify-between text-slate-600 mb-1">
+          <div className="p-4 rounded-2xl bg-[var(--bg-card)] border border-[var(--border-color)] shadow-xs">
+            <div className="flex items-center justify-between text-[#007a33] mb-1">
               <span className="text-xs font-bold">Arus Kas Bersih (Net)</span>
               <TrendingUp className="w-4 h-4 text-[#007a33]" />
             </div>
@@ -492,21 +492,21 @@ export default function DashboardPage() {
         </div>
 
         {/* =========================================================================
-            ROW 2: RINGKASAN SALDO AKUN PERBANKAN & E-WALLET (PASTEL CARDS)
+            ROW 2: RINGKASAN SALDO AKUN PERBANKAN & E-WALLET (WARNA TEMA KARTU)
             ========================================================================= */}
         <div className="mb-6">
           <div className="flex items-center justify-between mb-3">
             <div>
-              <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
+              <h2 className="text-sm font-bold text-[var(--text-main)] uppercase tracking-wider">
                 Rekening & Dompet Digital
               </h2>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-[#007a33]">
                 Saldo tersimpan di masing-masing bank dan e-wallet
               </p>
             </div>
             <Link
               href="/accounts"
-              className="text-xs font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-0.5"
+              className="text-xs font-semibold text-[#007a33] hover:text-[#004d00] flex items-center gap-0.5"
             >
               <span>Kelola Akun</span>
               <ChevronRight className="w-3.5 h-3.5" />
@@ -516,51 +516,29 @@ export default function DashboardPage() {
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {accounts.map((acc) => {
               const isBank = acc.type === 'bank';
-              const n = (acc.name || '').toLowerCase();
-              let cardBg = 'bg-slate-50 border-slate-200 text-slate-900';
-              let badgeBg = 'bg-slate-200 text-slate-700';
-              let iconColor = 'text-slate-600';
-
-              if (n.includes('bca') || n.includes('bri')) {
-                cardBg = 'bg-sky-50/90 border-sky-200/90 text-sky-950';
-                badgeBg = 'bg-sky-100 text-sky-800';
-                iconColor = 'text-sky-600';
-              } else if (n.includes('mandiri') || n.includes('jago')) {
-                cardBg = 'bg-amber-50/90 border-amber-200/90 text-amber-950';
-                badgeBg = 'bg-amber-100 text-amber-800';
-                iconColor = 'text-amber-600';
-              } else if (n.includes('gopay') || n.includes('dana')) {
-                cardBg = 'bg-emerald-50/90 border-emerald-200/90 text-emerald-950';
-                badgeBg = 'bg-emerald-100 text-emerald-800';
-                iconColor = 'text-emerald-600';
-              } else if (n.includes('ovo') || n.includes('shopee')) {
-                cardBg = 'bg-purple-50/90 border-purple-200/90 text-purple-950';
-                badgeBg = 'bg-purple-100 text-purple-800';
-                iconColor = 'text-purple-600';
-              }
 
               return (
                 <div
                   key={acc.id}
-                  className={`p-3.5 rounded-2xl border shadow-xs transition-transform hover:scale-[1.01] ${cardBg}`}
+                  className="p-3.5 rounded-2xl bg-[var(--bg-card)] border border-[var(--border-color)] shadow-xs transition-transform hover:scale-[1.01]"
                 >
                   <div className="flex items-center justify-between gap-2 mb-2">
                     <div className="flex items-center gap-1.5 min-w-0">
                       {isBank ? (
-                        <Building2 className={`w-3.5 h-3.5 shrink-0 ${iconColor}`} />
+                        <Building2 className="w-3.5 h-3.5 shrink-0 text-[#007a33]" />
                       ) : (
-                        <Smartphone className={`w-3.5 h-3.5 shrink-0 ${iconColor}`} />
+                        <Smartphone className="w-3.5 h-3.5 shrink-0 text-[#007a33]" />
                       )}
-                      <h4 className="text-xs font-bold truncate">
+                      <h4 className="text-xs font-bold text-[var(--text-main)] truncate">
                         {acc.name}
                       </h4>
                     </div>
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${badgeBg}`}>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded font-bold bg-[var(--bg-main)] text-[#007a33] border border-[var(--border-color)]/70">
                       {acc.owner === 'suami' ? 'Suami' : 'Istri'}
                     </span>
                   </div>
 
-                  <p className="text-sm font-extrabold tracking-tight">
+                  <p className="text-sm font-extrabold text-[var(--text-main)] tracking-tight angka-keuangan">
                     {formatMaskedRupiah(acc.current_balance, isHideBalance)}
                   </p>
                 </div>
@@ -572,20 +550,20 @@ export default function DashboardPage() {
         {/* =========================================================================
             ROW 3: RIWAYAT AKTIVITAS TERKINI (RECENT HISTORY)
             ========================================================================= */}
-        <div className="rounded-3xl p-5 md:p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm mb-6">
+        <div className="rounded-3xl p-5 md:p-6 bg-[var(--bg-card)] border border-[var(--border-color)] shadow-sm mb-6">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-base font-bold text-slate-900 dark:text-white">
+              <h2 className="text-base font-bold text-[var(--text-main)]">
                 Riwayat Transaksi Terkini
               </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+              <p className="text-xs text-[#007a33]">
                 Aktivitas transaksi terbaru yang tercatat oleh sistem
               </p>
             </div>
 
             <Link
               href="/inbox"
-              className="text-xs font-semibold text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white flex items-center gap-0.5"
+              className="text-xs font-semibold text-[#007a33] hover:text-[#004d00] flex items-center gap-0.5"
             >
               <span>Lihat Semua di Inbox</span>
               <ChevronRight className="w-3.5 h-3.5" />
@@ -593,12 +571,12 @@ export default function DashboardPage() {
           </div>
 
           {recentTransactions.length === 0 ? (
-            <div className="text-center py-12 px-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/70 dark:border-slate-800">
-              <Clock className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-              <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+            <div className="text-center py-12 px-4 rounded-2xl bg-[var(--bg-main)]/50 border border-[var(--border-color)]/70">
+              <Clock className="w-8 h-8 text-[#007a33]/60 mx-auto mb-2" />
+              <h4 className="text-sm font-bold text-[var(--text-main)]">
                 Belum Ada Riwayat Transaksi
               </h4>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm mx-auto leading-relaxed">
+              <p className="text-xs text-[#007a33] mt-1 max-w-sm mx-auto leading-relaxed">
                 Data telah dibersihkan dan siap dimulai dari nol. Saat Anda atau Istri melakukan transfer di HP, transaksi akan otomatis tercatat di sini.
               </p>
             </div>
@@ -616,7 +594,7 @@ export default function DashboardPage() {
                       setDetailTransaction(tx);
                       setIsDetailModalOpen(true);
                     }}
-                    className="py-3 px-2 flex items-center justify-between gap-3 hover:bg-[#e0f7f1]/30 rounded-xl transition-colors cursor-pointer group"
+                    className="py-3 px-2 flex items-center justify-between gap-3 hover:bg-[var(--bg-main)]/50 rounded-xl transition-colors cursor-pointer group"
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <div
@@ -634,10 +612,10 @@ export default function DashboardPage() {
                       </div>
 
                       <div className="min-w-0">
-                        <h4 className="text-xs sm:text-sm font-bold text-[#004d00] truncate">
+                        <h4 className="text-xs sm:text-sm font-bold text-[var(--text-main)] truncate">
                           {tx.merchant || 'Transaksi Digital'}
                         </h4>
-                        <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-slate-500">
+                        <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-[#007a33]">
                           <span>{accountName} ({ownerLabel})</span>
                           <span>•</span>
                           <span>{formatRelativeWIB(tx.transaction_date)}</span>
@@ -659,7 +637,7 @@ export default function DashboardPage() {
                         className={`inline-block text-[10px] font-medium px-2 py-0.2 rounded-full mt-0.5 ${
                           tx.status === 'pending'
                             ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
-                            : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                            : 'bg-[var(--bg-main)] text-[#007a33] border border-[var(--border-color)]/70'
                         }`}
                       >
                         {tx.status === 'pending' ? 'Pending' : 'Tervalidasi'}
@@ -678,61 +656,61 @@ export default function DashboardPage() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <Link
             href="/inbox"
-            className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-400 dark:hover:border-slate-600 transition-colors shadow-xs group"
+            className="p-4 rounded-2xl bg-[var(--bg-card)] border border-[var(--border-color)] hover:border-[#007a33] transition-all shadow-xs group"
           >
-            <div className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 w-fit mb-2">
+            <div className="p-2 rounded-xl bg-[var(--bg-main)] text-[#007a33] border border-[var(--border-color)] w-fit mb-2">
               <Inbox className="w-4 h-4" />
             </div>
-            <h4 className="text-xs font-bold text-slate-900 dark:text-white">
+            <h4 className="text-xs font-bold text-[var(--text-main)]">
               Inbox Transaksi
             </h4>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+            <p className="text-[11px] text-[#007a33] mt-0.5">
               Verifikasi & kategorisasi notifikasi bank masuk.
             </p>
           </Link>
 
           <Link
             href="/budget"
-            className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-400 dark:hover:border-slate-600 transition-colors shadow-xs group"
+            className="p-4 rounded-2xl bg-[var(--bg-card)] border border-[var(--border-color)] hover:border-[#007a33] transition-all shadow-xs group"
           >
-            <div className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 w-fit mb-2">
+            <div className="p-2 rounded-xl bg-[var(--bg-main)] text-[#007a33] border border-[var(--border-color)] w-fit mb-2">
               <Target className="w-4 h-4" />
             </div>
-            <h4 className="text-xs font-bold text-slate-900 dark:text-white">
+            <h4 className="text-xs font-bold text-[var(--text-main)]">
               Atur Budget
             </h4>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+            <p className="text-[11px] text-[#007a33] mt-0.5">
               Alokasi batas belanja per kategori & pantau sisa.
             </p>
           </Link>
 
           <Link
             href="/rekap"
-            className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-400 dark:hover:border-slate-600 transition-colors shadow-xs group"
+            className="p-4 rounded-2xl bg-[var(--bg-card)] border border-[var(--border-color)] hover:border-[#007a33] transition-all shadow-xs group"
           >
-            <div className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 w-fit mb-2">
+            <div className="p-2 rounded-xl bg-[var(--bg-main)] text-[#007a33] border border-[var(--border-color)] w-fit mb-2">
               <BarChart3 className="w-4 h-4" />
             </div>
-            <h4 className="text-xs font-bold text-slate-900 dark:text-white">
+            <h4 className="text-xs font-bold text-[var(--text-main)]">
               Rekapitulasi
             </h4>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-              Grafik tren mingguan, bulanan & perbandingan kas.
+            <p className="text-[11px] text-[#007a33] mt-0.5">
+              Grafik tren bulanan & titik transaksi puncak.
             </p>
           </Link>
 
           <Link
             href="/accounts"
-            className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-400 dark:hover:border-slate-600 transition-colors shadow-xs group"
+            className="p-4 rounded-2xl bg-[var(--bg-card)] border border-[var(--border-color)] hover:border-[#007a33] transition-all shadow-xs group"
           >
-            <div className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 w-fit mb-2">
+            <div className="p-2 rounded-xl bg-[var(--bg-main)] text-[#007a33] border border-[var(--border-color)] w-fit mb-2">
               <Building2 className="w-4 h-4" />
             </div>
-            <h4 className="text-xs font-bold text-slate-900 dark:text-white">
+            <h4 className="text-xs font-bold text-[var(--text-main)]">
               Kelola Akun
             </h4>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-              Penyesuaian saldo awal & audit selisih kas fisik.
+            <p className="text-[11px] text-[#007a33] mt-0.5">
+              Penyesuaian saldo awal & dompet digital.
             </p>
           </Link>
         </div>

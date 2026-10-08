@@ -116,10 +116,10 @@ export default function TransactionCard({
     <>
       <div
         onClick={() => onOpenDetail?.(transaction)}
-        className={`group rounded-2xl p-4 md:p-5 transition-all bg-white dark:bg-slate-900 border cursor-pointer ${
+        className={`group rounded-2xl p-4 md:p-5 transition-all bg-[var(--bg-card)] border cursor-pointer ${
           isFailedParse
             ? 'border-amber-300 dark:border-amber-700/60 bg-amber-50/20 dark:bg-amber-950/10'
-            : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-sm'
+            : 'border-[var(--border-color)] hover:border-[#007a33] hover:shadow-sm'
         }`}
       >
         {/* Banner Peringatan jika nominal 0 atau butuh review */}
@@ -151,35 +151,35 @@ export default function TransactionCard({
             <div
               className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border mt-0.5 ${
                 isIncome
-                  ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800'
-                  : 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                  ? 'bg-[#e8f5e9] text-[#198754] border-[#198754]/30'
+                  : 'bg-[#fde8ea] text-[#DC3545] border-[#DC3545]/30'
               }`}
             >
               {isIncome ? (
                 <ArrowDownLeft className="w-4 h-4" />
               ) : (
-                <ArrowUpRight className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+                <ArrowUpRight className="w-4 h-4 text-[#DC3545]" />
               )}
             </div>
 
             <div className="min-w-0 flex-1">
               <h3
-                className="text-sm font-bold text-slate-900 dark:text-white truncate"
+                className="text-sm font-bold text-[var(--text-main)] truncate"
                 title={transaction.merchant || 'Transaksi Digital'}
               >
                 {transaction.merchant || 'Transaksi Digital'}
               </h3>
-              <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-1">
+              <p className="text-[11px] font-medium text-[#007a33] mt-0.5 flex items-center gap-1">
                 <Clock className="w-3 h-3" />
                 {formatRelativeWIB(transaction.transaction_date)}
               </p>
 
               <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium bg-[var(--bg-main)] text-[#007a33] border border-[var(--border-color)]/70">
                   <CreditCard className="w-2.5 h-2.5" />
                   {accountName}
                 </span>
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium bg-[var(--bg-main)] text-[#007a33] border border-[var(--border-color)]/70">
                   <User className="w-2.5 h-2.5" />
                   {ownerLabel}
                 </span>
@@ -188,27 +188,27 @@ export default function TransactionCard({
           </div>
 
           {/* Kolom 2: Pratinjau Keterangan / Notifikasi */}
-          <div className="flex-1 min-w-0 px-3 border-x border-slate-100 dark:border-slate-800">
+          <div className="flex-1 min-w-0 px-3 border-x border-[var(--border-color)]/70">
             <div className="text-xs">
               <div className="flex items-center justify-between gap-2 mb-1">
-                <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500">
+                <span className="text-[11px] font-semibold text-[#007a33]">
                   Keterangan:
                 </span>
                 {referenceNumber && (
-                  <span className="font-mono text-[10px] text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700">
+                  <span className="font-mono text-[10px] text-[#007a33] bg-[var(--bg-main)] px-1.5 py-0.5 rounded border border-[var(--border-color)]/70">
                     Ref: {referenceNumber}
                   </span>
                 )}
               </div>
-              <p className="text-slate-700 dark:text-slate-300 line-clamp-2 leading-relaxed">
+              <p className="text-[var(--text-main)] line-clamp-2 leading-relaxed">
                 {cleanSummary}
               </p>
             </div>
 
             {matchedCategory && (
-              <div className="mt-1.5 flex items-center gap-1.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
+              <div className="mt-1.5 flex items-center gap-1.5 text-[11px] font-medium text-[#007a33]">
                 <span>Rekomendasi:</span>
-                <span className="px-1.5 py-0.2 rounded bg-emerald-50 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 font-semibold">
+                <span className="px-1.5 py-0.2 rounded bg-[var(--bg-main)] text-[#007a33] border border-[var(--border-color)]/70 font-semibold">
                   {matchedCategory.name}
                 </span>
               </div>
@@ -217,19 +217,19 @@ export default function TransactionCard({
 
           {/* Kolom 3: Nominal Transaksi */}
           <div className="w-36 lg:w-40 shrink-0 text-right pr-2">
-            <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 block mb-0.5 uppercase tracking-wide">
+            <span className="text-[10px] font-semibold text-[#007a33] block mb-0.5 uppercase tracking-wide">
               {isIncome ? 'Masuk' : 'Keluar'}
             </span>
             {transaction.amount === 0 ? (
-              <span className="text-xs font-semibold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 px-2 py-0.5 rounded border border-amber-200 dark:border-amber-800">
+              <span className="text-xs font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
                 Perlu Cek
               </span>
             ) : isIncome ? (
-              <span className="inline-flex items-center gap-0.5 text-base font-bold text-emerald-600 dark:text-emerald-400 tracking-tight">
+              <span className="inline-flex items-center gap-0.5 text-base font-bold text-[#198754] tracking-tight angka-keuangan">
                 +{formatRupiah(transaction.amount)}
               </span>
             ) : (
-              <span className="inline-flex items-center gap-0.5 text-base font-bold text-slate-900 dark:text-white tracking-tight">
+              <span className="inline-flex items-center gap-0.5 text-base font-bold text-[#DC3545] tracking-tight angka-keuangan">
                 -{formatRupiah(transaction.amount)}
               </span>
             )}
@@ -245,7 +245,7 @@ export default function TransactionCard({
                 <button
                   onClick={handleQuickApproveMatched}
                   disabled={isSubmitting}
-                  className="flex-1 py-1.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-white text-white dark:text-slate-900 font-semibold text-xs transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50 truncate"
+                  className="flex-1 py-1.5 px-3 rounded-xl bg-[var(--accent-color)] hover:opacity-90 text-[var(--bg-main)] font-bold text-xs transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50 truncate shadow-2xs"
                   title={`Konfirmasi ke ${matchedCategory.name}`}
                 >
                   <Check className="w-3.5 h-3.5 shrink-0" />
@@ -253,7 +253,7 @@ export default function TransactionCard({
                 </button>
                 <button
                   onClick={() => setIsEditing(true)}
-                  className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors"
+                  className="p-1.5 rounded-lg border border-[var(--border-color)] text-[#007a33] hover:text-[#004d00] hover:bg-[var(--bg-main)] transition-colors"
                   title="Koreksi Transaksi"
                 >
                   <Edit3 className="w-3.5 h-3.5" />
@@ -261,7 +261,7 @@ export default function TransactionCard({
                 <button
                   onClick={handleIgnore}
                   disabled={isSubmitting}
-                  className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors"
+                  className="p-1.5 rounded-lg border border-[var(--border-color)] text-[#007a33] hover:text-[#DC3545] hover:bg-[#fde8ea]/50 transition-colors"
                   title="Abaikan"
                 >
                   ✕
@@ -282,10 +282,10 @@ export default function TransactionCard({
 
             {/* Link Aksi Cepat Bawah */}
             {!matchedCategory && (
-              <div className="flex items-center gap-2.5 text-xs text-slate-400 dark:text-slate-500">
+              <div className="flex items-center gap-2.5 text-xs text-[#007a33]">
                 <button
                   onClick={() => setIsEditing(true)}
-                  className="text-[11px] font-medium text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors flex items-center gap-1"
+                  className="text-[11px] font-semibold text-[#007a33] hover:text-[#004d00] transition-colors flex items-center gap-1"
                 >
                   <Edit3 className="w-3 h-3" />
                   <span>Koreksi</span>
@@ -294,7 +294,7 @@ export default function TransactionCard({
                 <button
                   onClick={handleIgnore}
                   disabled={isSubmitting}
-                  className="text-[11px] font-medium text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 transition-colors"
+                  className="text-[11px] font-semibold text-[#007a33] hover:text-[#DC3545] transition-colors"
                 >
                   Abaikan
                 </button>
@@ -312,22 +312,22 @@ export default function TransactionCard({
               <div
                 className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border mt-0.5 ${
                   isIncome
-                    ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800'
-                    : 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                    ? 'bg-[#e8f5e9] text-[#198754] border-[#198754]/30'
+                    : 'bg-[#fde8ea] text-[#DC3545] border-[#DC3545]/30'
                 }`}
               >
                 {isIncome ? (
                   <ArrowDownLeft className="w-4 h-4" />
                 ) : (
-                  <ArrowUpRight className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+                  <ArrowUpRight className="w-4 h-4 text-[#DC3545]" />
                 )}
               </div>
 
               <div className="min-w-0 flex-1">
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white truncate">
+                <h3 className="text-sm font-bold text-[var(--text-main)] truncate">
                   {transaction.merchant || 'Transaksi Digital'}
                 </h3>
-                <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mt-0.5">
+                <p className="text-[11px] font-medium text-[#007a33] mt-0.5">
                   {formatRelativeWIB(transaction.transaction_date)}
                 </p>
               </div>
@@ -335,15 +335,15 @@ export default function TransactionCard({
 
             <div className="text-right shrink-0">
               {transaction.amount === 0 ? (
-                <span className="text-xs font-semibold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 px-2 py-0.5 rounded border border-amber-200">
+                <span className="text-xs font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
                   Cek
                 </span>
               ) : isIncome ? (
-                <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
+                <span className="text-sm font-bold text-[#198754] angka-keuangan">
                   +{formatRupiah(transaction.amount)}
                 </span>
               ) : (
-                <span className="text-sm font-bold text-slate-900 dark:text-white">
+                <span className="text-sm font-bold text-[#DC3545] angka-keuangan">
                   -{formatRupiah(transaction.amount)}
                 </span>
               )}
@@ -351,17 +351,17 @@ export default function TransactionCard({
           </div>
 
           {/* Badges Baris 2 */}
-          <div className="flex items-center justify-between gap-2 mt-2 pt-2 border-t border-slate-100 dark:border-slate-800/80">
+          <div className="flex items-center justify-between gap-2 mt-2 pt-2 border-t border-[var(--border-color)]/70">
             <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-[10px] font-medium px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+              <span className="text-[10px] font-medium px-2 py-0.5 rounded bg-[var(--bg-main)] text-[#007a33] border border-[var(--border-color)]/70">
                 {accountName}
               </span>
-              <span className="text-[10px] font-medium px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+              <span className="text-[10px] font-medium px-2 py-0.5 rounded bg-[var(--bg-main)] text-[#007a33] border border-[var(--border-color)]/70">
                 {ownerLabel}
               </span>
             </div>
 
-            <div className="flex items-center gap-1 text-[11px] font-medium text-slate-500 group-hover:text-slate-900 dark:group-hover:text-white">
+            <div className="flex items-center gap-1 text-[11px] font-medium text-[#007a33] group-hover:text-[#004d00]">
               <span>Detail</span>
               <ChevronRight className="w-3.5 h-3.5" />
             </div>
@@ -370,7 +370,7 @@ export default function TransactionCard({
           {/* Pilihan Kategori di HP */}
           <div
             onClick={(e) => e.stopPropagation()}
-            className="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-800/80"
+            className="mt-2.5 pt-2 border-t border-[var(--border-color)]/70"
           >
             <CategoryChipList
               categories={categories}

@@ -113,13 +113,13 @@ export default function CategoryExpensesChart({ categories }: CategoryExpensesCh
   }
 
   return (
-    <div className="rounded-3xl p-5 mb-3.5 liquid-glass transition-all border border-white/80 dark:border-white/10 shadow-sm">
+    <div className="bg-[var(--bg-card)] rounded-3xl p-5 mb-3.5 border border-[var(--border-color)] shadow-xs">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h3 className="text-sm font-black text-slate-900 dark:text-white">
+          <h3 className="text-sm font-bold text-[var(--text-main)]">
             Pengeluaran per Kategori
           </h3>
-          <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+          <span className="text-[11px] font-medium text-[#007a33]">
             Sebaran belanja transaksi yang sudah diverifikasi
           </span>
         </div>
@@ -132,14 +132,14 @@ export default function CategoryExpensesChart({ categories }: CategoryExpensesCh
             <XAxis
               dataKey="displayName"
               interval={0}
-              tick={{ fontSize: 10, fill: '#64748b', fontWeight: 600 }}
+              tick={{ fontSize: 10, fill: '#007a33', fontWeight: 600 }}
               axisLine={false}
               tickLine={false}
               angle={-20}
               textAnchor="end"
             />
             <YAxis
-              tick={{ fontSize: 9, fill: '#94a3b8' }}
+              tick={{ fontSize: 9, fill: '#007a33' }}
               axisLine={false}
               tickLine={false}
               tickFormatter={(v) => `${v / 1000}k`}
@@ -156,10 +156,10 @@ export default function CategoryExpensesChart({ categories }: CategoryExpensesCh
       </div>
 
       {/* Daftar Top 5 Kategori Terboros */}
-      <div className="mt-5 pt-4 border-t border-slate-200/80 dark:border-white/10">
+      <div className="mt-5 pt-4 border-t border-[var(--border-color)]/70">
         <div className="flex items-center gap-1.5 mb-3">
-          <Flame className="w-4 h-4 text-rose-500" />
-          <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-white">
+          <Flame className="w-4 h-4 text-[#DC3545]" />
+          <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--text-main)]">
             Top 5 Kategori Terboros
           </h4>
         </div>
@@ -170,31 +170,31 @@ export default function CategoryExpensesChart({ categories }: CategoryExpensesCh
             return (
               <div
                 key={item.category_id}
-                className="p-3 rounded-2xl liquid-pill bg-white/70 dark:bg-white/5 border border-white/90 dark:border-white/10"
+                className="p-3 rounded-2xl bg-[var(--bg-main)]/60 border border-[var(--border-color)]/70"
               >
                 <div className="flex items-center justify-between gap-2 mb-1.5">
                   <div className="flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[10px] font-black flex items-center justify-center">
+                    <span className="w-5 h-5 rounded-lg bg-[var(--bg-card)] text-[#007a33] text-[10px] font-bold flex items-center justify-center border border-[var(--border-color)]/70">
                       #{index + 1}
                     </span>
-                    <IconComponent className="w-4 h-4 text-sky-600 dark:text-sky-400" />
-                    <span className="text-xs font-bold text-slate-900 dark:text-white">
+                    <IconComponent className="w-4 h-4 text-[#007a33]" />
+                    <span className="text-xs font-bold text-[var(--text-main)]">
                       {item.category_name}
                     </span>
                   </div>
 
                   <div className="text-right">
-                    <span className="text-xs font-black text-slate-900 dark:text-white">
+                    <span className="text-xs font-extrabold text-[var(--text-main)] angka-keuangan">
                       {formatRupiah(item.total_amount)}
                     </span>
-                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 ml-1.5">
+                    <span className="text-[10px] font-bold text-[#007a33] ml-1.5">
                       ({item.percentage}%)
                     </span>
                   </div>
                 </div>
 
                 {/* Progress Bar Persentase */}
-                <div className="w-full bg-slate-100 dark:bg-slate-800/80 rounded-full h-2 overflow-hidden">
+                <div className="w-full bg-[var(--bg-card)] rounded-full h-2 overflow-hidden border border-[var(--border-color)]/50">
                   <div
                     className="h-full rounded-full transition-all duration-500"
                     style={{

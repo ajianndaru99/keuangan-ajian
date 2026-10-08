@@ -57,15 +57,15 @@ export default function CurvedDonutBreakdown({
   let accumulatedLength = 0;
 
   return (
-    <div className="rounded-3xl p-6 liquid-glass border border-white/90 dark:border-white/10 shadow-sm relative overflow-hidden">
+    <div className="bg-[var(--bg-card)] rounded-3xl p-6 border border-[var(--border-color)] shadow-xs relative overflow-hidden">
       {/* Header dengan link View Analytics */}
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-1.5">
+          <h2 className="text-sm font-bold text-[var(--text-main)] flex items-center gap-1.5">
             <span>Alokasi Budgeting</span>
-            <span className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
+            <span className="w-2 h-2 rounded-full bg-[#198754] animate-pulse" />
           </h2>
-          <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+          <p className="text-[11px] font-medium text-[#007a33]">
             Pembagian alokasi per pos anggaran
           </p>
         </div>
@@ -73,7 +73,7 @@ export default function CurvedDonutBreakdown({
         {onViewAnalytics && (
           <button
             onClick={onViewAnalytics}
-            className="inline-flex items-center gap-1 text-xs font-bold text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 transition-colors"
+            className="inline-flex items-center gap-1 text-xs font-bold text-[#007a33] hover:text-[#004d00] transition-colors"
           >
             <span>Analitik</span>
             <ArrowUpRight className="w-3.5 h-3.5" />
@@ -98,7 +98,7 @@ export default function CurvedDonutBreakdown({
                 fill="none"
                 stroke="currentColor"
                 strokeWidth={strokeWidth - 8}
-                className="text-slate-100 dark:text-slate-800/60"
+                className="text-[var(--bg-main)]"
               />
 
               {/* Segmen-segmen kapsul melengkung dengan gap */}
@@ -133,23 +133,23 @@ export default function CurvedDonutBreakdown({
               })}
             </svg>
 
-            {/* Label Tengah Donut (Foto 3) */}
+            {/* Label Tengah Donut */}
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center px-4">
-              <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+              <span className="text-[11px] font-bold text-[#007a33]">
                 Budget Bulanan
               </span>
-              <span className="text-xl font-black text-slate-900 dark:text-white tracking-tight mt-0.5">
+              <span className="text-xl font-extrabold text-[var(--text-main)] tracking-tight mt-0.5 angka-keuangan">
                 {formatRupiah(totalBudget)}
               </span>
-              <span className="text-[10px] font-bold text-purple-600 dark:text-purple-400 mt-0.5">
+              <span className="text-[10px] font-bold text-[#007a33] mt-0.5">
                 {segments.length} Pos Alokasi
               </span>
             </div>
           </div>
         </div>
 
-        {/* Legend List dengan Titik Warna & Nilai Rupiah (Foto 3) */}
-        <div className="sm:col-span-6 space-y-2.5">
+        {/* Legend List dengan Titik Warna & Nilai Rupiah */}
+        <div className="sm:col-span-6 space-y-2">
           {segments.map((seg) => {
             const isHovered = activeSegmentId === seg.id;
             const percentage = Math.round((seg.amount / effectiveTotal) * 100);
@@ -159,10 +159,10 @@ export default function CurvedDonutBreakdown({
                 key={seg.id}
                 onMouseEnter={() => setActiveSegmentId(seg.id)}
                 onMouseLeave={() => setActiveSegmentId(null)}
-                className={`p-2 rounded-2xl flex items-center justify-between transition-all cursor-pointer ${
+                className={`p-2.5 rounded-2xl flex items-center justify-between transition-all cursor-pointer border ${
                   isHovered
-                    ? 'bg-purple-50/80 dark:bg-purple-950/30 scale-[1.02] border border-purple-200 dark:border-purple-800/50'
-                    : 'hover:bg-slate-50 dark:hover:bg-white/5 border border-transparent'
+                    ? 'bg-[var(--bg-main)] border-[var(--border-color)] shadow-xs scale-[1.01]'
+                    : 'bg-[var(--bg-main)]/60 border-[var(--border-color)]/70 hover:bg-[var(--bg-main)]'
                 }`}
               >
                 <div className="flex items-center gap-2.5">
@@ -171,16 +171,16 @@ export default function CurvedDonutBreakdown({
                     style={{ backgroundColor: seg.color }}
                   />
                   <div>
-                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                    <span className="text-xs font-bold text-[var(--text-main)]">
                       {seg.name}
                     </span>
-                    <span className="text-[10px] text-slate-400 dark:text-slate-500 ml-1.5 font-medium">
+                    <span className="text-[10px] text-[#007a33] ml-1.5 font-medium">
                       ({percentage}%)
                     </span>
                   </div>
                 </div>
 
-                <span className="text-xs font-black text-slate-900 dark:text-white">
+                <span className="text-xs font-extrabold text-[var(--text-main)] angka-keuangan">
                   {formatRupiah(seg.amount)}
                 </span>
               </div>

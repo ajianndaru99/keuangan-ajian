@@ -74,16 +74,16 @@ export default function CategoryChipList({
               type="button"
               onClick={() => onSelect(cat.id)}
               disabled={disabled}
-              className={`shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors border disabled:opacity-50 active:scale-95 ${
+              className={`shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors border disabled:opacity-50 active:scale-95 ${
                 isSelected
-                  ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 border-slate-900 dark:border-white shadow-xs'
-                  : 'bg-slate-50 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border-slate-200 dark:border-slate-700'
+                  ? 'bg-[var(--accent-color)] text-[var(--bg-main)] border-[var(--accent-color)] shadow-xs'
+                  : 'bg-[var(--bg-main)]/60 text-[#007a33] hover:text-[#004d00] hover:bg-[var(--bg-main)] border-[var(--border-color)]'
               }`}
             >
               {isSelected ? (
-                <Check className="w-3 h-3 text-white dark:text-slate-900" />
+                <Check className="w-3 h-3 text-[var(--bg-main)]" />
               ) : (
-                <IconComponent className="w-3 h-3 text-slate-500 dark:text-slate-400" />
+                <IconComponent className="w-3 h-3 text-[#007a33]" />
               )}
               <span className="whitespace-nowrap">{cat.name}</span>
             </button>

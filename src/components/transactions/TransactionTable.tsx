@@ -55,14 +55,14 @@ export default function TransactionTable({
 
   if (transactions.length === 0) {
     return (
-      <div className="rounded-3xl p-12 text-center bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 shadow-2xs">
-        <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mx-auto mb-3">
+      <div className="rounded-3xl p-12 text-center bg-[var(--bg-card)] border border-[var(--border-color)] shadow-2xs">
+        <div className="w-12 h-12 rounded-2xl bg-[var(--bg-main)] text-[#007a33] flex items-center justify-center mx-auto mb-3 border border-[var(--border-color)]">
           <Clock className="w-6 h-6" />
         </div>
-        <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+        <h3 className="text-sm font-bold text-[var(--text-main)]">
           Tidak Ada Transaksi Ditemukan
         </h3>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm mx-auto">
+        <p className="text-xs text-[#007a33] mt-1 max-w-sm mx-auto">
           Tidak ada data transaksi yang cocok dengan filter tanggal atau tipe yang sedang aktif.
         </p>
       </div>
@@ -88,11 +88,11 @@ export default function TransactionTable({
   };
 
   return (
-    <div className="bg-white rounded-3xl border border-[#E2E8F0] shadow-2xs overflow-hidden">
+    <div className="bg-[var(--bg-card)] rounded-3xl border border-[#E2E8F0] shadow-2xs overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-left text-xs">
           {/* Header Tabel Monexa dengan Gridline Tipis #E2E8F0 */}
-          <thead className="bg-[#e0f7f1]/40 text-[#007a33] border-b border-[#E2E8F0] font-semibold select-none">
+          <thead className="bg-[var(--bg-main)]/70 text-[#007a33] border-b border-[#E2E8F0] font-semibold select-none">
             <tr>
               <th className="py-3.5 px-4 font-semibold whitespace-nowrap">Transaction Date</th>
               <th className="py-3.5 px-4 font-semibold whitespace-nowrap">Transaction Name</th>
@@ -112,11 +112,11 @@ export default function TransactionTable({
               return (
                 <tr
                   key={tx.id}
-                  className="hover:bg-[#e0f7f1]/30 transition-colors group cursor-pointer"
+                  className="hover:bg-[var(--bg-main)]/50 transition-colors group cursor-pointer"
                   onClick={() => onSelectTransaction(tx)}
                 >
                   {/* 1. Transaction Date */}
-                  <td className="py-3.5 px-4 font-medium text-slate-500 whitespace-nowrap angka-keuangan">
+                  <td className="py-3.5 px-4 font-medium text-[#007a33] whitespace-nowrap angka-keuangan">
                     {formatTableDate(tx.transaction_date)}
                   </td>
 
@@ -211,7 +211,7 @@ export default function TransactionTable({
                       onClick={() =>
                         setActiveMenuId(activeMenuId === tx.id ? null : tx.id)
                       }
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                      className="p-1.5 rounded-lg text-[#007a33] hover:text-[#004d00] hover:bg-[var(--bg-main)] transition-colors"
                       title="Menu Aksi"
                     >
                       <MoreVertical className="w-4 h-4" />
@@ -219,15 +219,15 @@ export default function TransactionTable({
 
                     {/* Dropdown Menu Popover */}
                     {activeMenuId === tx.id && (
-                      <div className="absolute right-4 top-10 w-44 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl z-30 p-1 animate-in fade-in zoom-in-95 duration-100 text-left">
+                      <div className="absolute right-4 top-10 w-44 rounded-2xl bg-[var(--bg-card)] border border-[var(--border-color)] shadow-xl z-30 p-1 animate-in fade-in zoom-in-95 duration-100 text-left">
                         <button
                           onClick={() => {
                             setActiveMenuId(null);
                             onSelectTransaction(tx);
                           }}
-                          className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                          className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-[var(--text-main)] hover:bg-[var(--bg-main)]/70 transition-colors"
                         >
-                          <CheckCircle2 className="w-3.5 h-3.5 text-indigo-500" />
+                          <CheckCircle2 className="w-3.5 h-3.5 text-[#198754]" />
                           <span>Lihat Detail</span>
                         </button>
 
@@ -236,9 +236,9 @@ export default function TransactionTable({
                             setActiveMenuId(null);
                             onEditTransaction(tx);
                           }}
-                          className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                          className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-[var(--text-main)] hover:bg-[var(--bg-main)]/70 transition-colors"
                         >
-                          <Edit3 className="w-3.5 h-3.5 text-slate-500" />
+                          <Edit3 className="w-3.5 h-3.5 text-[#007a33]" />
                           <span>Koreksi Data</span>
                         </button>
 

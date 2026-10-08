@@ -14,6 +14,12 @@ const config: Config = {
         foreground: 'var(--text-main)',
         'bg-main': 'var(--bg-main)',
         'bg-card': 'var(--bg-card)',
+        card: {
+          DEFAULT: 'var(--bg-card)',
+          border: 'var(--border-color)',
+          foreground: 'var(--text-main)',
+        },
+        'border-card': 'var(--border-color)',
         'text-main': 'var(--text-main)',
         'text-muted': 'var(--text-muted)',
         'accent': 'var(--accent-color)',

@@ -41,10 +41,10 @@ export default function TableToolbar({
       {/* Baris Atas: Judul Subseksi & Info */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
+          <h2 className="text-xl font-bold text-[var(--text-main)] tracking-tight">
             My Transactions
           </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+          <p className="text-xs text-[#007a33] mt-0.5">
             Kelola dan pantau seluruh arus kas digital keluarga ({totalCount} transaksi)
           </p>
         </div>
@@ -54,27 +54,27 @@ export default function TableToolbar({
           {/* Tombol Kalender */}
           <button
             onClick={onOpenDateModal}
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors shadow-2xs"
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] text-xs font-semibold text-[var(--text-main)] hover:bg-[var(--bg-main)] transition-colors shadow-2xs"
             title="Filter Tanggal"
           >
-            <Calendar className="w-3.5 h-3.5 text-indigo-500" />
+            <Calendar className="w-3.5 h-3.5 text-[#007a33]" />
             <span>{dateRange.label}</span>
           </button>
 
           {/* Tombol Ekspor CSV / Excel */}
           <button
             onClick={onExport}
-            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors shadow-2xs"
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] text-xs font-semibold text-[var(--text-main)] hover:bg-[var(--bg-main)] transition-colors shadow-2xs"
             title="Ekspor Data ke File Spreadsheet Excel / CSV"
           >
-            <Download className="w-3.5 h-3.5 text-slate-400" />
+            <Download className="w-3.5 h-3.5 text-[#007a33]" />
             <span>Export CSV</span>
           </button>
 
           {/* Tombol Tambah Transaksi Utama (+ Add Transaction) */}
           <button
             onClick={onAddTransaction}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-xs font-bold transition-all shadow-sm shadow-indigo-600/25"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[var(--accent-color)] hover:opacity-90 active:scale-95 text-[var(--bg-main)] text-xs font-bold transition-all shadow-sm"
           >
             <Plus className="w-4 h-4" />
             <span>+ Add Transaction</span>
@@ -83,43 +83,43 @@ export default function TableToolbar({
       </div>
 
       {/* Baris Bawah: Filter Pill All, Income, Expense (Gaya Monexa Foto 2) */}
-      <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-slate-100/80 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 w-fit">
+      <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-[var(--bg-card)] border border-[var(--border-color)] w-fit">
         {/* All */}
         <button
           onClick={() => onFlowChange('all')}
           className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${
             currentFlow === 'all'
-              ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-2xs'
-              : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
+              ? 'bg-[var(--bg-main)] text-[var(--text-main)] border border-[var(--border-color)] shadow-2xs'
+              : 'text-[#007a33] hover:text-[#004d00]'
           }`}
         >
           <ListFilter className="w-3.5 h-3.5" />
           <span>All</span>
         </button>
 
-        {/* Income (Pastel Sage Green) */}
+        {/* Income (Hijau Teduh #198754) */}
         <button
           onClick={() => onFlowChange('income')}
           className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${
             currentFlow === 'income'
-              ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/80 shadow-2xs'
-              : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
+              ? 'bg-[#e8f5e9] text-[#198754] border border-[#198754]/30 shadow-2xs'
+              : 'text-[#007a33] hover:text-[#004d00]'
           }`}
         >
-          <ArrowDownLeft className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+          <ArrowDownLeft className="w-3.5 h-3.5 text-[#198754]" />
           <span>Income</span>
         </button>
 
-        {/* Expense (Pastel Dusty Coral) */}
+        {/* Expense (Muted Red #DC3545) */}
         <button
           onClick={() => onFlowChange('expense')}
           className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${
             currentFlow === 'expense'
-              ? 'bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border border-rose-200/80 dark:border-rose-800/80 shadow-2xs'
-              : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'
+              ? 'bg-[#fde8ea] text-[#DC3545] border border-[#DC3545]/30 shadow-2xs'
+              : 'text-[#007a33] hover:text-[#004d00]'
           }`}
         >
-          <ArrowUpRight className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
+          <ArrowUpRight className="w-3.5 h-3.5 text-[#DC3545]" />
           <span>Expense</span>
         </button>
       </div>

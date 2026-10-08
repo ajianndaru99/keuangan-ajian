@@ -199,17 +199,17 @@ export default function SupportsPage() {
         </div>
 
         {/* 1. KARTU MONITORING KONEKSI HP SUAMI & HP ISTRI */}
-        <div className="rounded-3xl p-5 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 shadow-2xs">
+        <div className="rounded-3xl p-5 bg-[var(--bg-card)] border border-[var(--border-color)] shadow-xs">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400">
+              <div className="p-2 rounded-xl bg-[var(--bg-main)] text-[#007a33] border border-[var(--border-color)]">
                 <Smartphone className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                <h3 className="text-sm font-bold text-[var(--text-main)]">
                   Status Koneksi Perangkat HP
                 </h3>
-                <span className="text-[11px] text-slate-400 dark:text-slate-500">
+                <span className="text-[11px] text-[#007a33]">
                   Aktivitas pengiriman notifikasi MacroDroid ke database
                 </span>
               </div>
@@ -217,7 +217,7 @@ export default function SupportsPage() {
 
             <button
               onClick={fetchDeviceHealth}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              className="p-1.5 rounded-lg text-[#007a33] hover:text-[#004d00] hover:bg-[var(--bg-main)] transition-colors"
               title="Perbarui status sinyal"
             >
               <RefreshCw className={`w-4 h-4 ${loadingHealth ? 'animate-spin' : ''}`} />
@@ -226,68 +226,68 @@ export default function SupportsPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {/* HP Suami */}
-            <div className="p-4 rounded-2xl bg-slate-50/70 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/60">
+            <div className="p-4 rounded-2xl bg-[var(--bg-main)]/60 border border-[var(--border-color)]/70">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <span className="text-base">👨</span>
-                  <span className="text-xs font-bold text-slate-900 dark:text-white">
+                  <span className="text-xs font-bold text-[var(--text-main)]">
                     HP Suami (hp_suami)
                   </span>
                 </div>
                 <span
                   className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
                     suamiLastSeen
-                      ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300'
-                      : 'bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300'
+                      ? 'bg-[#e8f5e9] text-[#198754] border border-[#198754]/30'
+                      : 'bg-amber-50 text-amber-700 border border-amber-200'
                   }`}
                 >
-                  <span className={`w-1.5 h-1.5 rounded-full ${suamiLastSeen ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                  <span className={`w-1.5 h-1.5 rounded-full ${suamiLastSeen ? 'bg-[#198754]' : 'bg-amber-500'}`} />
                   {suamiLastSeen ? 'Terkoneksi' : 'Siap Hubungkan'}
                 </span>
               </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                Terakhir kirim sinyal: <strong className="text-slate-700 dark:text-slate-300">{formatLastSeen(suamiLastSeen)}</strong>
+              <p className="text-[11px] text-[#007a33]">
+                Terakhir kirim sinyal: <strong className="text-[var(--text-main)]">{formatLastSeen(suamiLastSeen)}</strong>
               </p>
             </div>
 
             {/* HP Istri */}
-            <div className="p-4 rounded-2xl bg-slate-50/70 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/60">
+            <div className="p-4 rounded-2xl bg-[var(--bg-main)]/60 border border-[var(--border-color)]/70">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <span className="text-base">👩</span>
-                  <span className="text-xs font-bold text-slate-900 dark:text-white">
+                  <span className="text-xs font-bold text-[var(--text-main)]">
                     HP Istri (hp_istri)
                   </span>
                 </div>
                 <span
                   className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
                     istriLastSeen
-                      ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300'
-                      : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                      ? 'bg-[#e8f5e9] text-[#198754] border border-[#198754]/30'
+                      : 'bg-[var(--bg-main)] text-[#007a33] border border-[var(--border-color)]'
                   }`}
                 >
-                  <span className={`w-1.5 h-1.5 rounded-full ${istriLastSeen ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                  <span className={`w-1.5 h-1.5 rounded-full ${istriLastSeen ? 'bg-[#198754]' : 'bg-[#007a33]'}`} />
                   {istriLastSeen ? 'Terkoneksi' : 'Menunggu Setup'}
                 </span>
               </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                Terakhir kirim sinyal: <strong className="text-slate-700 dark:text-slate-300">{formatLastSeen(istriLastSeen)}</strong>
+              <p className="text-[11px] text-[#007a33]">
+                Terakhir kirim sinyal: <strong className="text-[var(--text-main)]">{formatLastSeen(istriLastSeen)}</strong>
               </p>
             </div>
           </div>
         </div>
 
         {/* 2. SIMULATOR WEBHOOK INTERAKTIF */}
-        <div className="rounded-3xl p-5 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 shadow-2xs">
+        <div className="rounded-3xl p-5 bg-[var(--bg-card)] border border-[var(--border-color)] shadow-xs">
           <div className="flex items-center gap-2.5 mb-3">
-            <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400">
+            <div className="p-2 rounded-xl bg-[var(--bg-main)] text-[#198754] border border-[var(--border-color)]">
               <Play className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+              <h3 className="text-sm font-bold text-[var(--text-main)]">
                 Simulator Webhook Notifikasi Bank
               </h3>
-              <span className="text-[11px] text-slate-400 dark:text-slate-500">
+              <span className="text-[11px] text-[#007a33]">
                 Uji coba pipeline otomatisasi tanpa perlu transfer uang asli
               </span>
             </div>
@@ -296,13 +296,13 @@ export default function SupportsPage() {
           <form onSubmit={handleRunSimulation} className="space-y-3 pt-2">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
-                <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                <label className="text-[11px] font-bold text-[#007a33] block mb-1">
                   Aplikasi Bank / E-Wallet
                 </label>
                 <select
                   value={simApp}
                   onChange={(e) => setSimApp(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white"
+                  className="w-full px-3 py-2 rounded-xl bg-[var(--bg-main)] border border-[var(--border-color)] text-xs text-[var(--text-main)]"
                 >
                   <option value="Bank Jago">Bank Jago</option>
                   <option value="Mandiri Livin'">Mandiri Livin'</option>
@@ -314,13 +314,13 @@ export default function SupportsPage() {
               </div>
 
               <div>
-                <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                <label className="text-[11px] font-bold text-[#007a33] block mb-1">
                   Perangkat Pengirim
                 </label>
                 <select
                   value={simDevice}
                   onChange={(e) => setSimDevice(e.target.value as any)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white"
+                  className="w-full px-3 py-2 rounded-xl bg-[var(--bg-main)] border border-[var(--border-color)] text-xs text-[var(--text-main)]"
                 >
                   <option value="hp_suami">HP Suami</option>
                   <option value="hp_istri">HP Istri</option>
@@ -328,13 +328,13 @@ export default function SupportsPage() {
               </div>
 
               <div>
-                <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                <label className="text-[11px] font-bold text-[#007a33] block mb-1">
                   Arah Transaksi
                 </label>
                 <select
                   value={simDirection}
                   onChange={(e) => setSimDirection(e.target.value as any)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white"
+                  className="w-full px-3 py-2 rounded-xl bg-[var(--bg-main)] border border-[var(--border-color)] text-xs text-[var(--text-main)]"
                 >
                   <option value="out">Pengeluaran (Uang Keluar)</option>
                   <option value="in">Pemasukan (Uang Masuk)</option>
@@ -344,32 +344,32 @@ export default function SupportsPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                <label className="text-[11px] font-bold text-[#007a33] block mb-1">
                   Nominal (Rp)
                 </label>
                 <input
                   type="number"
                   value={simAmount}
                   onChange={(e) => setSimAmount(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white"
+                  className="w-full px-3 py-2 rounded-xl bg-[var(--bg-main)] border border-[var(--border-color)] text-xs text-[var(--text-main)]"
                 />
               </div>
 
               <div>
-                <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                <label className="text-[11px] font-bold text-[#007a33] block mb-1">
                   Merchant / Lawan Transaksi
                 </label>
                 <input
                   type="text"
                   value={simMerchant}
                   onChange={(e) => setSimMerchant(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white"
+                  className="w-full px-3 py-2 rounded-xl bg-[var(--bg-main)] border border-[var(--border-color)] text-xs text-[var(--text-main)]"
                 />
               </div>
             </div>
 
             {simResult && (
-              <div className="p-3 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-indigo-800 dark:text-indigo-200 text-xs">
+              <div className="p-3 rounded-2xl bg-[var(--bg-main)]/80 border border-[var(--border-color)] text-[var(--text-main)] text-xs">
                 {simResult}
               </div>
             )}
@@ -377,7 +377,7 @@ export default function SupportsPage() {
             <button
               type="submit"
               disabled={isSimulating}
-              className="py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-2"
+              className="py-2.5 px-4 rounded-xl bg-[var(--accent-color)] hover:opacity-90 text-[var(--bg-main)] text-xs font-bold transition-all shadow-xs flex items-center gap-2"
             >
               <Play className="w-3.5 h-3.5" />
               <span>{isSimulating ? 'Mengirim Simulasi...' : 'Kirim Notifikasi Tiruan Sekarang'}</span>
@@ -386,57 +386,57 @@ export default function SupportsPage() {
         </div>
 
         {/* 3. PANDUAN RINGKAS SETUP HP ISTRI & MACRODROID */}
-        <div className="rounded-3xl p-5 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 shadow-2xs space-y-3">
+        <div className="rounded-3xl p-5 bg-[var(--bg-card)] border border-[var(--border-color)] shadow-xs space-y-3">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400">
+            <div className="p-2 rounded-xl bg-[var(--bg-main)] text-[#007a33] border border-[var(--border-color)]">
               <HelpCircle className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+              <h3 className="text-sm font-bold text-[var(--text-main)]">
                 Panduan Setup HP Istri & MacroDroid
               </h3>
-              <span className="text-[11px] text-slate-400 dark:text-slate-500">
+              <span className="text-[11px] text-[#007a33]">
                 Cara menghubungkan HP Istri agar otomatis sinkron ke dashboard
               </span>
             </div>
           </div>
 
-          <div className="space-y-2.5 text-xs text-slate-600 dark:text-slate-400">
-            <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-700/60">
-              <strong className="text-slate-900 dark:text-white block mb-1">
+          <div className="space-y-2.5 text-xs text-[var(--text-main)]">
+            <div className="p-3 rounded-2xl bg-[var(--bg-main)]/60 border border-[var(--border-color)]/70">
+              <strong className="text-[var(--text-main)] block mb-1">
                 Langkah 1: Pasang MacroDroid di HP Istri
               </strong>
               Download aplikasi MacroDroid dari Google Play Store di HP Istri, lalu berikan izin:
-              <ul className="list-disc list-inside mt-1 space-y-0.5 text-[11px]">
+              <ul className="list-disc list-inside mt-1 space-y-0.5 text-[11px] text-[#007a33]">
                 <li>Akses Notifikasi (Notification Access)</li>
                 <li>Abaikan Penghemat Baterai (Unrestricted Battery)</li>
                 <li>Mulai Otomatis di Latar Belakang (Autostart)</li>
               </ul>
             </div>
 
-            <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-700/60">
-              <strong className="text-slate-900 dark:text-white block mb-1">
+            <div className="p-3 rounded-2xl bg-[var(--bg-main)]/60 border border-[var(--border-color)]/70">
+              <strong className="text-[var(--text-main)] block mb-1">
                 Langkah 2: Gunakan X-API-KEY yang Sama
               </strong>
               Di tindakan Permintaan HTTP MacroDroid, tambahkan header:
-              <div className="flex items-center gap-2 mt-1.5 p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono text-[11px]">
-                <span className="truncate flex-1">X-API-KEY: {apiKeyExample}</span>
+              <div className="flex items-center gap-2 mt-1.5 p-2 rounded-xl bg-[var(--bg-main)] border border-[var(--border-color)] font-mono text-[11px]">
+                <span className="truncate flex-1 text-[var(--text-main)]">X-API-KEY: {apiKeyExample}</span>
                 <button
                   onClick={handleCopyKey}
-                  className="p-1 rounded text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                  className="p-1 rounded text-[#007a33] hover:text-[#004d00]"
                   title="Salin Kunci"
                 >
-                  {copiedKey ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                  {copiedKey ? <Check className="w-3.5 h-3.5 text-[#198754]" /> : <Copy className="w-3.5 h-3.5" />}
                 </button>
               </div>
             </div>
 
-            <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-700/60">
-              <strong className="text-slate-900 dark:text-white block mb-1">
+            <div className="p-3 rounded-2xl bg-[var(--bg-main)]/60 border border-[var(--border-color)]/70">
+              <strong className="text-[var(--text-main)] block mb-1">
                 Langkah 3: Body JSON Parameter
               </strong>
               Kirim JSON dengan parameter:
-              <pre className="p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 mt-1 font-mono text-[11px] overflow-x-auto">
+              <pre className="p-2 rounded-xl bg-[var(--bg-main)] border border-[var(--border-color)] mt-1 font-mono text-[11px] overflow-x-auto text-[var(--text-main)]">
 {`{
   "device_id": "hp_istri",
   "app_name": "[not_app_name]",

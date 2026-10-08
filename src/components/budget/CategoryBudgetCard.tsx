@@ -44,104 +44,19 @@ export default function CategoryBudgetCard({
     return 'text-[#198754] bg-[#e8f5e9] border-[#198754]/30';
   };
 
-  // Tema warna pastel cerah & teks tajam berdasarkan kategori
-  const getCategoryTheme = () => {
-    const n = item.name.toLowerCase();
-    if (n.includes('dapur')) {
-      return {
-        card: 'bg-emerald-50/90 border-[#E2E8F0] text-emerald-950',
-        avatarBg: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-        title: 'text-emerald-950',
-        sub: 'text-emerald-700/80',
-        statLabel: 'text-emerald-700/80',
-        statVal: 'text-emerald-950',
-      };
-    }
-    if (n.includes('makan') || n.includes('jajan')) {
-      return {
-        card: 'bg-rose-50/90 border-[#E2E8F0] text-rose-950',
-        avatarBg: 'bg-rose-100 text-rose-800 border-rose-200',
-        title: 'text-rose-950',
-        sub: 'text-rose-700/80',
-        statLabel: 'text-rose-700/80',
-        statVal: 'text-rose-950',
-      };
-    }
-    if (n.includes('transportasi') || n.includes('bensin')) {
-      return {
-        card: 'bg-amber-50/90 border-[#E2E8F0] text-amber-950',
-        avatarBg: 'bg-amber-100 text-amber-800 border-amber-200',
-        title: 'text-amber-950',
-        sub: 'text-amber-700/80',
-        statLabel: 'text-amber-700/80',
-        statVal: 'text-amber-950',
-      };
-    }
-    if (n.includes('tagihan') || n.includes('utilitas')) {
-      return {
-        card: 'bg-sky-50/90 border-[#E2E8F0] text-sky-950',
-        avatarBg: 'bg-sky-100 text-sky-800 border-sky-200',
-        title: 'text-sky-950',
-        sub: 'text-sky-700/80',
-        statLabel: 'text-sky-700/80',
-        statVal: 'text-sky-950',
-      };
-    }
-    if (n.includes('rumah')) {
-      return {
-        card: 'bg-purple-50/90 border-[#E2E8F0] text-purple-950',
-        avatarBg: 'bg-purple-100 text-purple-800 border-purple-200',
-        title: 'text-purple-950',
-        sub: 'text-purple-700/80',
-        statLabel: 'text-purple-700/80',
-        statVal: 'text-purple-950',
-      };
-    }
-    if (n.includes('jalan')) {
-      return {
-        card: 'bg-indigo-50/90 border-[#E2E8F0] text-indigo-950',
-        avatarBg: 'bg-indigo-100 text-indigo-800 border-indigo-200',
-        title: 'text-indigo-950',
-        sub: 'text-indigo-700/80',
-        statLabel: 'text-indigo-700/80',
-        statVal: 'text-indigo-950',
-      };
-    }
-    if (n.includes('mendadak')) {
-      return {
-        card: 'bg-pink-50/90 border-[#E2E8F0] text-pink-950',
-        avatarBg: 'bg-pink-100 text-pink-800 border-pink-200',
-        title: 'text-pink-950',
-        sub: 'text-pink-700/80',
-        statLabel: 'text-pink-700/80',
-        statVal: 'text-pink-950',
-      };
-    }
-    return {
-      card: 'bg-slate-50/90 border-[#E2E8F0] text-slate-900',
-      avatarBg: 'bg-slate-200 text-slate-800 border-slate-300',
-      title: 'text-slate-900',
-      sub: 'text-slate-600',
-      statLabel: 'text-slate-600',
-      statVal: 'text-slate-900',
-    };
-  };
-
-  const theme = getCategoryTheme();
-
   return (
-    <div className={`rounded-3xl p-5 border shadow-xs transition-all hover:scale-[1.01] ${theme.card}`}>
+    <div className="rounded-3xl p-5 border border-[var(--border-color)] bg-[var(--bg-card)] shadow-xs transition-all hover:scale-[1.01] text-[var(--text-main)]">
       {/* Header: Emoji Avatar + Title + Menu Action */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-3">
-          <div className={`w-11 h-11 rounded-2xl flex items-center justify-center text-xl shadow-xs border ${theme.avatarBg}`}>
+          <div className="w-11 h-11 rounded-2xl flex items-center justify-center text-xl shadow-xs border border-[var(--border-color)] bg-[var(--bg-main)] text-[#007a33]">
             <span>{item.emoji || '📁'}</span>
           </div>
           <div>
-            <h3 className={`text-sm font-bold leading-tight font-heading ${theme.title}`}>
+            <h3 className="text-sm font-bold leading-tight font-heading text-[var(--text-main)]">
               {item.name}
             </h3>
-            <p className={`text-[11px] font-medium ${theme.sub}`}>
+            <p className="text-[11px] font-medium text-[#007a33]">
               {item.periodName || 'Bulan Ini'}
             </p>
           </div>
@@ -155,7 +70,7 @@ export default function CategoryBudgetCard({
             <button
               onClick={() => onEdit(item)}
               aria-label="Atur Anggaran"
-              className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-white/60 transition-colors"
+              className="p-1.5 rounded-xl text-[#007a33] hover:text-[#004d00] hover:bg-[var(--bg-main)] transition-colors"
             >
               <MoreVertical className="w-4 h-4" />
             </button>
@@ -165,16 +80,16 @@ export default function CategoryBudgetCard({
 
       {/* Target & Baris Nominal */}
       <div className="mb-2 flex items-baseline justify-between">
-        <span className="text-xs font-bold text-slate-700">
-          Target: <strong className="angka-keuangan">{formatRupiah(item.budgetLimit)}</strong>
+        <span className="text-xs font-bold text-[#007a33]">
+          Target: <strong className="angka-keuangan text-[var(--text-main)]">{formatRupiah(item.budgetLimit)}</strong>
         </span>
-        <span className={`text-[11px] font-semibold ${percentage >= 100 ? 'text-[#DC3545]' : theme.sub}`}>
+        <span className={`text-[11px] font-semibold ${percentage >= 100 ? 'text-[#DC3545]' : 'text-[#007a33]'}`}>
           {percentage >= 100 ? 'Melebihi Limit' : `${formatRupiah(remaining)} sisa`}
         </span>
       </div>
 
       {/* Horizontal Progress Bar */}
-      <div className="w-full h-2 rounded-full bg-slate-200/70 overflow-hidden p-0.5 border border-[#E2E8F0] mb-3">
+      <div className="w-full h-2 rounded-full bg-[var(--bg-main)] overflow-hidden p-0.5 border border-[#E2E8F0] mb-3">
         <div
           className={`h-full rounded-full transition-all duration-700 ease-out ${getProgressColor()}`}
           style={{ width: `${percentage}%` }}
@@ -184,13 +99,13 @@ export default function CategoryBudgetCard({
       {/* Split Stats: Sisa vs Terpakai */}
       <div className="grid grid-cols-2 gap-2 pt-2.5 border-t border-[#E2E8F0] text-xs">
         <div>
-          <span className={`text-[10px] block font-medium ${theme.statLabel}`}>Terpakai Bulan Ini</span>
+          <span className="text-[10px] block font-medium text-[#007a33]">Terpakai Bulan Ini</span>
           <p className="font-extrabold mt-0.5 text-[#DC3545] angka-keuangan">
             {formatRupiah(item.spentAmount)}
           </p>
         </div>
         <div className="text-right">
-          <span className={`text-[10px] block font-medium ${theme.statLabel}`}>Sisa Anggaran</span>
+          <span className="text-[10px] block font-medium text-[#007a33]">Sisa Anggaran</span>
           <p className={`font-extrabold mt-0.5 angka-keuangan ${remaining > 0 ? 'text-[#198754]' : 'text-[#DC3545]'}`}>
             {formatRupiah(remaining)}
           </p>

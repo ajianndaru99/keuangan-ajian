@@ -206,19 +206,19 @@ export default function AddTransactionModal({
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs overflow-y-auto">
-      <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-lg w-full border border-slate-200 dark:border-slate-800 shadow-2xl animate-in fade-in zoom-in-95 duration-150 my-8">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#05140f]/60 backdrop-blur-xs overflow-y-auto">
+      <div className="bg-[var(--bg-card)] rounded-3xl p-6 max-w-lg w-full border border-[var(--border-color)] shadow-2xl animate-in fade-in zoom-in-95 duration-150 my-8">
         {/* Header Modal */}
-        <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800 mb-5">
+        <div className="flex items-center justify-between pb-4 border-b border-[var(--border-color)]/70 mb-5">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold">
+            <div className="w-9 h-9 rounded-xl bg-[var(--bg-main)] text-[#007a33] border border-[var(--border-color)] flex items-center justify-center font-bold">
               <Sparkles className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-slate-900 dark:text-white leading-tight">
+              <h3 className="text-base font-bold text-[var(--text-main)] leading-tight">
                 Tambah Transaksi
               </h3>
-              <p className="text-[11px] text-slate-400 dark:text-slate-500">
+              <p className="text-[11px] text-[#007a33]">
                 Catat pengeluaran tunai atau pindai foto struk otomatis
               </p>
             </div>
@@ -226,21 +226,21 @@ export default function AddTransactionModal({
 
           <button
             onClick={onClose}
-            className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+            className="p-1.5 rounded-xl text-[#007a33] hover:text-[#004d00] hover:bg-[var(--bg-main)]"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Tab Switcher: Scan Struk vs Input Manual */}
-        <div className="grid grid-cols-2 gap-2 p-1 rounded-2xl bg-slate-100/80 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 mb-5">
+        <div className="grid grid-cols-2 gap-2 p-1 rounded-2xl bg-[var(--bg-main)]/60 border border-[var(--border-color)] mb-5">
           <button
             type="button"
             onClick={() => setActiveTab('scan')}
             className={`flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold transition-all ${
               activeTab === 'scan'
-                ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-2xs'
-                : 'text-slate-500 hover:text-slate-900 dark:text-slate-400'
+                ? 'bg-[var(--accent-color)] text-[var(--bg-main)] shadow-2xs font-bold'
+                : 'text-[#007a33] hover:text-[#004d00]'
             }`}
           >
             <Camera className="w-4 h-4" />
@@ -252,8 +252,8 @@ export default function AddTransactionModal({
             onClick={() => setActiveTab('manual')}
             className={`flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold transition-all ${
               activeTab === 'manual'
-                ? 'bg-white dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 shadow-2xs'
-                : 'text-slate-500 hover:text-slate-900 dark:text-slate-400'
+                ? 'bg-[var(--accent-color)] text-[var(--bg-main)] shadow-2xs font-bold'
+                : 'text-[#007a33] hover:text-[#004d00]'
             }`}
           >
             <FileText className="w-4 h-4" />
@@ -266,7 +266,7 @@ export default function AddTransactionModal({
           <div className="space-y-4">
             <div
               onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-indigo-200 dark:border-indigo-900/60 hover:border-indigo-400 rounded-3xl p-6 text-center cursor-pointer transition-colors bg-indigo-50/30 dark:bg-indigo-950/20"
+              className="border-2 border-dashed border-[var(--border-color)] hover:border-[#007a33] rounded-3xl p-6 text-center cursor-pointer transition-colors bg-[var(--bg-main)]/40"
             >
               <input
                 ref={fileInputRef}
@@ -282,23 +282,23 @@ export default function AddTransactionModal({
 
               {previewUrl ? (
                 <div className="space-y-3">
-                  <div className="w-36 h-36 mx-auto rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 shadow-xs">
+                  <div className="w-36 h-36 mx-auto rounded-2xl overflow-hidden border border-[var(--border-color)] shadow-xs">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={previewUrl} alt="Pratinjau Struk" className="w-full h-full object-cover" />
                   </div>
-                  <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">
+                  <p className="text-xs font-semibold text-[#007a33]">
                     Klik untuk mengganti foto struk
                   </p>
                 </div>
               ) : (
                 <div className="space-y-2">
-                  <div className="w-12 h-12 rounded-2xl bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mx-auto shadow-2xs">
+                  <div className="w-12 h-12 rounded-2xl bg-[var(--bg-main)] text-[#007a33] border border-[var(--border-color)] flex items-center justify-center mx-auto shadow-2xs">
                     <UploadCloud className="w-6 h-6" />
                   </div>
-                  <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                  <h4 className="text-xs font-bold text-[var(--text-main)]">
                     Ambil Foto Kamera atau Unggah Struk
                   </h4>
-                  <p className="text-[11px] text-slate-400 dark:text-slate-500 max-w-xs mx-auto">
+                  <p className="text-[11px] text-[#007a33] max-w-xs mx-auto">
                     Mendukung struk belanja fisik (Indomaret, SPBU, kasir) dan tangkapan layar m-Banking
                   </p>
                 </div>
@@ -306,7 +306,7 @@ export default function AddTransactionModal({
             </div>
 
             {scanError && (
-              <div className="p-3 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
+              <div className="p-3 rounded-2xl bg-[#fde8ea] border border-[#DC3545]/30 text-[#DC3545] text-xs flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 shrink-0" />
                 <span>{scanError}</span>
               </div>
@@ -316,7 +316,7 @@ export default function AddTransactionModal({
               type="button"
               disabled={!selectedFile || isScanning}
               onClick={handleScanReceipt}
-              className="w-full py-3 px-4 rounded-2xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm shadow-indigo-600/20"
+              className="w-full py-3 px-4 rounded-2xl bg-[var(--accent-color)] hover:opacity-90 disabled:opacity-50 text-[var(--bg-main)] text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm"
             >
               {isScanning ? (
                 <>
@@ -343,11 +343,11 @@ export default function AddTransactionModal({
                 onClick={() => setDirection('out')}
                 className={`py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 border transition-all ${
                   direction === 'out'
-                    ? 'bg-rose-50 text-rose-700 border-rose-300 dark:bg-rose-950/50 dark:text-rose-300 dark:border-rose-800'
-                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700'
+                    ? 'bg-[#fde8ea] text-[#DC3545] border-[#DC3545]/40 shadow-xs'
+                    : 'bg-[var(--bg-main)] text-[#007a33] border-[var(--border-color)]'
                 }`}
               >
-                <ArrowUpRight className="w-3.5 h-3.5" />
+                <ArrowUpRight className="w-3.5 h-3.5 text-[#DC3545]" />
                 <span>Pengeluaran</span>
               </button>
 
@@ -356,11 +356,11 @@ export default function AddTransactionModal({
                 onClick={() => setDirection('in')}
                 className={`py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 border transition-all ${
                   direction === 'in'
-                    ? 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800'
-                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700'
+                    ? 'bg-[#e8f5e9] text-[#198754] border-[#198754]/40 shadow-xs'
+                    : 'bg-[var(--bg-main)] text-[#007a33] border-[var(--border-color)]'
                 }`}
               >
-                <ArrowDownLeft className="w-3.5 h-3.5" />
+                <ArrowDownLeft className="w-3.5 h-3.5 text-[#198754]" />
                 <span>Pemasukan</span>
               </button>
             </div>
@@ -368,7 +368,7 @@ export default function AddTransactionModal({
             {/* Nama Merchant & Nominal */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                <label className="text-[11px] font-bold text-[#007a33] block mb-1">
                   Nama Transaksi / Toko
                 </label>
                 <input
@@ -377,12 +377,12 @@ export default function AddTransactionModal({
                   value={merchant}
                   onChange={(e) => setMerchant(e.target.value)}
                   placeholder="e.g. Indomaret, SPBU, Kopi Kenangan"
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white"
+                  className="w-full px-3 py-2 rounded-xl bg-[var(--bg-main)] border border-[var(--border-color)] text-xs text-[var(--text-main)] placeholder:text-[#007a33]/60 focus:outline-none focus:ring-1 focus:ring-[#007a33]"
                 />
               </div>
 
               <div>
-                <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                <label className="text-[11px] font-bold text-[#007a33] block mb-1">
                   Nominal (Rp)
                 </label>
                 <input
@@ -392,7 +392,7 @@ export default function AddTransactionModal({
                   value={amount}
                   onChange={(e) => setAmount(e.target.value ? Number(e.target.value) : '')}
                   placeholder="50000"
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white"
+                  className="w-full px-3 py-2 rounded-xl bg-[var(--bg-main)] border border-[var(--border-color)] text-xs text-[var(--text-main)] font-bold angka-keuangan focus:outline-none focus:ring-1 focus:ring-[#007a33]"
                 />
               </div>
             </div>
@@ -400,7 +400,7 @@ export default function AddTransactionModal({
             {/* Tanggal & Rekening */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                <label className="text-[11px] font-bold text-[#007a33] block mb-1">
                   Tanggal & Waktu
                 </label>
                 <input
@@ -408,18 +408,18 @@ export default function AddTransactionModal({
                   required
                   value={transactionDate}
                   onChange={(e) => setTransactionDate(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white"
+                  className="w-full px-3 py-2 rounded-xl bg-[var(--bg-main)] border border-[var(--border-color)] text-xs text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[#007a33]"
                 />
               </div>
 
               <div>
-                <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                <label className="text-[11px] font-bold text-[#007a33] block mb-1">
                   Rekening / Dompet
                 </label>
                 <select
                   value={accountId}
                   onChange={(e) => setAccountId(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white"
+                  className="w-full px-3 py-2 rounded-xl bg-[var(--bg-main)] border border-[var(--border-color)] text-xs text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[#007a33]"
                 >
                   <option value="">Pilih Rekening...</option>
                   {accounts.map((acc) => (
@@ -433,13 +433,13 @@ export default function AddTransactionModal({
 
             {/* Kategori */}
             <div>
-              <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">
+              <label className="text-[11px] font-bold text-[#007a33] block mb-1">
                 Kategori
               </label>
               <select
                 value={categoryId}
                 onChange={(e) => setCategoryId(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white"
+                className="w-full px-3 py-2 rounded-xl bg-[var(--bg-main)] border border-[var(--border-color)] text-xs text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[#007a33]"
               >
                 <option value="">Pilih Kategori...</option>
                 {filteredCategories.map((c) => (
@@ -452,7 +452,7 @@ export default function AddTransactionModal({
 
             {/* Catatan Tambahan */}
             <div>
-              <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">
+              <label className="text-[11px] font-bold text-[#007a33] block mb-1">
                 Catatan / Keterangan (Opsional)
               </label>
               <input
@@ -460,7 +460,7 @@ export default function AddTransactionModal({
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Catatan belanja keperluan dapur..."
-                className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white"
+                className="w-full px-3 py-2 rounded-xl bg-[var(--bg-main)] border border-[var(--border-color)] text-xs text-[var(--text-main)] focus:outline-none focus:ring-1 focus:ring-[#007a33]"
               />
             </div>
 
@@ -469,7 +469,7 @@ export default function AddTransactionModal({
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full py-3 px-4 rounded-2xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-bold transition-all shadow-sm shadow-indigo-600/20"
+                className="w-full py-3 px-4 rounded-2xl bg-[var(--accent-color)] hover:opacity-90 disabled:opacity-50 text-[var(--bg-main)] text-xs font-bold transition-all shadow-sm"
               >
                 {isSubmitting ? 'Menyimpan...' : 'Simpan Transaksi'}
               </button>

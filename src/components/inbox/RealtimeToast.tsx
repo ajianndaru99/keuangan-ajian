@@ -69,20 +69,20 @@ export default function RealtimeToast({
         }
       `}
     >
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-xl shadow-slate-900/10 dark:shadow-black/40">
+      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border-color)] p-4 shadow-xl">
         <div className="flex items-start gap-3">
           {/* Icon Indikator Arah */}
           <div
             className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${
               isIncome
-                ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800'
-                : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                ? 'bg-[#e8f5e9] text-[#198754] border-[#198754]/30'
+                : 'bg-[#fde8ea] text-[#DC3545] border-[#DC3545]/30'
             }`}
           >
             {isIncome ? (
               <ArrowDownLeft className="w-4 h-4" />
             ) : (
-              <ArrowUpRight className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+              <ArrowUpRight className="w-4 h-4" />
             )}
           </div>
 
@@ -90,17 +90,17 @@ export default function RealtimeToast({
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                  <Bell className="w-3 h-3 text-slate-400" />
+                <span className="text-[11px] font-bold text-[#007a33] flex items-center gap-1">
+                  <Bell className="w-3 h-3 text-[#007a33]" />
                   Transaksi Baru
                 </span>
                 {data?.accountName && (
-                  <span className="text-[10px] px-1.5 py-0.2 rounded font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+                  <span className="text-[10px] px-1.5 py-0.2 rounded font-bold bg-[var(--bg-main)] text-[#007a33] border border-[var(--border-color)]">
                     {data.accountName}
                   </span>
                 )}
                 {data?.sourceDevice && (
-                  <span className="text-[10px] px-1.5 py-0.2 rounded font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+                  <span className="text-[10px] px-1.5 py-0.2 rounded font-bold bg-[var(--bg-main)] text-[#007a33] border border-[var(--border-color)]">
                     {ownerLabel}
                   </span>
                 )}
@@ -111,7 +111,7 @@ export default function RealtimeToast({
                   setIsVisible(false);
                   setTimeout(onClose, 300);
                 }}
-                className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 p-0.5 rounded transition-colors"
+                className="text-[#007a33] hover:text-[#004d00] p-0.5 rounded transition-colors"
                 title="Tutup notifikasi"
               >
                 <X className="w-3.5 h-3.5" />
@@ -119,14 +119,14 @@ export default function RealtimeToast({
             </div>
 
             <div className="mt-1 flex items-baseline justify-between gap-2">
-              <h4 className="text-sm font-semibold text-slate-900 dark:text-white truncate">
+              <h4 className="text-sm font-bold text-[var(--text-main)] truncate">
                 {data?.merchant || 'Transaksi Digital'}
               </h4>
               <span
-                className={`text-sm font-bold tracking-tight whitespace-nowrap ${
+                className={`text-sm font-bold tracking-tight whitespace-nowrap angka-keuangan ${
                   isIncome
-                    ? 'text-emerald-600 dark:text-emerald-400'
-                    : 'text-slate-900 dark:text-white'
+                    ? 'text-[#198754]'
+                    : 'text-[#DC3545]'
                 }`}
               >
                 {isIncome ? '+' : '-'}{formatRupiah(data?.amount || 0)}
@@ -135,14 +135,14 @@ export default function RealtimeToast({
 
             {/* Tombol Aksi Cepat */}
             {onViewDetail && (
-              <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-end">
+              <div className="mt-2.5 pt-2 border-t border-[var(--border-color)]/70 flex items-center justify-end">
                 <button
                   type="button"
                   onClick={() => {
                     setIsVisible(false);
                     if (data) onViewDetail(data);
                   }}
-                  className="inline-flex items-center gap-1 text-xs font-semibold text-slate-900 hover:text-slate-700 dark:text-slate-100 dark:hover:text-white transition-colors"
+                  className="inline-flex items-center gap-1 text-xs font-bold text-[#007a33] hover:text-[#004d00] transition-colors"
                 >
                   <span>Lihat Detail</span>
                   <ArrowRight className="w-3 h-3" />

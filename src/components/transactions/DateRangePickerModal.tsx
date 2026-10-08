@@ -85,20 +85,20 @@ export default function DateRangePickerModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
-      <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 max-w-sm w-full border border-slate-200 dark:border-slate-800 shadow-xl animate-in fade-in zoom-in-95 duration-150">
-        <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 mb-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#05140f]/60 backdrop-blur-xs">
+      <div className="bg-[var(--bg-card)] rounded-3xl p-5 max-w-sm w-full border border-[var(--border-color)] shadow-xl animate-in fade-in zoom-in-95 duration-150">
+        <div className="flex items-center justify-between pb-3 border-b border-[var(--border-color)]/70 mb-4">
           <div className="flex items-center gap-2">
-            <div className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400">
+            <div className="p-2 rounded-xl bg-[var(--bg-main)] text-[#007a33] border border-[var(--border-color)]">
               <Calendar className="w-4 h-4" />
             </div>
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+            <h3 className="text-sm font-bold text-[var(--text-main)]">
               Filter Rentang Tanggal
             </h3>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+            className="p-1 rounded-lg text-[#007a33] hover:text-[#004d00] hover:bg-[var(--bg-main)]"
           >
             <X className="w-4 h-4" />
           </button>
@@ -120,12 +120,12 @@ export default function DateRangePickerModal({
                 onClick={() => setSelectedPreset(preset.id as DateFilterPreset)}
                 className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
                   isSelected
-                    ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800'
-                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 border border-transparent'
+                    ? 'bg-[var(--accent-color)] text-[var(--bg-main)] border border-[var(--accent-color)] shadow-xs font-bold'
+                    : 'text-[#007a33] hover:text-[#004d00] hover:bg-[var(--bg-main)]/60 border border-transparent'
                 }`}
               >
                 <span>{preset.label}</span>
-                {isSelected && <Check className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />}
+                {isSelected && <Check className="w-3.5 h-3.5 text-[var(--bg-main)]" />}
               </button>
             );
           })}
@@ -133,27 +133,27 @@ export default function DateRangePickerModal({
 
         {/* Form Rentang Kustom */}
         {selectedPreset === 'custom' && (
-          <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/60 space-y-2.5 mb-4 animate-in fade-in duration-150">
+          <div className="p-3 rounded-2xl bg-[var(--bg-main)]/60 border border-[var(--border-color)] space-y-2.5 mb-4 animate-in fade-in duration-150">
             <div>
-              <label className="text-[10px] font-semibold text-slate-500 uppercase block mb-1">
+              <label className="text-[10px] font-semibold text-[#007a33] uppercase block mb-1">
                 Dari Tanggal
               </label>
               <input
                 type="date"
                 value={customStart}
                 onChange={(e) => setCustomStart(e.target.value)}
-                className="w-full px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white"
+                className="w-full px-3 py-1.5 rounded-xl bg-[var(--bg-card)] border border-[var(--border-color)] text-xs text-[var(--text-main)]"
               />
             </div>
             <div>
-              <label className="text-[10px] font-semibold text-slate-500 uppercase block mb-1">
+              <label className="text-[10px] font-semibold text-[#007a33] uppercase block mb-1">
                 Sampai Tanggal
               </label>
               <input
                 type="date"
                 value={customEnd}
                 onChange={(e) => setCustomEnd(e.target.value)}
-                className="w-full px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white"
+                className="w-full px-3 py-1.5 rounded-xl bg-[var(--bg-card)] border border-[var(--border-color)] text-xs text-[var(--text-main)]"
               />
             </div>
           </div>
@@ -163,13 +163,13 @@ export default function DateRangePickerModal({
         <div className="flex items-center gap-2">
           <button
             onClick={onClose}
-            className="flex-1 py-2 px-3 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+            className="flex-1 py-2 px-3 rounded-xl border border-[var(--border-color)] text-xs font-semibold text-[#007a33] hover:bg-[var(--bg-main)] transition-colors"
           >
             Batal
           </button>
           <button
             onClick={handleApply}
-            className="flex-1 py-2 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition-colors shadow-xs"
+            className="flex-1 py-2 px-3 rounded-xl bg-[var(--accent-color)] hover:opacity-90 text-[var(--bg-main)] text-xs font-bold transition-colors shadow-xs"
           >
             Terapkan
           </button>

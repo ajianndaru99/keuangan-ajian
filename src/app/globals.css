@@ -99,12 +99,32 @@ p, span, div, input, button, select, textarea, table, td, th {
   font-family: var(--font-roboto), 'Roboto', sans-serif;
 }
 
-/* CONTOH ELEMEN LAMIRAN */
-.card-anggaran {
+/* CONTOH ELEMEN LAMPIRAN & UTILITY KARTU TEMA */
+.card-anggaran,
+.card-keuangan {
   background-color: var(--bg-card);
   border: 1px solid var(--border-color);
-  padding: 20px;
-  border-radius: 12px;
+  color: var(--text-main);
+  border-radius: 1.25rem;
+}
+
+.card-sub {
+  background-color: rgba(224, 247, 241, 0.55);
+  border: 1px solid rgba(0, 122, 51, 0.12);
+  color: var(--text-main);
+}
+html.dark .card-sub {
+  background-color: rgba(5, 20, 15, 0.45);
+  border: 1px solid rgba(178, 224, 212, 0.12);
+  color: var(--text-main);
+}
+
+.bg-card-theme {
+  background-color: var(--bg-card) !important;
+}
+
+.border-card-theme {
+  border-color: var(--border-color) !important;
 }
 
 .tombol-simpan {
@@ -227,27 +247,27 @@ html.dark .card-pastel-slate {
   color: #e2e8f0;
 }
 
-/* Glassmorphism Styles */
+/* Glassmorphism Styles (Sesuai Tema Mint: var(--bg-card)) */
 .liquid-glass {
-  background: rgba(255, 255, 255, 0.95);
+  background-color: var(--bg-card);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(226, 232, 240, 0.9);
-  box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.04);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 4px 16px -2px rgba(0, 77, 0, 0.05);
 }
 html.dark .liquid-glass {
-  background: rgba(15, 23, 42, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
   box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.4);
 }
 
 .liquid-pill {
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(226, 232, 240, 0.8);
+  background-color: var(--bg-main);
+  border: 1px solid var(--border-color);
 }
 html.dark .liquid-pill {
-  background: rgba(30, 41, 59, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background-color: var(--bg-main);
+  border: 1px solid var(--border-color);
 }
 
 /* Scrollbar halus */

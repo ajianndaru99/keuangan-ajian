@@ -78,21 +78,21 @@ export default function Sidebar({
   ];
 
   const sidebarContent = (
-    <div className="flex flex-col h-full bg-white dark:bg-slate-900 border-r border-slate-200/80 dark:border-slate-800/80 w-64 select-none">
+    <div className="flex flex-col h-full bg-[var(--bg-card)] border-r border-[var(--border-color)] w-64 select-none text-[var(--text-main)]">
       {/* Brand Header: Keluarga Ajian */}
-      <div className="p-5 flex items-center justify-between border-b border-slate-100 dark:border-slate-800/60">
+      <div className="p-5 flex items-center justify-between border-b border-[var(--border-color)]/60">
         <Link href="/" className="flex items-center gap-3 group">
-          <div className="w-9 h-9 rounded-xl bg-indigo-500/10 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold shadow-xs border border-indigo-200/50 dark:border-indigo-800/50">
+          <div className="w-9 h-9 rounded-xl bg-[var(--bg-main)] text-[#007a33] flex items-center justify-center font-bold shadow-xs border border-[var(--border-color)]">
             <Wallet className="w-5 h-5" />
           </div>
           <div>
             <div className="flex items-center gap-1.5">
-              <span className="text-sm font-extrabold text-slate-900 dark:text-white tracking-tight">
+              <span className="text-sm font-extrabold text-[var(--text-main)] tracking-tight">
                 Keluarga Ajian
               </span>
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="w-1.5 h-1.5 rounded-full bg-[#198754] animate-pulse" />
             </div>
-            <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500 block">
+            <span className="text-[10px] font-medium text-[#007a33] block">
               Financial Management
             </span>
           </div>
@@ -102,7 +102,7 @@ export default function Sidebar({
         {onCloseMobile && (
           <button
             onClick={onCloseMobile}
-            className="md:hidden p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800"
+            className="md:hidden p-1.5 rounded-lg text-[#007a33] hover:text-[#004d00] hover:bg-[var(--bg-main)]"
             aria-label="Tutup Menu"
           >
             <X className="w-5 h-5" />
@@ -114,7 +114,7 @@ export default function Sidebar({
       <div className="flex-1 py-4 px-3 space-y-6 overflow-y-auto no-scrollbar">
         {/* Grup 1: MENU */}
         <div>
-          <span className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block mb-2">
+          <span className="px-3 text-[10px] font-bold uppercase tracking-wider text-[#007a33] block mb-2">
             MENU
           </span>
           <nav className="space-y-1">
@@ -129,8 +129,8 @@ export default function Sidebar({
                   onClick={onCloseMobile}
                   className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
                     isActive
-                      ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/20'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                      ? 'bg-[var(--accent-color)] text-[var(--bg-main)] shadow-sm'
+                      : 'text-[#007a33] hover:text-[#004d00] hover:bg-[var(--bg-main)]/60'
                   }`}
                 >
                   <div className="flex items-center gap-3">
@@ -142,7 +142,7 @@ export default function Sidebar({
                     <span
                       className={`px-1.5 py-0.5 text-[10px] font-bold rounded-full ${
                         isActive
-                          ? 'bg-white/20 text-white'
+                          ? 'bg-[var(--bg-main)] text-[var(--accent-color)]'
                           : 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
                       }`}
                     >
@@ -157,7 +157,7 @@ export default function Sidebar({
 
         {/* Grup 2: GENERAL */}
         <div>
-          <span className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 block mb-2">
+          <span className="px-3 text-[10px] font-bold uppercase tracking-wider text-[#007a33] block mb-2">
             GENERAL
           </span>
           <nav className="space-y-1">
@@ -172,8 +172,8 @@ export default function Sidebar({
                   onClick={onCloseMobile}
                   className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
                     isActive
-                      ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/20'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                      ? 'bg-[var(--accent-color)] text-[var(--bg-main)] shadow-sm'
+                      : 'text-[#007a33] hover:text-[#004d00] hover:bg-[var(--bg-main)]/60'
                   }`}
                 >
                   <Icon className="w-4 h-4 shrink-0" />
@@ -186,10 +186,10 @@ export default function Sidebar({
       </div>
 
       {/* Footer: Tombol Keluar */}
-      <div className="p-3 border-t border-slate-100 dark:border-slate-800/60">
+      <div className="p-3 border-t border-[var(--border-color)]/60">
         <button
           onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
+          className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-[#DC3545] hover:bg-[#fde8ea]/60 transition-colors"
         >
           <LogOut className="w-4 h-4 shrink-0" />
           <span>Log Out</span>
@@ -209,10 +209,10 @@ export default function Sidebar({
       {isOpenMobile && (
         <div className="md:hidden fixed inset-0 z-50 flex">
           <div
-            className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity"
+            className="fixed inset-0 bg-black/40 backdrop-blur-xs transition-opacity"
             onClick={onCloseMobile}
           />
-          <div className="relative flex-1 flex flex-col max-w-xs w-full bg-white dark:bg-slate-900 shadow-xl z-50 animate-in slide-in-from-left duration-200">
+          <div className="relative flex-1 flex flex-col max-w-xs w-full bg-[var(--bg-card)] shadow-xl z-50 animate-in slide-in-from-left duration-200">
             {sidebarContent}
           </div>
         </div>

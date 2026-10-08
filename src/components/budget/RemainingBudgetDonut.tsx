@@ -32,12 +32,8 @@ export default function RemainingBudgetDonut({
   const strokeDashoffset = circumference - (percentageRemaining / 100) * circumference;
 
   return (
-    <div className="rounded-3xl p-6 liquid-glass border border-white/90 dark:border-white/10 shadow-sm relative overflow-hidden flex flex-col items-center text-center">
-      {/* Glow ambient background */}
-      <div className="absolute -top-12 -left-12 w-36 h-36 rounded-full bg-sky-400/15 blur-2xl pointer-events-none" />
-      <div className="absolute -bottom-12 -right-12 w-36 h-36 rounded-full bg-emerald-400/15 blur-2xl pointer-events-none" />
-
-      <h2 className="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">
+    <div className="bg-[var(--bg-card)] rounded-3xl p-6 border border-[var(--border-color)] shadow-xs relative overflow-hidden flex flex-col items-center text-center">
+      <h2 className="text-xs font-bold uppercase tracking-wider text-[#007a33] mb-3">
         Sisa Budget Keseluruhan
       </h2>
 
@@ -46,8 +42,8 @@ export default function RemainingBudgetDonut({
         <svg className="w-full h-full -rotate-90 transform" viewBox="0 0 200 200">
           <defs>
             <linearGradient id="budgetRingGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#0ea5e9" />
-              <stop offset="100%" stopColor="#10b981" />
+              <stop offset="0%" stopColor="#007a33" />
+              <stop offset="100%" stopColor="#198754" />
             </linearGradient>
           </defs>
           {/* Background Ring */}
@@ -58,7 +54,7 @@ export default function RemainingBudgetDonut({
             fill="transparent"
             stroke="currentColor"
             strokeWidth="14"
-            className="text-slate-100 dark:text-slate-800"
+            className="text-[var(--bg-main)]"
           />
           {/* Active Progress Ring */}
           <circle
@@ -77,20 +73,20 @@ export default function RemainingBudgetDonut({
 
         {/* Center Content */}
         <div className="absolute inset-0 flex flex-col items-center justify-center px-4">
-          <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+          <span className="text-xs font-bold text-[#007a33]">
             Sisa Budget
           </span>
-          <span className="text-2xl font-black tracking-tight text-slate-900 dark:text-white mt-0.5">
+          <span className="text-2xl font-extrabold tracking-tight text-[var(--text-main)] mt-0.5 angka-keuangan">
             {formatRupiah(remaining)}
           </span>
-          <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mt-0.5">
+          <span className="text-[11px] font-medium text-[#007a33] mt-0.5">
             Tersisa dari {formatRupiah(totalBudget)}
           </span>
 
           {/* Sisa Hari Pill */}
           {daysRemaining !== undefined && (
-            <span className="mt-2.5 inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 border border-sky-200/80 dark:border-sky-800/40 shadow-xs">
-              <Clock className="w-3 h-3 text-sky-500" />
+            <span className="mt-2.5 inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full bg-[var(--bg-main)] text-[#007a33] border border-[var(--border-color)] shadow-xs">
+              <Clock className="w-3 h-3 text-[#007a33]" />
               {daysRemaining} hari lagi
             </span>
           )}
@@ -98,11 +94,11 @@ export default function RemainingBudgetDonut({
       </div>
 
       {/* Date Range Footer */}
-      <div className="mt-3 flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-400">
-        <Calendar className="w-3.5 h-3.5 text-slate-400" />
+      <div className="mt-3 flex items-center justify-center gap-1.5 text-xs font-semibold text-[#007a33]">
+        <Calendar className="w-3.5 h-3.5 text-[#007a33]" />
         <span>{periodText}</span>
-        <span className="text-slate-300 dark:text-slate-700">•</span>
-        <span className="font-bold text-emerald-600 dark:text-emerald-400">
+        <span className="text-[var(--border-color)]">•</span>
+        <span className="font-bold text-[#198754]">
           {percentageRemaining}% tersedia
         </span>
       </div>
