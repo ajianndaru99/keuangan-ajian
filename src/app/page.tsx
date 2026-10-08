@@ -14,7 +14,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
-import Navbar from '@/components/Navbar';
+import AppShell from '@/components/layout/AppShell';
 import RealtimeToast, { ToastTransactionData } from '@/components/inbox/RealtimeToast';
 import TransactionDetailModal from '@/components/inbox/TransactionDetailModal';
 import QuickEditModal from '@/components/inbox/QuickEditModal';
@@ -307,15 +307,12 @@ export default function DashboardPage() {
   };
 
   return (
-    <>
-      <Navbar
-        userRole={userRole}
-        displayName={displayName}
-        pendingCount={pendingCount}
-        isRealtimeActive={true}
-      />
-
-      <main className="flex-1 pb-24 px-4 sm:px-6 lg:px-8 xl:px-10 max-w-[1440px] mx-auto w-full pt-4">
+    <AppShell
+      userRole={userRole}
+      displayName={displayName}
+      pendingCount={pendingCount}
+    >
+      <div className="space-y-6">
         {/* Header Ringkasan & Salam */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
           <div>
@@ -702,7 +699,7 @@ export default function DashboardPage() {
             </p>
           </Link>
         </div>
-      </main>
+      </div>
 
       {/* Pop-up Notifikasi Realtime */}
       <RealtimeToast
@@ -746,6 +743,6 @@ export default function DashboardPage() {
           rawNotification={editingTransaction.raw_notification}
         />
       )}
-    </>
+    </AppShell>
   );
 }

@@ -7,7 +7,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
-import Navbar from '@/components/Navbar';
+import AppShell from '@/components/layout/AppShell';
 import BalanceCard, { AccountBalanceItem } from '@/components/accounts/BalanceCard';
 import AdjustBalanceModal from '@/components/accounts/AdjustBalanceModal';
 import ManageAccountModal, { AccountData } from '@/components/accounts/ManageAccountModal';
@@ -221,14 +221,12 @@ export default function AccountsPage() {
   }, [accounts, filterOwner]);
 
   return (
-    <>
-      <Navbar
-        userRole={userRole}
-        displayName={displayName}
-        pendingCount={0}
-      />
-
-      <main className="flex-1 pb-28 max-w-[1440px] mx-auto w-full px-4 sm:px-6 lg:px-8 xl:px-10 pt-3.5">
+    <AppShell
+      userRole={userRole}
+      displayName={displayName}
+      pendingCount={0}
+    >
+      <div className="space-y-4">
         {/* Hero Card: Total Saldo Gabungan Keluarga */}
         <div className="rounded-3xl p-5 mb-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden transition-all">
           <div className="flex items-center justify-between mb-4">
@@ -349,7 +347,7 @@ export default function AccountsPage() {
             ))}
           </div>
         )}
-      </main>
+      </div>
 
       {/* Modal Koreksi Saldo */}
       <AdjustBalanceModal
@@ -379,6 +377,6 @@ export default function AccountsPage() {
         accountToEdit={editingAccount}
         onSave={handleSaveAccount}
       />
-    </>
+    </AppShell>
   );
 }

@@ -7,7 +7,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
-import Navbar from '@/components/Navbar';
+import AppShell from '@/components/layout/AppShell';
 import PeriodNavigator from '@/components/rekap/PeriodNavigator';
 import FinancialSummaryCard from '@/components/rekap/FinancialSummaryCard';
 import FinancialSpeedometerArc from '@/components/rekap/FinancialSpeedometerArc';
@@ -221,14 +221,12 @@ export default function RekapPage() {
   };
 
   return (
-    <>
-      <Navbar
-        userRole={userRole}
-        displayName={displayName}
-        pendingCount={summary.pendingCount}
-      />
-
-      <main className="flex-1 pb-28 max-w-[1440px] mx-auto w-full px-4 sm:px-6 lg:px-8 xl:px-10 pt-3.5">
+    <AppShell
+      userRole={userRole}
+      displayName={displayName}
+      pendingCount={summary.pendingCount}
+    >
+      <div className="space-y-4">
         {/* Navigasi Periode Mingguan & Bulanan */}
         <PeriodNavigator
           periodType={periodType}
@@ -350,7 +348,7 @@ export default function RekapPage() {
             </p>
           </div>
         )}
-      </main>
-    </>
+      </div>
+    </AppShell>
   );
 }

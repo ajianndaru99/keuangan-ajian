@@ -6,7 +6,7 @@
 // ==============================================================================
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import Navbar from '@/components/Navbar';
+import AppShell from '@/components/layout/AppShell';
 import RemainingBudgetDonut from '@/components/budget/RemainingBudgetDonut';
 import CategoryBudgetCard, { CategoryBudgetItem } from '@/components/budget/CategoryBudgetCard';
 import CurvedDonutBreakdown, { BudgetSegment } from '@/components/budget/CurvedDonutBreakdown';
@@ -199,15 +199,12 @@ export default function BudgetPage() {
   }, []);
 
   return (
-    <div className="flex flex-col min-h-screen pb-24">
-      {/* Top Navbar */}
-      <Navbar
-        userRole={userRole}
-        displayName={displayName}
-        pendingCount={pendingCount}
-      />
-
-      <main className="flex-1 max-w-[1440px] mx-auto w-full px-4 sm:px-6 lg:px-8 xl:px-10 py-4 space-y-4">
+    <AppShell
+      userRole={userRole}
+      displayName={displayName}
+      pendingCount={pendingCount}
+    >
+      <div className="space-y-4">
         {/* Header Title & Segment Switcher */}
         <div className="flex items-center justify-between">
           <div>
@@ -316,7 +313,7 @@ export default function BudgetPage() {
             )}
           </div>
         )}
-      </main>
+      </div>
 
       {/* Modal Edit Alokasi Budget */}
       <SetBudgetModal
@@ -325,6 +322,6 @@ export default function BudgetPage() {
         item={selectedForEdit}
         onSave={handleSaveBudget}
       />
-    </div>
+    </AppShell>
   );
 }
