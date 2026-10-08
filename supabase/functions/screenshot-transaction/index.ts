@@ -39,21 +39,58 @@ Deno.serve(async (req: Request) => {
     );
   }
 
-  // 1. Validasi Keamanan: Header X-API-KEY
-  const configuredApiKey = Deno.env.get('WEBHOOK_API_KEY');
-  const clientApiKey = req.headers.get('x-api-key') || req.headers.get('X-API-KEY');
+  // 1. Validasi Keamanan: Header X-API-KEY berbasis pemetaan perangkat (API_KEYS_JSON)
+  const API_KEYS = JSON.parse(Deno.env.get('API_KEYS_JSON') || '{}');
+  const legacyConfiguredKey = Deno.env.get('WEBHOOK_API_KEY');
+  const clientApiKey = req.headers.get('x-api-key') || req.headers.get('X-API-KEY') || '';
 
-  if (!isValidApiKey(clientApiKey, configuredApiKey)) {
+  if (!clientApiKey || typeof clientApiKey !== 'string') {
+    return new Response(
+      JSON.stringify({ error: 'Unauthorized: Header X-API-KEY tidak ditemukan.' }),
+      { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
+  // Proteksi Lingkungan Produksi: Tolak dev key di produksi
+  const isDev = Deno.env.get('ENVIRONMENT') === 'development';
+  if (!isDev) {
+    if (clientApiKey.startsWith('mock_dev_key') || clientApiKey.startsWith('test_random')) {
+      return new Response(
+        JSON.stringify({ error: 'Dev key not allowed in production' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+  }
+
+  let clientInfo: { device_id: string; household_id?: string; role?: string } | null = null;
+  if (Object.hasOwn(API_KEYS, clientApiKey)) {
+    clientInfo = API_KEYS[clientApiKey];
+  } else if (legacyConfiguredKey && isValidApiKey(clientApiKey, legacyConfiguredKey)) {
+    clientInfo = { device_id: 'suami', role: 'suami' };
+  }
+
+  if (!clientInfo) {
     return new Response(
       JSON.stringify({ error: 'Unauthorized: Header X-API-KEY tidak valid atau belum dikonfigurasi.' }),
       { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 
+  // Identitas perangkat ditentukan server berdasarkan API key
+  const sourceDevice = (clientInfo.role || clientInfo.device_id || 'suami').toLowerCase();
+
+  // 2. Batas Ukuran Body: Cek Content-Length (maksimal 10MB)
+  const contentLengthHeader = req.headers.get('content-length');
+  if (contentLengthHeader && parseInt(contentLengthHeader, 10) > 10 * 1024 * 1024) {
+    return new Response(
+      JSON.stringify({ error: 'Payload gambar terlalu besar (maksimal 10MB).' }),
+      { status: 413, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
   const contentType = req.headers.get('content-type') || '';
   let imageBase64 = '';
   let mimeType = 'image/jpeg';
-  let sourceDevice = 'suami';
   let dryRun = false;
 
   try {
@@ -71,20 +108,12 @@ Deno.serve(async (req: Request) => {
         imageBase64 = btoa(binary);
         mimeType = (file as Blob).type || 'image/jpeg';
       }
-
-      const dev = formData.get('source_device');
-      if (dev && ['suami', 'istri'].includes(String(dev).toLowerCase())) {
-        sourceDevice = String(dev).toLowerCase();
-      }
       dryRun = formData.get('dry_run') === 'true';
     } else {
       const json = await req.json();
       imageBase64 = json.image_base64 || json.image || '';
       imageBase64 = imageBase64.replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, '');
       mimeType = json.mime_type || 'image/jpeg';
-      if (json.source_device && ['suami', 'istri'].includes(String(json.source_device).toLowerCase())) {
-        sourceDevice = String(json.source_device).toLowerCase();
-      }
       dryRun = Boolean(json.dry_run);
     }
   } catch (_e) {
@@ -101,11 +130,17 @@ Deno.serve(async (req: Request) => {
     );
   }
 
-  // 2. Hubungi Google Gemini Vision API
+  // 3. Hubungi Google Gemini Vision API (Kunci di header x-goog-api-key)
   const geminiApiKey = Deno.env.get('GEMINI_API_KEY') || Deno.env.get('GOOGLE_AI_API_KEY');
-  let visionData: any = null;
+  if (!geminiApiKey) {
+    return new Response(
+      JSON.stringify({ error: 'Layanan Vision AI belum dikonfigurasi (GEMINI_API_KEY belum diset).' }),
+      { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
 
-  if (geminiApiKey) {
+  let visionData: any = null;
+  try {
     const prompt = `Analisis screenshot bukti transaksi perbankan/struk berikut. Berikan HANYA JSON valid:
 {
   "isValidReceipt": true,
@@ -123,10 +158,13 @@ Deno.serve(async (req: Request) => {
 Jika bukan bukti transfer sukses, set "isValidReceipt": false. Nominal integer tanpa titik.`;
 
     const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`,
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': geminiApiKey,
+        },
         body: JSON.stringify({
           contents: [
             {
@@ -141,48 +179,48 @@ Jika bukan bukti transfer sukses, set "isValidReceipt": false. Nominal integer t
       }
     );
 
-    if (geminiRes.ok) {
-      const gJson = await geminiRes.json();
-      const text = gJson.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-      try {
-        const clean = text.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim();
-        visionData = JSON.parse(clean);
-      } catch {
-        // Fallback jika parse error
-      }
+    if (!geminiRes.ok) {
+      const errBody = await geminiRes.text();
+      console.error('Gemini Vision API error HTTP', geminiRes.status, errBody);
+      return new Response(
+        JSON.stringify({ error: 'Layanan Vision AI sedang mengalami gangguan.' }),
+        { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
+
+    const gJson = await geminiRes.json();
+    const text = gJson.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+    const clean = text.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim();
+    visionData = JSON.parse(clean);
+  } catch (err: any) {
+    console.error('Gagal mengekstrak struk via Gemini:', err.message);
+    return new Response(
+      JSON.stringify({ error: 'Layanan Vision AI gagal menganalisis gambar.' }),
+      { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   }
 
-  // Fallback jika API key belum diset
-  if (!visionData) {
-    visionData = {
-      isValidReceipt: true,
-      amount: 50000,
-      adminFee: 0,
-      totalAmount: 50000,
-      direction: 'out',
-      merchant: 'Merchant Transaksi',
-      accountName: 'BCA',
-      accountType: 'bank',
-      transactionDate: new Date().toISOString(),
-      referenceNumber: 'REF-' + Date.now().toString().slice(-8),
-      rawSummary: 'Bukti transaksi diterima via Edge Function',
-    };
+  // Jika hasil parsing tidak valid, tolak tanpa insert dummy
+  if (!visionData || typeof visionData !== 'object') {
+    return new Response(
+      JSON.stringify({ error: 'Gagal memproses data struk dari Vision AI.' }),
+      { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   }
 
   if (!visionData.isValidReceipt) {
     return new Response(
-      JSON.stringify({ error: 'Gambar bukan bukti transaksi sukses yang valid.', details: visionData }),
+      JSON.stringify({ error: 'Gambar bukan bukti transaksi sukses yang valid.' }),
       { status: 422, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 
-  // 3. Inisialisasi Supabase
+  // 4. Inisialisasi Supabase
   const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-  // 4. Dedupe Hash
+  // 5. Dedupe Hash
   const ref = (visionData.referenceNumber || '').trim();
   const rawSeed = ref.length >= 4
     ? `receipt:${sourceDevice}:${visionData.accountName.toLowerCase()}:${ref.toUpperCase()}`
@@ -214,14 +252,17 @@ Jika bukan bukti transfer sukses, set "isValidReceipt": false. Nominal integer t
   }
 
   // Lookup household & account
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('household_id')
-    .eq('role', sourceDevice)
-    .limit(1)
-    .maybeSingle();
+  let householdId = clientInfo.household_id;
+  if (!householdId) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('household_id')
+      .eq('role', sourceDevice)
+      .limit(1)
+      .maybeSingle();
+    householdId = profile?.household_id;
+  }
 
-  let householdId = profile?.household_id;
   if (!householdId) {
     const { data: hh } = await supabase.from('households').select('id').limit(1).maybeSingle();
     householdId = hh?.id;
@@ -276,8 +317,9 @@ Jika bukan bukti transfer sukses, set "isValidReceipt": false. Nominal integer t
     .single();
 
   if (insertErr) {
+    console.error('Database insert error transactions:', insertErr.message);
     return new Response(
-      JSON.stringify({ error: 'Gagal menyimpan transaksi ke database', details: insertErr }),
+      JSON.stringify({ error: 'Gagal menyimpan transaksi ke database.' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

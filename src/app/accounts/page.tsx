@@ -301,7 +301,7 @@ export default function AccountsPage() {
         pendingCount={0}
       />
 
-      <main className="flex-1 pb-28 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 pt-3.5">
+      <main className="flex-1 pb-28 max-w-[1440px] mx-auto w-full px-4 sm:px-6 lg:px-8 xl:px-10 pt-3.5">
         {/* Hero Card: Total Saldo Gabungan Keluarga */}
         <div className="rounded-3xl p-5 mb-3.5 liquid-glass relative overflow-hidden transition-all shadow-[0_12px_36px_rgba(100,116,139,0.1)]">
           <div className="absolute -top-12 -right-12 w-44 h-44 rounded-full bg-gradient-to-br from-sky-400/25 via-indigo-400/15 to-purple-400/20 blur-2xl pointer-events-none" />

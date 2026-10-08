@@ -29,8 +29,9 @@ yarn-error.log*
 .supabase/
 supabase/.temp/
 
-# OS files
+# OS files & archives
 .DS_Store
 *.pem
 Thumbs.db
 *.tsbuildinfo
+*.zip

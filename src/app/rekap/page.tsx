@@ -303,7 +303,7 @@ export default function RekapPage() {
         pendingCount={summary.pendingCount}
       />
 
-      <main className="flex-1 pb-28 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 pt-3.5">
+      <main className="flex-1 pb-28 max-w-[1440px] mx-auto w-full px-4 sm:px-6 lg:px-8 xl:px-10 pt-3.5">
         {/* Navigasi Periode Mingguan & Bulanan */}
         <PeriodNavigator
           periodType={periodType}

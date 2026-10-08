@@ -102,7 +102,7 @@ export default function BudgetPage() {
       {/* Top Navbar */}
       <Navbar userRole="suami" pendingCount={2} />
 
-      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-4 space-y-4">
+      <main className="flex-1 max-w-[1440px] mx-auto w-full px-4 sm:px-6 lg:px-8 xl:px-10 py-4 space-y-4">
         {/* Header Title & Segment Switcher (Foto 1) */}
         <div className="flex items-center justify-between">
           <div>

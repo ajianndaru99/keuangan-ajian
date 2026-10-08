@@ -421,8 +421,8 @@ export default function InboxPage() {
         isRealtimeActive={isRealtimeActive || !isCloudConnected}
       />
 
-      {/* Kontainer Responsif: Lebih lega dan maksimal di Layar Monitor / Laptop */}
-      <main className="flex-1 pb-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full pt-4">
+      {/* Kontainer Responsif: Dioptimalkan Khusus Layar Monitor & Layar Laptop */}
+      <main className="flex-1 pb-24 px-4 sm:px-6 lg:px-8 xl:px-10 max-w-[1440px] mx-auto w-full pt-4">
         {/* Banner Ringkas Mode Demo */}
         {!isCloudConnected && showDemoNotice && (
           <div className="mb-3 px-3.5 py-2 rounded-2xl liquid-pill bg-sky-100/80 dark:bg-sky-950/50 border border-sky-300/70 dark:border-sky-800/50 flex items-center justify-between text-xs text-sky-950 dark:text-sky-200 transition-all shadow-sm">
@@ -459,7 +459,7 @@ export default function InboxPage() {
               {autoCategorizedTransactions.length > 0 && (
                 <button
                   onClick={handleApproveAllAutoCategorized}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 active:scale-95 text-white font-bold text-xs shadow-md shadow-emerald-500/25 transition-all border border-white/30"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 active:scale-95 text-white font-bold text-xs shadow-md shadow-emerald-500/25 transition-all border border-white/30"
                   title="Konfirmasi sekaligus seluruh transaksi yang kategorinya sudah terdeteksi otomatis"
                 >
                   <CheckCheck className="w-4 h-4" />
@@ -469,7 +469,7 @@ export default function InboxPage() {
 
               <button
                 onClick={() => setIsManualModalOpen(true)}
-                className="inline-flex items-center gap-1 px-3 py-2 rounded-2xl liquid-pill text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white font-bold text-xs border border-slate-200/80 dark:border-white/10 transition-all"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-2xl liquid-pill text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white font-bold text-xs border border-slate-200/80 dark:border-white/10 transition-all"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Input Manual</span>
@@ -477,8 +477,22 @@ export default function InboxPage() {
             </div>
           </div>
 
-          {/* Quick Stat Bar — Frosted Pills di Desktop Berdampingan */}
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5 pt-4 mt-4 border-t border-slate-200/80 dark:border-white/10 relative z-10">
+          {/* Quick Stat Bar — 4 Kolom di Monitor & Laptop */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 pt-4 mt-4 border-t border-slate-200/80 dark:border-white/10 relative z-10">
+            <div className="flex items-center gap-3 p-3 rounded-2xl liquid-pill bg-white/70 dark:bg-white/5 border border-white/90 dark:border-white/10">
+              <div className="p-2 rounded-xl bg-sky-100 dark:bg-sky-950/40 text-sky-600 dark:text-sky-400 border border-sky-200">
+                <CheckCircle2 className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <span className="text-[10px] font-semibold text-slate-600 dark:text-slate-400 block leading-none mb-1">
+                  Total Pending
+                </span>
+                <p className="text-sm md:text-base font-black text-slate-900 dark:text-white truncate">
+                  {pendingTally.totalCount} Transaksi
+                </p>
+              </div>
+            </div>
+
             <div className="flex items-center gap-3 p-3 rounded-2xl liquid-pill bg-white/70 dark:bg-white/5 border border-white/90 dark:border-white/10">
               <div className="p-2 rounded-xl bg-rose-100 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200">
                 <ArrowUpRight className="w-4 h-4" />
@@ -507,8 +521,8 @@ export default function InboxPage() {
               </div>
             </div>
 
-            <div className="hidden md:flex items-center gap-3 p-3 rounded-2xl liquid-pill bg-white/70 dark:bg-white/5 border border-white/90 dark:border-white/10">
-              <div className="p-2 rounded-xl bg-sky-100 dark:bg-sky-950/40 text-sky-600 dark:text-sky-400 border border-sky-200">
+            <div className="flex items-center gap-3 p-3 rounded-2xl liquid-pill bg-white/70 dark:bg-white/5 border border-white/90 dark:border-white/10">
+              <div className="p-2 rounded-xl bg-teal-100 dark:bg-teal-950/40 text-teal-600 dark:text-teal-400 border border-teal-200">
                 <Sparkles className="w-4 h-4" />
               </div>
               <div className="min-w-0">

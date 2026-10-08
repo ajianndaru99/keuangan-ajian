@@ -79,8 +79,8 @@ export default function Navbar({
   return (
     <>
       {/* Top Header - Frosted Liquid Glass */}
-      <header className="sticky top-0 z-30 liquid-glass border-b border-white/80 dark:border-white/10 px-4 sm:px-6 lg:px-8 py-3 transition-colors">
-        <div className="max-w-7xl mx-auto w-full flex items-center justify-between">
+      <header className="sticky top-0 z-30 liquid-glass border-b border-white/80 dark:border-white/10 px-4 sm:px-6 lg:px-8 xl:px-10 py-3 transition-colors">
+        <div className="max-w-[1440px] mx-auto w-full flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-2xl bg-gradient-to-tr from-sky-400 via-sky-500 to-indigo-500 flex items-center justify-center text-white shadow-sm shadow-sky-400/25 border border-white/40">
               <Wallet className="w-4 h-4 text-white drop-shadow-sm" />
