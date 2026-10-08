@@ -1,77 +1,67 @@
 'use client';
 
 // ==============================================================================
-// REKAP PAGE: src/app/rekap/page.tsx
-// Halaman Rekapitulasi Mingguan & Bulanan (Fase 4 - Inti Sistem)
+// ANALYTICS PAGE: src/app/rekap/page.tsx
+// Halaman Analisis Finansial Penuh 1 Bulan & Deteksi Titik Tertinggi Penggunaan
 // ==============================================================================
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
 import AppShell from '@/components/layout/AppShell';
-import PeriodNavigator from '@/components/rekap/PeriodNavigator';
-import FinancialSummaryCard from '@/components/rekap/FinancialSummaryCard';
-import FinancialSpeedometerArc from '@/components/rekap/FinancialSpeedometerArc';
+import MonthlyPeakSpendingChart, {
+  DayUsageItem,
+  PeakDayInsight,
+  PeakTransactionItem,
+} from '@/components/rekap/MonthlyPeakSpendingChart';
 import CategoryExpensesChart, { CategoryExpenseItem } from '@/components/rekap/CategoryExpensesChart';
-import DailyTrendChart, { DailyTrendItem } from '@/components/rekap/DailyTrendChart';
+import { formatRupiah } from '@/lib/utils';
 import {
-  getWeeklyRange,
-  getMonthlyRange,
-  calculateComparison,
-  DateRange,
-} from '@/lib/date-utils';
-import {
+  ChevronLeft,
+  ChevronRight,
+  TrendingDown,
+  ArrowDownLeft,
+  ArrowUpRight,
+  Calendar,
   RefreshCw,
-  FolderOpen,
+  Wallet,
 } from 'lucide-react';
 
-export default function RekapPage() {
-  const [periodType, setPeriodType] = useState<'weekly' | 'monthly'>('weekly');
-  const [offset, setOffset] = useState<number>(0);
-  const [filterOwner, setFilterOwner] = useState<'all' | 'suami' | 'istri'>('all');
-  const [selectedAccountId, setSelectedAccountId] = useState<string>('all');
+export default function AnalyticsPage() {
   const [userRole, setUserRole] = useState<'suami' | 'istri'>('suami');
   const [displayName, setDisplayName] = useState<string>('');
   const [loading, setLoading] = useState(false);
-  const [, setIsCloudConnected] = useState(false);
 
-  // State Akun untuk Filter
-  const [accounts, setAccounts] = useState<any[]>([]);
+  // Offset Bulan (0 = Bulan Ini, -1 = Bulan Lalu, dst)
+  const [monthOffset, setMonthOffset] = useState<number>(0);
 
-  // State Data Rekap Murni (Dimulai dari 0, tanpa data dummy)
-  const [summary, setSummary] = useState({
-    totalExpense: 0,
-    totalIncome: 0,
-    netDifference: 0,
-    pendingCount: 0,
-    pendingExpense: 0,
-  });
+  // State Transaksi Mentah Bulan Berjalan
+  const [monthTransactions, setMonthTransactions] = useState<any[]>([]);
 
-  const [previousExpense, setPreviousExpense] = useState(0);
-  const [categories, setCategories] = useState<CategoryExpenseItem[]>([]);
-  const [dailyTrend, setDailyTrend] = useState<DailyTrendItem[]>([]);
+  // Hitung Tanggal Mulai dan Akhir Bulan Aktif
+  const activeDateInfo = useMemo(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() + monthOffset);
+    const year = d.getFullYear();
+    const month = d.getMonth();
+    const startDate = new Date(year, month, 1);
+    const endDate = new Date(year, month + 1, 0); // Hari terakhir bulan
+    const totalDays = endDate.getDate();
+    const monthName = startDate.toLocaleString('id-ID', { month: 'long', year: 'numeric' });
 
-  // Hitung rentang tanggal periode saat ini & periode sebelumnya
-  const currentRange: DateRange = useMemo(() => {
-    return periodType === 'weekly'
-      ? getWeeklyRange(offset)
-      : getMonthlyRange(offset, 1);
-  }, [periodType, offset]);
+    return {
+      year,
+      month,
+      totalDays,
+      monthName,
+      startISO: new Date(year, month, 1, 0, 0, 0, 0).toISOString(),
+      endISO: new Date(year, month + 1, 0, 23, 59, 59, 999).toISOString(),
+    };
+  }, [monthOffset]);
 
-  const previousRange: DateRange = useMemo(() => {
-    return periodType === 'weekly'
-      ? getWeeklyRange(offset - 1)
-      : getMonthlyRange(offset - 1, 1);
-  }, [periodType, offset]);
-
-  // Kalkulasi perbandingan dengan periode lalu
-  const comparison = useMemo(() => {
-    return calculateComparison(summary.totalExpense, previousExpense);
-  }, [summary.totalExpense, previousExpense]);
-
-  // Ambil data rekap dari Supabase via RPC
-  const fetchRekapData = useCallback(async () => {
+  // Fetch Transaksi Bulan Ini dari Database
+  const fetchAnalyticsData = useCallback(async () => {
     if (!isSupabaseConfigured()) {
-      setIsCloudConnected(false);
+      setMonthTransactions([]);
       return;
     }
 
@@ -80,20 +70,7 @@ export default function RekapPage() {
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        setIsCloudConnected(false);
-        setSummary({
-          totalExpense: 0,
-          totalIncome: 0,
-          netDifference: 0,
-          pendingCount: 0,
-          pendingExpense: 0,
-        });
-        setPreviousExpense(0);
-        setCategories([]);
-        setDailyTrend([]);
-        return;
-      }
+      if (!user) return;
 
       const { data: profile } = await supabase
         .from('profiles')
@@ -101,251 +78,290 @@ export default function RekapPage() {
         .eq('id', user.id)
         .maybeSingle();
 
-      if (!profile) {
-        setIsCloudConnected(false);
-        return;
-      }
+      if (!profile) return;
 
       setUserRole(profile.role);
       setDisplayName(profile.display_name);
 
-      // Ambil daftar akun untuk dropdown filter
-      const { data: accList } = await supabase
-        .from('accounts')
-        .select('id, name, owner, type')
+      // Ambil seluruh transaksi dalam 1 bulan penuh
+      const { data: txList } = await supabase
+        .from('transactions')
+        .select(`
+          id, amount, direction, merchant, transaction_date, status,
+          categories (name)
+        `)
         .eq('household_id', profile.household_id)
-        .eq('is_active', true);
+        .gte('transaction_date', activeDateInfo.startISO)
+        .lte('transaction_date', activeDateInfo.endISO)
+        .order('transaction_date', { ascending: true });
 
-      if (accList) setAccounts(accList);
-
-      const ownerParam = filterOwner === 'all' ? null : filterOwner;
-      const accountParam = selectedAccountId === 'all' ? null : selectedAccountId;
-      const startISO = currentRange.startDate.toISOString();
-      const endISO = currentRange.endDate.toISOString();
-      const prevStartISO = previousRange.startDate.toISOString();
-      const prevEndISO = previousRange.endDate.toISOString();
-
-      // 1. RPC: Summary Periode Saat Ini
-      const { data: sumData } = await supabase.rpc('get_financial_summary', {
-        p_household_id: profile.household_id,
-        p_start_date: startISO,
-        p_end_date: endISO,
-        p_owner: ownerParam,
-        p_account_id: accountParam,
-      });
-
-      if (sumData && sumData.length > 0) {
-        const item = sumData[0];
-        setSummary({
-          totalExpense: Number(item.total_expense || 0),
-          totalIncome: Number(item.total_income || 0),
-          netDifference: Number(item.net_difference || 0),
-          pendingCount: Number(item.pending_count || 0),
-          pendingExpense: Number(item.pending_expense || 0),
-        });
-        setIsCloudConnected(true);
-      }
-
-      // 2. RPC: Summary Periode Sebelumnya (untuk komparasi)
-      const { data: prevSumData } = await supabase.rpc('get_financial_summary', {
-        p_household_id: profile.household_id,
-        p_start_date: prevStartISO,
-        p_end_date: prevEndISO,
-        p_owner: ownerParam,
-        p_account_id: accountParam,
-      });
-
-      if (prevSumData && prevSumData.length > 0) {
-        setPreviousExpense(Number(prevSumData[0].total_expense || 0));
-      }
-
-      // 3. RPC: Pengeluaran per Kategori
-      const { data: catData } = await supabase.rpc('get_category_expenses', {
-        p_household_id: profile.household_id,
-        p_start_date: startISO,
-        p_end_date: endISO,
-        p_owner: ownerParam,
-        p_account_id: accountParam,
-      });
-
-      if (catData) {
-        setCategories(
-          catData.map((c: any) => ({
-            category_id: c.category_id,
-            category_name: c.category_name,
-            category_icon: c.category_icon || 'tag',
-            total_amount: Number(c.total_amount || 0),
-            percentage: Number(c.percentage || 0),
-          }))
-        );
-      }
-
-      // 4. RPC: Tren Harian
-      const { data: trendData } = await supabase.rpc('get_daily_financial_trend', {
-        p_household_id: profile.household_id,
-        p_start_date: startISO,
-        p_end_date: endISO,
-        p_owner: ownerParam,
-        p_account_id: accountParam,
-      });
-
-      if (trendData) {
-        setDailyTrend(
-          trendData.map((d: any) => ({
-            period_date: d.period_date,
-            expense_amount: Number(d.expense_amount || 0),
-            income_amount: Number(d.income_amount || 0),
-          }))
-        );
+      if (txList) {
+        setMonthTransactions(txList);
+      } else {
+        setMonthTransactions([]);
       }
     } catch (err) {
-      console.warn('Gagal memuat rekap:', err);
+      console.warn('Gagal memuat analitik:', err);
+      setMonthTransactions([]);
     } finally {
       setLoading(false);
     }
-  }, [
-    currentRange,
-    previousRange,
-    filterOwner,
-    selectedAccountId,
-  ]);
+  }, [activeDateInfo]);
 
   useEffect(() => {
-    fetchRekapData();
-  }, [fetchRekapData]);
+    fetchAnalyticsData();
+  }, [fetchAnalyticsData]);
 
-  // Handler pergantian jenis periode (reset offset ke 0)
-  const handleTogglePeriodType = (type: 'weekly' | 'monthly') => {
-    setPeriodType(type);
-    setOffset(0);
-  };
+  // Agregasi Data Penggunaan Harian Selama 1 Bulan (1 s/d Total Hari)
+  const { dailyData, peakInsight, totalExpense, totalIncome, netDifference, dailyAverage } = useMemo(() => {
+    const expenseMap: Record<string, number> = {};
+    const incomeMap: Record<string, number> = {};
+    const txByDateMap: Record<string, PeakTransactionItem[]> = {};
+
+    let sumExpense = 0;
+    let sumIncome = 0;
+
+    monthTransactions.forEach((tx) => {
+      if (tx.status !== 'reconciled') return;
+
+      const d = new Date(tx.transaction_date);
+      const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const amt = Number(tx.amount || 0);
+
+      if (tx.direction === 'out') {
+        expenseMap[dateKey] = (expenseMap[dateKey] || 0) + amt;
+        sumExpense += amt;
+
+        if (!txByDateMap[dateKey]) txByDateMap[dateKey] = [];
+        txByDateMap[dateKey].push({
+          id: tx.id,
+          merchant: tx.merchant || 'Pengeluaran',
+          amount: amt,
+          categoryName: (tx.categories as any)?.name || 'Lainnya',
+          direction: 'out',
+        });
+      } else {
+        incomeMap[dateKey] = (incomeMap[dateKey] || 0) + amt;
+        sumIncome += amt;
+      }
+    });
+
+    // Cari Titik Tertinggi Penggunaan Total (Peak Day)
+    let maxExpense = 0;
+    let peakDateKey: string | null = null;
+
+    Object.entries(expenseMap).forEach(([dKey, exp]) => {
+      if (exp > maxExpense) {
+        maxExpense = exp;
+        peakDateKey = dKey;
+      }
+    });
+
+    // Bangun Data Harian Lengkap untuk 1 Bulan Penuh
+    const days: DayUsageItem[] = [];
+    for (let day = 1; day <= activeDateInfo.totalDays; day++) {
+      const dayStr = String(day).padStart(2, '0');
+      const monthStr = String(activeDateInfo.month + 1).padStart(2, '0');
+      const fullDateStr = `${activeDateInfo.year}-${monthStr}-${dayStr}`;
+
+      const exp = expenseMap[fullDateStr] || 0;
+      const inc = incomeMap[fullDateStr] || 0;
+      const isPeak = fullDateStr === peakDateKey && exp > 0;
+
+      days.push({
+        dayNumber: day,
+        dateStr: fullDateStr,
+        dayLabel: dayStr,
+        expenseAmount: exp,
+        incomeAmount: inc,
+        isPeak,
+      });
+    }
+
+    const avg = activeDateInfo.totalDays > 0 ? Math.round(sumExpense / activeDateInfo.totalDays) : 0;
+    const pctAbove = avg > 0 && maxExpense > avg ? Math.round(((maxExpense - avg) / avg) * 100) : 0;
+
+    let formattedPeakDate = '-';
+    if (peakDateKey) {
+      try {
+        const pd = new Date(`${peakDateKey}T00:00:00`);
+        formattedPeakDate = pd.toLocaleDateString('id-ID', {
+          weekday: 'long',
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+        });
+      } catch {
+        formattedPeakDate = peakDateKey;
+      }
+    }
+
+    const insight: PeakDayInsight = {
+      dateStr: peakDateKey,
+      formattedDate: formattedPeakDate,
+      totalExpense: maxExpense,
+      dailyAverage: avg,
+      percentageAboveAverage: pctAbove,
+      transactions: peakDateKey ? txByDateMap[peakDateKey] || [] : [],
+    };
+
+    return {
+      dailyData: days,
+      peakInsight: insight,
+      totalExpense: sumExpense,
+      totalIncome: sumIncome,
+      netDifference: sumIncome - sumExpense,
+      dailyAverage: avg,
+    };
+  }, [monthTransactions, activeDateInfo]);
+
+  // Agregasi Kategori untuk Komposisi Pengeluaran
+  const categoryBreakdown: CategoryExpenseItem[] = useMemo(() => {
+    const catMap: Record<string, number> = {};
+    let totalCatExpense = 0;
+
+    monthTransactions.forEach((tx) => {
+      if (tx.direction === 'out' && tx.status === 'reconciled') {
+        const cName = (tx.categories as any)?.name || 'Lainnya';
+        const amt = Number(tx.amount || 0);
+        catMap[cName] = (catMap[cName] || 0) + amt;
+        totalCatExpense += amt;
+      }
+    });
+
+    return Object.entries(catMap)
+      .map(([name, total]) => ({
+        category_id: name,
+        category_name: name,
+        category_icon: 'tag',
+        total_amount: total,
+        percentage: totalCatExpense > 0 ? Number(((total / totalCatExpense) * 100).toFixed(1)) : 0,
+      }))
+      .sort((a, b) => b.total_amount - a.total_amount);
+  }, [monthTransactions]);
 
   return (
-    <AppShell
-      userRole={userRole}
-      displayName={displayName}
-      pendingCount={summary.pendingCount}
-    >
-      <div className="space-y-4">
-        {/* Navigasi Periode Mingguan & Bulanan */}
-        <PeriodNavigator
-          periodType={periodType}
-          onTogglePeriodType={handleTogglePeriodType}
-          dateRange={currentRange}
-          offset={offset}
-          onPrev={() => setOffset((prev) => prev - 1)}
-          onNext={() => setOffset((prev) => prev + 1)}
-          onReset={() => setOffset(0)}
-        />
-
-        {/* Filter Bar: Pemilik & Akun */}
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar mb-3.5 py-0.5 pr-4">
-          <button
-            onClick={() => setFilterOwner('all')}
-            className={`px-3.5 py-1.5 rounded-2xl text-xs font-bold whitespace-nowrap transition-all border ${
-              filterOwner === 'all'
-                ? 'bg-gradient-to-r from-sky-500 to-blue-600 text-white border-transparent shadow-md shadow-sky-500/25'
-                : 'liquid-pill text-slate-800 dark:text-slate-200 hover:bg-white border-slate-200/80 dark:border-white/10'
-            }`}
-          >
-            Gabungan
-          </button>
-          <button
-            onClick={() => setFilterOwner('suami')}
-            className={`px-3.5 py-1.5 rounded-2xl text-xs font-bold whitespace-nowrap transition-all border ${
-              filterOwner === 'suami'
-                ? 'bg-gradient-to-r from-sky-500 to-blue-600 text-white border-transparent shadow-md shadow-sky-500/25'
-                : 'liquid-pill text-slate-800 dark:text-slate-200 hover:bg-white border-slate-200/80 dark:border-white/10'
-            }`}
-          >
-            👨 Suami
-          </button>
-          <button
-            onClick={() => setFilterOwner('istri')}
-            className={`px-3.5 py-1.5 rounded-2xl text-xs font-bold whitespace-nowrap transition-all border ${
-              filterOwner === 'istri'
-                ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white border-transparent shadow-md shadow-pink-500/25'
-                : 'liquid-pill text-slate-800 dark:text-slate-200 hover:bg-white border-slate-200/80 dark:border-white/10'
-            }`}
-          >
-            👩 Istri
-          </button>
-
-          {/* Filter Akun Dropdown */}
-          {accounts.length > 0 && (
-            <select
-              value={selectedAccountId}
-              onChange={(e) => setSelectedAccountId(e.target.value)}
-              className="px-3 py-1.5 rounded-2xl liquid-pill text-xs font-bold text-slate-800 dark:text-white border border-slate-200/80 dark:border-white/10 focus:outline-none"
-            >
-              <option value="all" className="bg-white dark:bg-slate-900 text-slate-800 dark:text-white">
-                Semua Akun
-              </option>
-              {accounts.map((acc) => (
-                <option key={acc.id} value={acc.id} className="bg-white dark:bg-slate-900 text-slate-800 dark:text-white">
-                  {acc.name} ({acc.owner === 'suami' ? 'Suami' : 'Istri'})
-                </option>
-              ))}
-            </select>
-          )}
-
-          <button
-            onClick={fetchRekapData}
-            title="Refresh rekap"
-            className="p-2 rounded-2xl liquid-pill text-slate-700 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white ml-auto shrink-0 transition-all border border-slate-200/80 dark:border-white/10"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-          </button>
-        </div>
-
-        {/* Speedometer Radial Arc Gauge */}
-        <div className="mb-3.5">
-          <FinancialSpeedometerArc
-            monthlyLimit={periodType === 'weekly' ? 2000000 : 8000000}
-            currentSpending={summary.totalExpense}
-            totalNetWorth={
-              accounts.length > 0
-                ? accounts.reduce((acc, a) => acc + Number(a.balance ?? a.current_balance ?? a.initial_balance ?? 0), 0)
-                : Math.max(0, summary.netDifference)
-            }
-            selectedPeriod={periodType === 'weekly' ? 'weekly' : 'monthly'}
-            onPeriodChange={(p) => {
-              if (p === 'weekly') handleTogglePeriodType('weekly');
-              else handleTogglePeriodType('monthly');
-            }}
-            onExportReport={() => window.print()}
-          />
-        </div>
-
-        {/* Ringkasan Finansial Periode & Perbandingan */}
-        <FinancialSummaryCard
-          totalExpense={summary.totalExpense}
-          totalIncome={summary.totalIncome}
-          netDifference={summary.netDifference}
-          pendingCount={summary.pendingCount}
-          pendingExpense={summary.pendingExpense}
-          comparison={comparison}
-          periodLabel={currentRange.label}
-        />
-
-        {/* Grafik Batang Pengeluaran per Kategori & Top 5 */}
-        <CategoryExpensesChart categories={categories} />
-
-        {/* Grafik Tren Harian dalam Periode */}
-        <DailyTrendChart data={dailyTrend} />
-
-        {/* Empty State jika tidak ada data sama sekali */}
-        {summary.totalExpense === 0 && summary.totalIncome === 0 && (
-          <div className="text-center py-12 px-6 rounded-3xl liquid-glass border border-white/80 dark:border-white/10 my-4 shadow-sm">
-            <div className="w-14 h-14 rounded-2xl bg-sky-100/80 dark:bg-sky-950/50 text-sky-600 dark:text-sky-400 flex items-center justify-center mx-auto mb-3 shadow-sm border border-sky-200 dark:border-sky-800/40">
-              <FolderOpen className="w-7 h-7" />
-            </div>
-            <h3 className="font-extrabold text-slate-900 dark:text-white text-base">
-              Belum Ada Transaksi di Periode Ini
-            </h3>
-            <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 max-w-xs mx-auto leading-relaxed">
-              Transaksi yang dikategorikan di Inbox pada rentang waktu ini akan langsung direkap otomatis di sini.
+    <AppShell userRole={userRole} displayName={displayName} pendingCount={0}>
+      <div className="space-y-6">
+        {/* Header Navigasi Periode 1 Bulan */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-bold text-white tracking-tight">
+              Analisis Finansial Bulanan (Analytics)
+            </h2>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Evaluasi mendalam pergerakan pengeluaran keluarga selama 1 bulan penuh
             </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 p-1 rounded-2xl bg-slate-900/80 border border-slate-800 shadow-xs">
+              <button
+                onClick={() => setMonthOffset((prev) => prev - 1)}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                title="Bulan Sebelumnya"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+
+              <div className="flex items-center gap-2 px-3 py-1 text-xs font-bold text-white">
+                <Calendar className="w-3.5 h-3.5 text-indigo-400" />
+                <span>{activeDateInfo.monthName}</span>
+              </div>
+
+              <button
+                onClick={() => setMonthOffset((prev) => prev + 1)}
+                disabled={monthOffset >= 0}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 disabled:opacity-30 transition-colors"
+                title="Bulan Berikutnya"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+
+            <button
+              onClick={fetchAnalyticsData}
+              title="Refresh Analitik"
+              className="p-2 rounded-xl bg-slate-900/60 border border-slate-800 text-slate-400 hover:text-white transition-colors"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
+        </div>
+
+        {/* 4 KARTU METRIK UTAMA ANALITIK (WARNA PASTEL DI ATAS DARK) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+          {/* 1. Pengeluaran (Pastel Coral) */}
+          <div className="p-4 rounded-3xl bg-rose-950/20 border border-rose-500/25 shadow-xs backdrop-blur-xs">
+            <div className="flex items-center justify-between text-rose-300 mb-1.5">
+              <span className="text-[11px] font-bold uppercase tracking-wider">Total Pengeluaran</span>
+              <ArrowUpRight className="w-4 h-4" />
+            </div>
+            <p className="text-xl font-black text-rose-300 tracking-tight">
+              -{formatRupiah(totalExpense)}
+            </p>
+            <span className="text-[10px] text-slate-400 mt-1 block">
+              Akumulasi belanja & tagihan terverifikasi
+            </span>
+          </div>
+
+          {/* 2. Pemasukan (Pastel Mint) */}
+          <div className="p-4 rounded-3xl bg-emerald-950/20 border border-emerald-500/25 shadow-xs backdrop-blur-xs">
+            <div className="flex items-center justify-between text-emerald-300 mb-1.5">
+              <span className="text-[11px] font-bold uppercase tracking-wider">Total Pemasukan</span>
+              <ArrowDownLeft className="w-4 h-4" />
+            </div>
+            <p className="text-xl font-black text-emerald-300 tracking-tight">
+              +{formatRupiah(totalIncome)}
+            </p>
+            <span className="text-[10px] text-slate-400 mt-1 block">
+              Gaji & transfer masuk terverifikasi
+            </span>
+          </div>
+
+          {/* 3. Rata-rata Harian (Pastel Sky) */}
+          <div className="p-4 rounded-3xl bg-sky-950/20 border border-sky-500/25 shadow-xs backdrop-blur-xs">
+            <div className="flex items-center justify-between text-sky-300 mb-1.5">
+              <span className="text-[11px] font-bold uppercase tracking-wider">Rata-rata Pengeluaran</span>
+              <TrendingDown className="w-4 h-4" />
+            </div>
+            <p className="text-xl font-black text-sky-300 tracking-tight">
+              {formatRupiah(dailyAverage)}/hari
+            </p>
+            <span className="text-[10px] text-slate-400 mt-1 block">
+              Rata-rata belanja per hari ({activeDateInfo.totalDays} hari)
+            </span>
+          </div>
+
+          {/* 4. Arus Kas Bersih (Pastel Lavender) */}
+          <div className="p-4 rounded-3xl bg-purple-950/20 border border-purple-500/25 shadow-xs backdrop-blur-xs">
+            <div className="flex items-center justify-between text-purple-300 mb-1.5">
+              <span className="text-[11px] font-bold uppercase tracking-wider">Arus Kas Bersih (Net)</span>
+              <Wallet className="w-4 h-4" />
+            </div>
+            <p className={`text-xl font-black tracking-tight ${netDifference >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
+              {netDifference >= 0 ? '+' : ''}{formatRupiah(netDifference)}
+            </p>
+            <span className="text-[10px] text-slate-400 mt-1 block">
+              {netDifference >= 0 ? 'Surplus tabungan bulan ini' : 'Defisit kas bulan ini'}
+            </span>
+          </div>
+        </div>
+
+        {/* GRAFIK PENGGUNAAN 1 BULAN & ANALISIS TITIK TERTINGGI (PEAK DAY INSIGHT) */}
+        <MonthlyPeakSpendingChart
+          data={dailyData}
+          peakInsight={peakInsight}
+          monthName={activeDateInfo.monthName}
+        />
+
+        {/* KOMPOSISI PENGELUARAN PER KATEGORI BULAN INI */}
+        {categoryBreakdown.length > 0 && (
+          <div className="rounded-3xl p-6 bg-slate-900/60 border border-slate-800 shadow-sm backdrop-blur-xs">
+            <h3 className="text-sm font-bold text-white mb-4">
+              Porsi Pengeluaran per Kategori ({activeDateInfo.monthName})
+            </h3>
+            <CategoryExpensesChart categories={categoryBreakdown} />
           </div>
         )}
       </div>

@@ -31,12 +31,15 @@ export default function RootLayout({
             __html: `
               try {
                 const saved = localStorage.getItem('theme');
-                if (saved === 'dark') {
-                  document.documentElement.classList.add('dark');
-                } else {
+                if (saved === 'light') {
                   document.documentElement.classList.remove('dark');
+                  document.documentElement.classList.add('light');
+                } else {
+                  document.documentElement.classList.add('dark');
                 }
-              } catch (_) {}
+              } catch (_) {
+                document.documentElement.classList.add('dark');
+              }
             `,
           }}
         />
