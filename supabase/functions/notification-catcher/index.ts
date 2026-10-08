@@ -3,6 +3,7 @@ import { matchesAny, SENSITIVE_PATTERNS } from '../_shared/parsers/rules.ts';
 import { parseLivinNotification } from '../_shared/parsers/livin.ts';
 import { parseJagoNotification } from '../_shared/parsers/jago.ts';
 import { normalizeText, parseReceivedAt } from '../_shared/parsers/fields.ts';
+import { analyzeNotificationWithGemini } from '../_shared/parsers/gemini-text.ts';
 
 // Konfigurasi JSON untuk mapping Kunci API ke Device & Household
 const API_KEYS = JSON.parse(Deno.env.get('API_KEYS_JSON') || '{}');
@@ -120,6 +121,34 @@ Deno.serve(async (req) => {
         parsedResult = parseLivinNotification(title, content, received_at_raw);
       } else if (lowerApp.includes('jago')) {
         parsedResult = parseJagoNotification(title, content, received_at_raw);
+      }
+
+      // AI Fallback (Gemini Flash):
+      // Jika belum ada regex (BCA, BRImo, Bank Saqu, GoPay, ShopeePay, DANA, BPDDIY, dll)
+      // atau jika regex menghasilkan needs_review / gagal:
+      if (!parsedResult || parsedResult.outcome !== 'transaction') {
+        const geminiApiKey = Deno.env.get('GEMINI_API_KEY') || Deno.env.get('GOOGLE_AI_API_KEY');
+        if (geminiApiKey) {
+          try {
+            const aiRes = await analyzeNotificationWithGemini(app_name, title, content, geminiApiKey);
+            if (aiRes && aiRes.isTransaction && aiRes.amount > 0) {
+              parsedResult = {
+                outcome: 'transaction',
+                isValid: true,
+                bank: aiRes.accountName || app_name,
+                direction: aiRes.direction,
+                amount: aiRes.amount,
+                merchant: aiRes.merchant,
+                reference: aiRes.reference,
+                parserVersion: 'gemini-flash-ai',
+                transactionDate: receivedAtParsed.iso || new Date().toISOString(),
+                reasons: [],
+              };
+            }
+          } catch (aiErr: any) {
+            console.warn('[Gemini Text AI Fallback Error]:', aiErr.message);
+          }
+        }
       }
     }
 
