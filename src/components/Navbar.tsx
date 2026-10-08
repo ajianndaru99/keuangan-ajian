@@ -3,13 +3,26 @@
 // ==============================================================================
 // COMPONENT: src/components/Navbar.tsx
 // Navigasi Utama: Desain Finansial Bersih, Rapi, & Profesional
+// Mendukung Tab Dashboard, Inbox, Budget, Rekap, Akun, serta Toggle Privacy
 // ==============================================================================
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { Inbox, Wallet, BarChart3, Target, LogOut, Sun, Moon } from 'lucide-react';
+import {
+  LayoutDashboard,
+  Inbox,
+  Wallet,
+  BarChart3,
+  Target,
+  LogOut,
+  Sun,
+  Moon,
+  Eye,
+  EyeOff,
+} from 'lucide-react';
+import { usePrivacy } from '@/lib/privacy';
 
 interface NavbarProps {
   userRole?: 'suami' | 'istri';
@@ -27,6 +40,7 @@ export default function Navbar({
   const pathname = usePathname();
   const router = useRouter();
   const [isDark, setIsDark] = useState(false);
+  const { isHideBalance, togglePrivacy } = usePrivacy();
 
   useEffect(() => {
     const isDarkActive = document.documentElement.classList.contains('dark');
@@ -53,6 +67,11 @@ export default function Navbar({
   };
 
   const navItems = [
+    {
+      name: 'Dashboard',
+      href: '/',
+      icon: LayoutDashboard,
+    },
     {
       name: 'Inbox',
       href: '/inbox',
@@ -85,14 +104,14 @@ export default function Navbar({
         <div className="max-w-[1440px] mx-auto w-full flex items-center justify-between">
           {/* Logo & Identitas Pengguna */}
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 flex items-center justify-center font-bold text-sm shadow-xs">
+            <Link href="/" className="w-8 h-8 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 flex items-center justify-center font-bold text-sm shadow-xs hover:opacity-90 transition-opacity">
               <Wallet className="w-4 h-4" />
-            </div>
+            </Link>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-sm font-bold tracking-tight text-slate-900 dark:text-white leading-none">
+                <Link href="/" className="text-sm font-bold tracking-tight text-slate-900 dark:text-white leading-none hover:underline">
                   Keuangan Keluarga
-                </h1>
+                </Link>
                 {isRealtimeActive && (
                   <span className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
@@ -137,8 +156,23 @@ export default function Navbar({
             })}
           </nav>
 
-          {/* Tombol Tema & Keluar */}
+          {/* Tombol Privacy, Tema & Keluar */}
           <div className="flex items-center gap-1">
+            {/* Tombol Sensor/Sembunyikan Saldo */}
+            <button
+              onClick={togglePrivacy}
+              aria-label={isHideBalance ? 'Tampilkan Nominal Saldo' : 'Sembunyikan Nominal Saldo'}
+              title={isHideBalance ? 'Tampilkan Nominal Saldo' : 'Sembunyikan Nominal Saldo (Mode Privasi)'}
+              className={`p-2 rounded-xl transition-colors border ${
+                isHideBalance
+                  ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 border-slate-900 dark:border-white shadow-xs'
+                  : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 border-transparent'
+              }`}
+            >
+              {isHideBalance ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+
+            {/* Tombol Tema */}
             <button
               onClick={toggleTheme}
               aria-label={isDark ? 'Ganti ke Mode Terang' : 'Ganti ke Mode Gelap'}
@@ -148,6 +182,7 @@ export default function Navbar({
               {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4" />}
             </button>
 
+            {/* Tombol Keluar */}
             <button
               onClick={handleLogout}
               title="Keluar"
@@ -160,7 +195,7 @@ export default function Navbar({
       </header>
 
       {/* Floating Bottom Nav (Mobile Saja) */}
-      <nav className="md:hidden fixed bottom-3 left-4 right-4 z-30 mx-auto max-w-sm bg-white/95 dark:bg-slate-900/95 backdrop-blur-md rounded-2xl px-2 py-1.5 flex items-center justify-around border border-slate-200 dark:border-slate-800 shadow-lg shadow-slate-900/5">
+      <nav className="md:hidden fixed bottom-3 left-4 right-4 z-30 mx-auto max-w-md bg-white/95 dark:bg-slate-900/95 backdrop-blur-md rounded-2xl px-2 py-1.5 flex items-center justify-around border border-slate-200 dark:border-slate-800 shadow-lg shadow-slate-900/5">
         {navItems.map((item) => {
           const isActive = pathname === item.href;
           const Icon = item.icon;
@@ -169,7 +204,7 @@ export default function Navbar({
             <Link
               key={item.href}
               href={item.href}
-              className={`relative flex flex-col items-center gap-0.5 py-1 px-3 rounded-xl transition-colors ${
+              className={`relative flex flex-col items-center gap-0.5 py-1 px-2.5 rounded-xl transition-colors ${
                 isActive
                   ? 'text-slate-900 dark:text-white font-semibold'
                   : 'text-slate-400 hover:text-slate-700 dark:text-slate-500 dark:hover:text-slate-300 font-medium'

@@ -3,9 +3,9 @@
 // ==============================================================================
 // INBOX PAGE: src/app/inbox/page.tsx
 // Halaman Inbox Transaksi Pending — Desain Finansial Bersih & Profesional
-// - Pop-up Realtime Toast responsif saat notifikasi masuk
-// - Pop-up Modal Detail Transaksi lengkap (1-tap review & categorise)
-// - Ringkasan statistik & filter bersih tanpa simbol/emoji berlebih
+// - Kartu dikelompokkan per hari dengan Accordion / Dropdown yang bisa dibuka/tutup
+// - Pop-up Realtime Toast saat notifikasi baru masuk
+// - Pop-up Modal Detail Transaksi lengkap
 // ==============================================================================
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -24,6 +24,8 @@ import {
   RefreshCw,
   X,
   CheckCheck,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
 import { formatRupiah } from '@/lib/utils';
 
@@ -46,7 +48,7 @@ const defaultMockCategories: Category[] = [
 const defaultMockAccounts: AccountOption[] = [
   { id: 'acc-s-1', name: 'BCA', owner: 'suami', type: 'bank' },
   { id: 'acc-s-2', name: 'Mandiri', owner: 'suami', type: 'bank' },
-  { id: 'acc-s-3', name: 'Bank Jago', owner: 'suami', type: 'bank' },
+  { id: 'acc-s-3', name: 'Jago', owner: 'suami', type: 'bank' },
   { id: 'acc-s-4', name: 'GoPay', owner: 'suami', type: 'ewallet' },
   { id: 'acc-i-1', name: 'BCA', owner: 'istri', type: 'bank' },
   { id: 'acc-i-2', name: 'BRI', owner: 'istri', type: 'bank' },
@@ -54,61 +56,44 @@ const defaultMockAccounts: AccountOption[] = [
   { id: 'acc-i-4', name: 'DANA', owner: 'istri', type: 'ewallet' },
 ];
 
-// Transaksi sampel demo interaktif jika Supabase belum terhubung
-const initialDemoTransactions: TransactionItem[] = [
-  {
-    id: 'demo-tx-1',
-    household_id: 'demo-hh',
-    account_id: 'acc-s-1',
-    category_id: 'cat-2',
-    amount: 45000,
-    direction: 'out',
-    merchant: 'KOPI KENANGAN',
-    raw_notification: 'Pembayaran QRIS Rp 45.000 di KOPI KENANGAN via BCA',
-    source_device: 'suami',
-    transaction_date: new Date(Date.now() - 1000 * 60 * 12).toISOString(),
-    status: 'pending',
-    dedupe_hash: 'demo-hash-1',
-    needs_review: false,
-    accounts: { name: 'BCA', type: 'bank' },
-  },
-  {
-    id: 'demo-tx-2',
-    household_id: 'demo-hh',
-    account_id: 'acc-s-2',
-    category_id: 'cat-1',
-    amount: 25000,
-    direction: 'out',
-    merchant: 'INDOMARET',
-    raw_notification: 'Pembayaran QRIS Rp 25.000 di INDOMARET via Mandiri',
-    source_device: 'suami',
-    transaction_date: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
-    status: 'pending',
-    dedupe_hash: 'demo-hash-2',
-    needs_review: false,
-    accounts: { name: 'Mandiri', type: 'bank' },
-  },
-  {
-    id: 'demo-tx-3',
-    household_id: 'demo-hh',
-    account_id: 'acc-i-3',
-    category_id: null,
-    amount: 0,
-    direction: 'out',
-    merchant: 'Perlu Cek Manual',
-    raw_notification: 'ShopeePay: Pembayaran belanja berhasil. Terima kasih!',
-    source_device: 'istri',
-    transaction_date: new Date(Date.now() - 1000 * 60 * 90).toISOString(),
-    status: 'pending',
-    dedupe_hash: 'demo-hash-3',
-    needs_review: true,
-    accounts: { name: 'ShopeePay', type: 'ewallet' },
-  },
-];
+interface DayGroup {
+  dateKey: string;
+  dateLabel: string;
+  items: TransactionItem[];
+  totalOut: number;
+  totalIn: number;
+}
+
+function formatDayLabel(dateStr: string): { key: string; label: string } {
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return { key: 'unknown', label: 'Tanggal Tidak Diketahui' };
+
+  const key = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(d);
+  const now = new Date();
+  const todayKey = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(now);
+  const yesterday = new Date(now.getTime() - 86400000);
+  const yesterdayKey = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(yesterday);
+
+  const fullDateText = new Intl.DateTimeFormat('id-ID', {
+    timeZone: 'Asia/Jakarta',
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(d);
+
+  if (key === todayKey) {
+    return { key, label: `Hari Ini — ${fullDateText}` };
+  }
+  if (key === yesterdayKey) {
+    return { key, label: `Kemarin — ${fullDateText}` };
+  }
+  return { key, label: fullDateText };
+}
 
 export default function InboxPage() {
   const router = useRouter();
-  const [transactions, setTransactions] = useState<TransactionItem[]>(initialDemoTransactions);
+  const [transactions, setTransactions] = useState<TransactionItem[]>([]);
   const [categories, setCategories] = useState<Category[]>(defaultMockCategories);
   const [accounts, setAccounts] = useState<AccountOption[]>(defaultMockAccounts);
   const [userRole, setUserRole] = useState<'suami' | 'istri'>('suami');
@@ -118,7 +103,10 @@ export default function InboxPage() {
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
   const [isRealtimeActive, setIsRealtimeActive] = useState(false);
   const [isCloudConnected, setIsCloudConnected] = useState(false);
-  const [showDemoNotice, setShowDemoNotice] = useState(true);
+  const [showDemoNotice, setShowDemoNotice] = useState(false);
+
+  // Accordion state per hari (key: dateKey, value: true jika tertutup/collapsed)
+  const [collapsedDates, setCollapsedDates] = useState<Record<string, boolean>>({});
 
   // Pop-up States
   const [incomingToast, setIncomingToast] = useState<ToastTransactionData | null>(null);
@@ -165,7 +153,7 @@ export default function InboxPage() {
           accounts (name, type)
         `)
         .eq('status', 'pending')
-        .order('created_at', { ascending: false });
+        .order('transaction_date', { ascending: false });
 
       if (!txError && txData) {
         const normalized = txData.map((item: any) => ({
@@ -245,7 +233,6 @@ export default function InboxPage() {
           const title = raw.title || '';
           const content = raw.content || '';
 
-          // Ekstrak perkiraan nominal jika ada di teks
           const amountMatch = content.match(/Rp\s*([0-9.,]+)/i);
           const rawAmount = amountMatch ? parseInt(amountMatch[1].replace(/[.,]/g, ''), 10) : 0;
           const isTransferMasuk = /masuk|terima|kredit|berhasil ditransfer ke/i.test(title + ' ' + content);
@@ -432,6 +419,49 @@ export default function InboxPage() {
     });
   }, [transactions, filterOwner]);
 
+  // Kelompokkan Transaksi Per Hari (Accordion Grouping)
+  const dayGroups = useMemo<DayGroup[]>(() => {
+    const groupsMap = new Map<string, DayGroup>();
+
+    filteredTransactions.forEach((tx) => {
+      const { key, label } = formatDayLabel(tx.transaction_date);
+      if (!groupsMap.has(key)) {
+        groupsMap.set(key, {
+          dateKey: key,
+          dateLabel: label,
+          items: [],
+          totalOut: 0,
+          totalIn: 0,
+        });
+      }
+      const group = groupsMap.get(key)!;
+      group.items.push(tx);
+      if (tx.direction === 'in') group.totalIn += Number(tx.amount || 0);
+      else group.totalOut += Number(tx.amount || 0);
+    });
+
+    return Array.from(groupsMap.values()).sort((a, b) => b.dateKey.localeCompare(a.dateKey));
+  }, [filteredTransactions]);
+
+  const toggleDayCollapse = (dateKey: string) => {
+    setCollapsedDates((prev) => ({
+      ...prev,
+      [dateKey]: !prev[dateKey],
+    }));
+  };
+
+  const collapseAllDays = () => {
+    const next: Record<string, boolean> = {};
+    dayGroups.forEach((g) => {
+      next[g.dateKey] = true;
+    });
+    setCollapsedDates(next);
+  };
+
+  const expandAllDays = () => {
+    setCollapsedDates({});
+  };
+
   // Total ringkasan pending
   const pendingTally = useMemo(() => {
     let outTotal = 0;
@@ -454,7 +484,6 @@ export default function InboxPage() {
       setDetailTransaction(found);
       setIsDetailModalOpen(true);
     } else {
-      // Fallback virtual item untuk preview
       const fallbackItem: TransactionItem = {
         id: toastData.id || `notif-${Date.now()}`,
         household_id: '',
@@ -536,7 +565,7 @@ export default function InboxPage() {
             </div>
           </div>
 
-          {/* Quick Stat Bar: 4 Kolom di Monitor & Laptop */}
+          {/* Quick Stat Bar */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 pt-4 mt-4 border-t border-slate-100 dark:border-slate-800">
             <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/70 dark:border-slate-800">
               <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block mb-1">
@@ -576,7 +605,7 @@ export default function InboxPage() {
           </div>
         </div>
 
-        {/* Filter Bar Segmented Tabs Tanpa Simbol Berlebih */}
+        {/* Filter Bar Segmented Tabs */}
         <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar mb-4 py-1">
           <button
             onClick={() => setFilterOwner('all')}
@@ -621,17 +650,37 @@ export default function InboxPage() {
             </button>
           )}
 
+          {/* Kontrol Buka/Tutup Semua Grup Hari jika ada lebih dari 1 hari */}
+          {dayGroups.length > 1 && (
+            <div className="ml-auto flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={expandAllDays}
+                className="px-2.5 py-1.5 rounded-xl text-[11px] font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-colors"
+              >
+                Buka Semua
+              </button>
+              <button
+                type="button"
+                onClick={collapseAllDays}
+                className="px-2.5 py-1.5 rounded-xl text-[11px] font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-colors"
+              >
+                Tutup Semua
+              </button>
+            </div>
+          )}
+
           <button
             onClick={fetchData}
             title="Muat ulang data"
-            className="p-2 rounded-xl bg-white dark:bg-slate-800 text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white border border-slate-200 dark:border-slate-700 ml-auto shrink-0 transition-colors"
+            className="p-2 rounded-xl bg-white dark:bg-slate-800 text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white border border-slate-200 dark:border-slate-700 shrink-0 transition-colors ml-auto sm:ml-0"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
           </button>
         </div>
 
-        {/* Daftar Kartu Transaksi */}
-        {filteredTransactions.length === 0 ? (
+        {/* Daftar Kartu Transaksi Dikelompokkan Per Hari (Accordion) */}
+        {dayGroups.length === 0 ? (
           <div className="text-center py-20 px-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 my-4 shadow-xs">
             <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto mb-3 border border-emerald-200 dark:border-emerald-800">
               <CheckCircle2 className="w-6 h-6" />
@@ -640,25 +689,77 @@ export default function InboxPage() {
               Semua Transaksi Sudah Diverifikasi
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm mx-auto leading-relaxed">
-              Tidak ada transaksi yang menunggu verifikasi saat ini. Notifikasi baru dari aplikasi perbankan akan otomatis muncul di sini.
+              Tidak ada transaksi yang menunggu verifikasi saat ini. Notifikasi baru dari aplikasi perbankan HP Suami & Istri akan otomatis muncul di sini.
             </p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {filteredTransactions.map((tx) => (
-              <TransactionCard
-                key={tx.id}
-                transaction={tx}
-                categories={categories}
-                onCategorize={handleCategorize}
-                onIgnore={handleIgnore}
-                onUpdate={handleUpdate}
-                onOpenDetail={(item) => {
-                  setDetailTransaction(item);
-                  setIsDetailModalOpen(true);
-                }}
-              />
-            ))}
+          <div className="space-y-4">
+            {dayGroups.map((group) => {
+              const isCollapsed = Boolean(collapsedDates[group.dateKey]);
+
+              return (
+                <div
+                  key={group.dateKey}
+                  className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-xs"
+                >
+                  {/* Header Accordion Hari */}
+                  <button
+                    type="button"
+                    onClick={() => toggleDayCollapse(group.dateKey)}
+                    className="w-full px-4 py-3 flex items-center justify-between gap-3 text-left bg-slate-50/80 hover:bg-slate-100/80 dark:bg-slate-800/50 dark:hover:bg-slate-800/80 transition-colors border-b border-slate-100 dark:border-slate-800/80 cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="text-slate-400 dark:text-slate-500 shrink-0">
+                        {isCollapsed ? (
+                          <ChevronRight className="w-4 h-4" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4" />
+                        )}
+                      </div>
+                      <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate">
+                        {group.dateLabel}
+                      </span>
+                      <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-slate-200/70 dark:bg-slate-800 text-slate-600 dark:text-slate-300 shrink-0">
+                        {group.items.length} Transaksi
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2.5 shrink-0 text-right">
+                      {group.totalOut > 0 && (
+                        <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                          -{formatRupiah(group.totalOut)}
+                        </span>
+                      )}
+                      {group.totalIn > 0 && (
+                        <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                          +{formatRupiah(group.totalIn)}
+                        </span>
+                      )}
+                    </div>
+                  </button>
+
+                  {/* Konten Kartu Transaksi Per Hari */}
+                  {!isCollapsed && (
+                    <div className="p-3 sm:p-4 space-y-3">
+                      {group.items.map((tx) => (
+                        <TransactionCard
+                          key={tx.id}
+                          transaction={tx}
+                          categories={categories}
+                          onCategorize={handleCategorize}
+                          onIgnore={handleIgnore}
+                          onUpdate={handleUpdate}
+                          onOpenDetail={(item) => {
+                            setDetailTransaction(item);
+                            setIsDetailModalOpen(true);
+                          }}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </main>
