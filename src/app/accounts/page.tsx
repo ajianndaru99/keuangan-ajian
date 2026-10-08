@@ -20,85 +20,9 @@ import {
   EyeOff,
 } from 'lucide-react';
 
-// Data Akun Default untuk Simulasi / Demo
-const initialDemoAccounts: AccountBalanceItem[] = [
-  {
-    id: 'acc-s-1',
-    name: 'BCA',
-    type: 'bank',
-    owner: 'suami',
-    initial_balance: 5000000,
-    current_balance: 4955000, // 5.000.000 - 45.000 (Kopi Kenangan)
-    is_active: true,
-  },
-  {
-    id: 'acc-s-2',
-    name: 'Mandiri',
-    type: 'bank',
-    owner: 'suami',
-    initial_balance: 3500000,
-    current_balance: 3475000, // 3.500.000 - 25.000 (Indomaret)
-    is_active: true,
-  },
-  {
-    id: 'acc-s-3',
-    name: 'GoPay',
-    type: 'ewallet',
-    owner: 'suami',
-    initial_balance: 250000,
-    current_balance: 250000,
-    is_active: true,
-  },
-  {
-    id: 'acc-s-4',
-    name: 'OVO',
-    type: 'ewallet',
-    owner: 'suami',
-    initial_balance: 150000,
-    current_balance: 150000,
-    is_active: true,
-  },
-  {
-    id: 'acc-i-1',
-    name: 'BCA',
-    type: 'bank',
-    owner: 'istri',
-    initial_balance: 4200000,
-    current_balance: 4200000,
-    is_active: true,
-  },
-  {
-    id: 'acc-i-2',
-    name: 'BRI',
-    type: 'bank',
-    owner: 'istri',
-    initial_balance: 2800000,
-    current_balance: 2800000,
-    is_active: true,
-  },
-  {
-    id: 'acc-i-3',
-    name: 'ShopeePay',
-    type: 'ewallet',
-    owner: 'istri',
-    initial_balance: 300000,
-    current_balance: 300000,
-    is_active: true,
-  },
-  {
-    id: 'acc-i-4',
-    name: 'DANA',
-    type: 'ewallet',
-    owner: 'istri',
-    initial_balance: 200000,
-    current_balance: 700000, // 200.000 + 500.000 (Top Up BCA OneKlik)
-    is_active: true,
-  },
-];
-
 export default function AccountsPage() {
   const { isHideBalance, togglePrivacy } = usePrivacy();
-  const [accounts, setAccounts] = useState<AccountBalanceItem[]>(initialDemoAccounts);
+  const [accounts, setAccounts] = useState<AccountBalanceItem[]>([]);
   const [userRole, setUserRole] = useState<'suami' | 'istri'>('suami');
   const [displayName, setDisplayName] = useState<string>('');
   const [loading, setLoading] = useState(false);

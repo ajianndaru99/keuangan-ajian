@@ -24,43 +24,6 @@ import {
   FolderOpen,
 } from 'lucide-react';
 
-// Data simulasi demo untuk pengujian pratinjau
-const demoCategoryExpensesWeekly: CategoryExpenseItem[] = [
-  { category_id: 'c1', category_name: 'Belanja Dapur', category_icon: 'shopping-cart', total_amount: 850000, percentage: 38.6 },
-  { category_id: 'c2', category_name: 'Makan & Jajan', category_icon: 'utensils', total_amount: 520000, percentage: 23.6 },
-  { category_id: 'c3', category_name: 'Transportasi/Bensin', category_icon: 'fuel', total_amount: 350000, percentage: 15.9 },
-  { category_id: 'c4', category_name: 'Anak', category_icon: 'baby', total_amount: 280000, percentage: 12.7 },
-  { category_id: 'c5', category_name: 'Tagihan & Utilitas', category_icon: 'zap', total_amount: 200000, percentage: 9.1 },
-];
-
-const demoCategoryExpensesMonthly: CategoryExpenseItem[] = [
-  { category_id: 'c1', category_name: 'Belanja Dapur', category_icon: 'shopping-cart', total_amount: 3450000, percentage: 39.4 },
-  { category_id: 'c2', category_name: 'Makan & Jajan', category_icon: 'utensils', total_amount: 1980000, percentage: 22.6 },
-  { category_id: 'c5', category_name: 'Tagihan & Utilitas', category_icon: 'zap', total_amount: 1450000, percentage: 16.6 },
-  { category_id: 'c3', category_name: 'Transportasi/Bensin', category_icon: 'fuel', total_amount: 1120000, percentage: 12.8 },
-  { category_id: 'c4', category_name: 'Anak', category_icon: 'baby', total_amount: 750000, percentage: 8.6 },
-];
-
-const demoDailyTrendWeekly: DailyTrendItem[] = [
-  { period_date: '2026-09-22', expense_amount: 150000, income_amount: 0 },
-  { period_date: '2026-09-23', expense_amount: 320000, income_amount: 0 },
-  { period_date: '2026-09-24', expense_amount: 210000, income_amount: 0 },
-  { period_date: '2026-09-25', expense_amount: 450000, income_amount: 5000000 },
-  { period_date: '2026-09-26', expense_amount: 580000, income_amount: 0 },
-  { period_date: '2026-09-27', expense_amount: 340000, income_amount: 0 },
-  { period_date: '2026-09-28', expense_amount: 150000, income_amount: 500000 },
-];
-
-const demoDailyTrendMonthly: DailyTrendItem[] = [
-  { period_date: '2026-09-01', expense_amount: 850000, income_amount: 12000000 },
-  { period_date: '2026-09-05', expense_amount: 620000, income_amount: 0 },
-  { period_date: '2026-09-10', expense_amount: 1200000, income_amount: 0 },
-  { period_date: '2026-09-15', expense_amount: 950000, income_amount: 3000000 },
-  { period_date: '2026-09-20', expense_amount: 1850000, income_amount: 0 },
-  { period_date: '2026-09-25', expense_amount: 1430000, income_amount: 1500000 },
-  { period_date: '2026-09-28', expense_amount: 1850000, income_amount: 0 },
-];
-
 export default function RekapPage() {
   const [periodType, setPeriodType] = useState<'weekly' | 'monthly'>('weekly');
   const [offset, setOffset] = useState<number>(0);
@@ -69,23 +32,23 @@ export default function RekapPage() {
   const [userRole, setUserRole] = useState<'suami' | 'istri'>('suami');
   const [displayName, setDisplayName] = useState<string>('');
   const [loading, setLoading] = useState(false);
-  const [isCloudConnected, setIsCloudConnected] = useState(false);
+  const [, setIsCloudConnected] = useState(false);
 
   // State Akun untuk Filter
   const [accounts, setAccounts] = useState<any[]>([]);
 
-  // State Data Rekap
+  // State Data Rekap Murni (Dimulai dari 0, tanpa data dummy)
   const [summary, setSummary] = useState({
-    totalExpense: 2200000,
-    totalIncome: 5500000,
-    netDifference: 3300000,
-    pendingCount: 4,
-    pendingExpense: 70000,
+    totalExpense: 0,
+    totalIncome: 0,
+    netDifference: 0,
+    pendingCount: 0,
+    pendingExpense: 0,
   });
 
-  const [previousExpense, setPreviousExpense] = useState(2500000);
-  const [categories, setCategories] = useState<CategoryExpenseItem[]>(demoCategoryExpensesWeekly);
-  const [dailyTrend, setDailyTrend] = useState<DailyTrendItem[]>(demoDailyTrendWeekly);
+  const [previousExpense, setPreviousExpense] = useState(0);
+  const [categories, setCategories] = useState<CategoryExpenseItem[]>([]);
+  const [dailyTrend, setDailyTrend] = useState<DailyTrendItem[]>([]);
 
   // Hitung rentang tanggal periode saat ini & periode sebelumnya
   const currentRange: DateRange = useMemo(() => {
@@ -119,29 +82,16 @@ export default function RekapPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         setIsCloudConnected(false);
-        if (periodType === 'monthly') {
-          setSummary({
-            totalExpense: 8750000,
-            totalIncome: 16500000,
-            netDifference: 7750000,
-            pendingCount: 4,
-            pendingExpense: 70000,
-          });
-          setPreviousExpense(9400000);
-          setCategories(demoCategoryExpensesMonthly);
-          setDailyTrend(demoDailyTrendMonthly);
-        } else {
-          setSummary({
-            totalExpense: 2200000,
-            totalIncome: 5500000,
-            netDifference: 3300000,
-            pendingCount: 4,
-            pendingExpense: 70000,
-          });
-          setPreviousExpense(2500000);
-          setCategories(demoCategoryExpensesWeekly);
-          setDailyTrend(demoDailyTrendWeekly);
-        }
+        setSummary({
+          totalExpense: 0,
+          totalIncome: 0,
+          netDifference: 0,
+          pendingCount: 0,
+          pendingExpense: 0,
+        });
+        setPreviousExpense(0);
+        setCategories([]);
+        setDailyTrend([]);
         return;
       }
 
@@ -268,31 +218,6 @@ export default function RekapPage() {
   const handleTogglePeriodType = (type: 'weekly' | 'monthly') => {
     setPeriodType(type);
     setOffset(0);
-    if (!isCloudConnected) {
-      if (type === 'monthly') {
-        setSummary({
-          totalExpense: 8750000,
-          totalIncome: 16500000,
-          netDifference: 7750000,
-          pendingCount: 4,
-          pendingExpense: 70000,
-        });
-        setPreviousExpense(9400000);
-        setCategories(demoCategoryExpensesMonthly);
-        setDailyTrend(demoDailyTrendMonthly);
-      } else {
-        setSummary({
-          totalExpense: 2200000,
-          totalIncome: 5500000,
-          netDifference: 3300000,
-          pendingCount: 4,
-          pendingExpense: 70000,
-        });
-        setPreviousExpense(2500000);
-        setCategories(demoCategoryExpensesWeekly);
-        setDailyTrend(demoDailyTrendWeekly);
-      }
-    }
   };
 
   return (
@@ -375,12 +300,16 @@ export default function RekapPage() {
           </button>
         </div>
 
-        {/* Speedometer Radial Arc Gauge (Foto 2: Financial Report) */}
+        {/* Speedometer Radial Arc Gauge */}
         <div className="mb-3.5">
           <FinancialSpeedometerArc
             monthlyLimit={periodType === 'weekly' ? 2000000 : 8000000}
             currentSpending={summary.totalExpense}
-            totalNetWorth={summary.totalIncome - summary.totalExpense + 12500000}
+            totalNetWorth={
+              accounts.length > 0
+                ? accounts.reduce((acc, a) => acc + Number(a.balance ?? a.current_balance ?? a.initial_balance ?? 0), 0)
+                : Math.max(0, summary.netDifference)
+            }
             selectedPeriod={periodType === 'weekly' ? 'weekly' : 'monthly'}
             onPeriodChange={(p) => {
               if (p === 'weekly') handleTogglePeriodType('weekly');

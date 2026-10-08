@@ -61,17 +61,10 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(url);
     }
 
-    // 2. Jika sudah login dan mengakses /login -> redirect ke /inbox
+    // 2. Jika sudah login dan mengakses /login -> arahkan ke dashboard utama '/'
     if (user && isLoginPage) {
       const url = request.nextUrl.clone();
-      url.pathname = '/inbox';
-      return NextResponse.redirect(url);
-    }
-
-    // 3. Jika mengakses root path '/' -> arahkan ke '/inbox'
-    if (request.nextUrl.pathname === '/') {
-      const url = request.nextUrl.clone();
-      url.pathname = user ? '/inbox' : '/login';
+      url.pathname = '/';
       return NextResponse.redirect(url);
     }
   }

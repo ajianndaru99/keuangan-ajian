@@ -119,10 +119,9 @@ export default function Navbar({
                   </span>
                 )}
               </div>
-              <div className="flex items-center gap-1.5 mt-1">
+              <div className="flex items-center gap-1.5 mt-0.5">
                 <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                  {roleText}
-                  {displayName ? ` (${displayName})` : ''}
+                  Keluarga Ajian
                 </span>
               </div>
             </div>
