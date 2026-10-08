@@ -32,58 +32,131 @@ export default function CategoryBudgetCard({
     : 0;
 
   // Variasi warna progress bar berdasarkan tingkat pemakaian
+  // Variasi warna progress bar berdasarkan tingkat pemakaian
   const getProgressColor = () => {
-    if (percentage >= 90) return 'bg-rose-500 shadow-rose-400/40';
-    if (percentage >= 70) return 'bg-amber-500 shadow-amber-400/40';
-    return 'bg-emerald-500 shadow-emerald-400/40';
+    if (percentage >= 90) return 'bg-rose-500';
+    if (percentage >= 70) return 'bg-amber-500';
+    return 'bg-emerald-500';
   };
 
   const getBadgeColor = () => {
-    if (percentage >= 90) return 'text-rose-300 bg-rose-950/60 border-rose-800/80';
-    if (percentage >= 70) return 'text-amber-300 bg-amber-950/60 border-amber-800/80';
-    return 'text-emerald-300 bg-emerald-950/60 border-emerald-800/80';
+    if (percentage >= 90) return 'text-rose-800 bg-rose-100 border-rose-200';
+    if (percentage >= 70) return 'text-amber-800 bg-amber-100 border-amber-200';
+    return 'text-emerald-800 bg-emerald-100 border-emerald-200';
   };
 
-  // Tema warna pastel berdasarkan nama kategori
-  const getCategoryPastelClass = () => {
+  // Tema warna pastel cerah & teks tajam berdasarkan kategori
+  const getCategoryTheme = () => {
     const n = item.name.toLowerCase();
-    if (n.includes('dapur')) return 'bg-emerald-950/25 border-emerald-500/25';
-    if (n.includes('makan') || n.includes('jajan')) return 'bg-amber-950/25 border-amber-500/25';
-    if (n.includes('transportasi') || n.includes('bensin')) return 'bg-sky-950/25 border-sky-500/25';
-    if (n.includes('tagihan') || n.includes('utilitas')) return 'bg-yellow-950/25 border-yellow-500/25';
-    if (n.includes('rumah')) return 'bg-indigo-950/25 border-indigo-500/25';
-    if (n.includes('jalan')) return 'bg-purple-950/25 border-purple-500/25';
-    if (n.includes('mendadak')) return 'bg-rose-950/25 border-rose-500/25';
-    return 'bg-slate-900/60 border-slate-700/50';
+    if (n.includes('dapur')) {
+      return {
+        card: 'bg-emerald-50/90 border-emerald-200/90 text-emerald-950',
+        avatarBg: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+        title: 'text-emerald-950',
+        sub: 'text-emerald-700/80',
+        statLabel: 'text-emerald-700/80',
+        statVal: 'text-emerald-950',
+      };
+    }
+    if (n.includes('makan') || n.includes('jajan')) {
+      return {
+        card: 'bg-rose-50/90 border-rose-200/90 text-rose-950',
+        avatarBg: 'bg-rose-100 text-rose-800 border-rose-200',
+        title: 'text-rose-950',
+        sub: 'text-rose-700/80',
+        statLabel: 'text-rose-700/80',
+        statVal: 'text-rose-950',
+      };
+    }
+    if (n.includes('transportasi') || n.includes('bensin')) {
+      return {
+        card: 'bg-amber-50/90 border-amber-200/90 text-amber-950',
+        avatarBg: 'bg-amber-100 text-amber-800 border-amber-200',
+        title: 'text-amber-950',
+        sub: 'text-amber-700/80',
+        statLabel: 'text-amber-700/80',
+        statVal: 'text-amber-950',
+      };
+    }
+    if (n.includes('tagihan') || n.includes('utilitas')) {
+      return {
+        card: 'bg-sky-50/90 border-sky-200/90 text-sky-950',
+        avatarBg: 'bg-sky-100 text-sky-800 border-sky-200',
+        title: 'text-sky-950',
+        sub: 'text-sky-700/80',
+        statLabel: 'text-sky-700/80',
+        statVal: 'text-sky-950',
+      };
+    }
+    if (n.includes('rumah')) {
+      return {
+        card: 'bg-purple-50/90 border-purple-200/90 text-purple-950',
+        avatarBg: 'bg-purple-100 text-purple-800 border-purple-200',
+        title: 'text-purple-950',
+        sub: 'text-purple-700/80',
+        statLabel: 'text-purple-700/80',
+        statVal: 'text-purple-950',
+      };
+    }
+    if (n.includes('jalan')) {
+      return {
+        card: 'bg-indigo-50/90 border-indigo-200/90 text-indigo-950',
+        avatarBg: 'bg-indigo-100 text-indigo-800 border-indigo-200',
+        title: 'text-indigo-950',
+        sub: 'text-indigo-700/80',
+        statLabel: 'text-indigo-700/80',
+        statVal: 'text-indigo-950',
+      };
+    }
+    if (n.includes('mendadak')) {
+      return {
+        card: 'bg-pink-50/90 border-pink-200/90 text-pink-950',
+        avatarBg: 'bg-pink-100 text-pink-800 border-pink-200',
+        title: 'text-pink-950',
+        sub: 'text-pink-700/80',
+        statLabel: 'text-pink-700/80',
+        statVal: 'text-pink-950',
+      };
+    }
+    return {
+      card: 'bg-slate-50/90 border-slate-200/90 text-slate-900',
+      avatarBg: 'bg-slate-200 text-slate-800 border-slate-300',
+      title: 'text-slate-900',
+      sub: 'text-slate-600',
+      statLabel: 'text-slate-600',
+      statVal: 'text-slate-900',
+    };
   };
+
+  const theme = getCategoryTheme();
 
   return (
-    <div className={`rounded-3xl p-5 border shadow-sm backdrop-blur-xs transition-all hover:scale-[1.01] ${getCategoryPastelClass()}`}>
+    <div className={`rounded-3xl p-5 border shadow-xs transition-all hover:scale-[1.01] ${theme.card}`}>
       {/* Header: Emoji Avatar + Title + Menu Action */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-2xl bg-white/10 flex items-center justify-center text-xl shadow-xs border border-white/10">
+          <div className={`w-11 h-11 rounded-2xl flex items-center justify-center text-xl shadow-xs border ${theme.avatarBg}`}>
             <span>{item.emoji || '📁'}</span>
           </div>
           <div>
-            <h3 className="text-sm font-bold text-white leading-tight">
+            <h3 className={`text-sm font-bold leading-tight ${theme.title}`}>
               {item.name}
             </h3>
-            <p className="text-[11px] font-medium text-slate-400">
+            <p className={`text-[11px] font-medium ${theme.sub}`}>
               {item.periodName || 'Bulan Ini'}
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-1.5">
-          <span className={`text-[11px] font-black px-2.5 py-0.5 rounded-full border ${getBadgeColor()}`}>
+          <span className={`text-[11px] font-extrabold px-2.5 py-0.5 rounded-full border ${getBadgeColor()}`}>
             {percentage}%
           </span>
           {onEdit && (
             <button
               onClick={() => onEdit(item)}
               aria-label="Atur Anggaran"
-              className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+              className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-white/60 transition-colors"
             >
               <MoreVertical className="w-4 h-4" />
             </button>
@@ -93,16 +166,16 @@ export default function CategoryBudgetCard({
 
       {/* Target & Baris Nominal */}
       <div className="mb-2 flex items-baseline justify-between">
-        <span className="text-xs font-bold text-slate-300">
+        <span className={`text-xs font-bold ${theme.statVal}`}>
           Target: {formatRupiah(item.budgetLimit)}
         </span>
-        <span className="text-[11px] font-semibold text-slate-400">
+        <span className={`text-[11px] font-semibold ${theme.sub}`}>
           {percentage >= 100 ? 'Melebihi Limit' : `${formatRupiah(remaining)} sisa`}
         </span>
       </div>
 
       {/* Horizontal Progress Bar */}
-      <div className="w-full h-2 rounded-full bg-slate-950/60 overflow-hidden p-0.5 border border-white/5 mb-3">
+      <div className="w-full h-2 rounded-full bg-slate-200/70 overflow-hidden p-0.5 border border-slate-300/40 mb-3">
         <div
           className={`h-full rounded-full transition-all duration-700 ease-out ${getProgressColor()}`}
           style={{ width: `${percentage}%` }}
@@ -110,16 +183,16 @@ export default function CategoryBudgetCard({
       </div>
 
       {/* Split Stats: Sisa vs Terpakai */}
-      <div className="grid grid-cols-2 gap-2 pt-2.5 border-t border-white/10 text-xs">
+      <div className="grid grid-cols-2 gap-2 pt-2.5 border-t border-slate-200/60 text-xs">
         <div>
-          <span className="text-[10px] text-slate-400 block">Terpakai Bulan Ini</span>
-          <p className="font-bold text-white mt-0.5">
+          <span className={`text-[10px] block font-medium ${theme.statLabel}`}>Terpakai Bulan Ini</span>
+          <p className={`font-extrabold mt-0.5 ${theme.statVal}`}>
             {formatRupiah(item.spentAmount)}
           </p>
         </div>
         <div className="text-right">
-          <span className="text-[10px] text-slate-400 block">Sisa Anggaran</span>
-          <p className={`font-bold mt-0.5 ${remaining > 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+          <span className={`text-[10px] block font-medium ${theme.statLabel}`}>Sisa Anggaran</span>
+          <p className={`font-extrabold mt-0.5 ${theme.statVal}`}>
             {formatRupiah(remaining)}
           </p>
         </div>

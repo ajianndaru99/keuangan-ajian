@@ -30,15 +30,12 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `
               try {
-                const saved = localStorage.getItem('theme');
-                if (saved === 'light') {
-                  document.documentElement.classList.remove('dark');
-                  document.documentElement.classList.add('light');
-                } else {
-                  document.documentElement.classList.add('dark');
-                }
+                document.documentElement.classList.remove('dark');
+                document.documentElement.classList.add('light');
+                localStorage.setItem('theme', 'light');
               } catch (_) {
-                document.documentElement.classList.add('dark');
+                document.documentElement.classList.remove('dark');
+                document.documentElement.classList.add('light');
               }
             `,
           }}

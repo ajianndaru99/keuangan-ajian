@@ -29,7 +29,7 @@ export default function AppShell({
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   return (
-    <div className="min-h-screen flex bg-slate-50/60 dark:bg-slate-950/60 text-slate-900 dark:text-slate-100">
+    <div className="min-h-screen flex bg-slate-50 text-slate-900">
       {/* Sidebar Kiri */}
       <Sidebar
         pendingCount={pendingCount}

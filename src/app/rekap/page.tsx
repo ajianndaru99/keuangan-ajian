@@ -246,33 +246,33 @@ export default function AnalyticsPage() {
         {/* Header Navigasi Periode 1 Bulan */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h2 className="text-xl font-bold text-white tracking-tight">
+            <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">
               Analisis Finansial Bulanan (Analytics)
             </h2>
-            <p className="text-xs text-slate-400 mt-0.5">
+            <p className="text-xs text-slate-500 mt-0.5">
               Evaluasi mendalam pergerakan pengeluaran keluarga selama 1 bulan penuh
             </p>
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1 p-1 rounded-2xl bg-slate-900/80 border border-slate-800 shadow-xs">
+            <div className="flex items-center gap-1 p-1 rounded-2xl bg-white border border-slate-200 shadow-xs">
               <button
                 onClick={() => setMonthOffset((prev) => prev - 1)}
-                className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                className="p-1.5 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition-colors"
                 title="Bulan Sebelumnya"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
 
-              <div className="flex items-center gap-2 px-3 py-1 text-xs font-bold text-white">
-                <Calendar className="w-3.5 h-3.5 text-indigo-400" />
+              <div className="flex items-center gap-2 px-3 py-1 text-xs font-bold text-slate-900">
+                <Calendar className="w-3.5 h-3.5 text-indigo-600" />
                 <span>{activeDateInfo.monthName}</span>
               </div>
 
               <button
                 onClick={() => setMonthOffset((prev) => prev + 1)}
                 disabled={monthOffset >= 0}
-                className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 disabled:opacity-30 transition-colors"
+                className="p-1.5 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-50 disabled:opacity-30 transition-colors"
                 title="Bulan Berikutnya"
               >
                 <ChevronRight className="w-4 h-4" />
@@ -282,67 +282,67 @@ export default function AnalyticsPage() {
             <button
               onClick={fetchAnalyticsData}
               title="Refresh Analitik"
-              className="p-2 rounded-xl bg-slate-900/60 border border-slate-800 text-slate-400 hover:text-white transition-colors"
+              className="p-2 rounded-xl bg-white border border-slate-200 text-slate-500 hover:text-slate-900 transition-colors shadow-xs"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
             </button>
           </div>
         </div>
 
-        {/* 4 KARTU METRIK UTAMA ANALITIK (WARNA PASTEL DI ATAS DARK) */}
+        {/* 4 KARTU METRIK UTAMA ANALITIK (WARNA PASTEL CERAH & TEKS TAJAM) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-          {/* 1. Pengeluaran (Pastel Coral) */}
-          <div className="p-4 rounded-3xl bg-rose-950/20 border border-rose-500/25 shadow-xs backdrop-blur-xs">
-            <div className="flex items-center justify-between text-rose-300 mb-1.5">
+          {/* 1. Pengeluaran (Pastel Coral/Rose) */}
+          <div className="p-4 rounded-3xl bg-rose-50/90 border border-rose-200/90 shadow-xs">
+            <div className="flex items-center justify-between text-rose-800 mb-1.5">
               <span className="text-[11px] font-bold uppercase tracking-wider">Total Pengeluaran</span>
-              <ArrowUpRight className="w-4 h-4" />
+              <ArrowUpRight className="w-4 h-4 text-rose-600" />
             </div>
-            <p className="text-xl font-black text-rose-300 tracking-tight">
+            <p className="text-xl font-extrabold text-rose-950 tracking-tight">
               -{formatRupiah(totalExpense)}
             </p>
-            <span className="text-[10px] text-slate-400 mt-1 block">
+            <span className="text-[10px] text-rose-700/80 mt-1 block font-medium">
               Akumulasi belanja & tagihan terverifikasi
             </span>
           </div>
 
           {/* 2. Pemasukan (Pastel Mint) */}
-          <div className="p-4 rounded-3xl bg-emerald-950/20 border border-emerald-500/25 shadow-xs backdrop-blur-xs">
-            <div className="flex items-center justify-between text-emerald-300 mb-1.5">
+          <div className="p-4 rounded-3xl bg-emerald-50/90 border border-emerald-200/90 shadow-xs">
+            <div className="flex items-center justify-between text-emerald-800 mb-1.5">
               <span className="text-[11px] font-bold uppercase tracking-wider">Total Pemasukan</span>
-              <ArrowDownLeft className="w-4 h-4" />
+              <ArrowDownLeft className="w-4 h-4 text-emerald-600" />
             </div>
-            <p className="text-xl font-black text-emerald-300 tracking-tight">
+            <p className="text-xl font-extrabold text-emerald-950 tracking-tight">
               +{formatRupiah(totalIncome)}
             </p>
-            <span className="text-[10px] text-slate-400 mt-1 block">
+            <span className="text-[10px] text-emerald-700/80 mt-1 block font-medium">
               Gaji & transfer masuk terverifikasi
             </span>
           </div>
 
           {/* 3. Rata-rata Harian (Pastel Sky) */}
-          <div className="p-4 rounded-3xl bg-sky-950/20 border border-sky-500/25 shadow-xs backdrop-blur-xs">
-            <div className="flex items-center justify-between text-sky-300 mb-1.5">
+          <div className="p-4 rounded-3xl bg-sky-50/90 border border-sky-200/90 shadow-xs">
+            <div className="flex items-center justify-between text-sky-800 mb-1.5">
               <span className="text-[11px] font-bold uppercase tracking-wider">Rata-rata Pengeluaran</span>
-              <TrendingDown className="w-4 h-4" />
+              <TrendingDown className="w-4 h-4 text-sky-600" />
             </div>
-            <p className="text-xl font-black text-sky-300 tracking-tight">
+            <p className="text-xl font-extrabold text-sky-950 tracking-tight">
               {formatRupiah(dailyAverage)}/hari
             </p>
-            <span className="text-[10px] text-slate-400 mt-1 block">
+            <span className="text-[10px] text-sky-700/80 mt-1 block font-medium">
               Rata-rata belanja per hari ({activeDateInfo.totalDays} hari)
             </span>
           </div>
 
           {/* 4. Arus Kas Bersih (Pastel Lavender) */}
-          <div className="p-4 rounded-3xl bg-purple-950/20 border border-purple-500/25 shadow-xs backdrop-blur-xs">
-            <div className="flex items-center justify-between text-purple-300 mb-1.5">
+          <div className="p-4 rounded-3xl bg-purple-50/90 border border-purple-200/90 shadow-xs">
+            <div className="flex items-center justify-between text-purple-800 mb-1.5">
               <span className="text-[11px] font-bold uppercase tracking-wider">Arus Kas Bersih (Net)</span>
-              <Wallet className="w-4 h-4" />
+              <Wallet className="w-4 h-4 text-purple-600" />
             </div>
-            <p className={`text-xl font-black tracking-tight ${netDifference >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
+            <p className={`text-xl font-extrabold tracking-tight ${netDifference >= 0 ? 'text-purple-950' : 'text-rose-950'}`}>
               {netDifference >= 0 ? '+' : ''}{formatRupiah(netDifference)}
             </p>
-            <span className="text-[10px] text-slate-400 mt-1 block">
+            <span className="text-[10px] text-purple-700/80 mt-1 block font-medium">
               {netDifference >= 0 ? 'Surplus tabungan bulan ini' : 'Defisit kas bulan ini'}
             </span>
           </div>
@@ -357,8 +357,8 @@ export default function AnalyticsPage() {
 
         {/* KOMPOSISI PENGELUARAN PER KATEGORI BULAN INI */}
         {categoryBreakdown.length > 0 && (
-          <div className="rounded-3xl p-6 bg-slate-900/60 border border-slate-800 shadow-sm backdrop-blur-xs">
-            <h3 className="text-sm font-bold text-white mb-4">
+          <div className="rounded-3xl p-6 bg-white border border-slate-200 shadow-xs">
+            <h3 className="text-sm font-bold text-slate-900 mb-4">
               Porsi Pengeluaran per Kategori ({activeDateInfo.monthName})
             </h3>
             <CategoryExpensesChart categories={categoryBreakdown} />

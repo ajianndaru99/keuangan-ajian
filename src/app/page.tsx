@@ -357,78 +357,86 @@ export default function DashboardPage() {
         </div>
 
         {/* =========================================================================
-            ROW 1: KARTU SALDO TOTAL & ARUS KAS BULAN INI
+            ROW 1: KARTU SALDO TOTAL & ARUS KAS BULAN INI (PASTEL THEMATIC)
             ========================================================================= */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          {/* Kartu Saldo Kas Gabungan */}
-          <div className="md:col-span-2 rounded-3xl p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden">
+          {/* Kartu Saldo Kas Gabungan (Pastel Emerald/Mint) */}
+          <div className="md:col-span-2 rounded-3xl p-6 bg-emerald-50/80 border border-emerald-200/90 shadow-xs relative overflow-hidden">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+                <span className="text-xs font-bold text-emerald-800 uppercase tracking-wider">
                   Total Kas Keluarga
                 </span>
-                <p className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight mt-1">
+                <p className="text-2xl sm:text-3xl font-extrabold text-emerald-950 tracking-tight mt-1">
                   {formatMaskedRupiah(balanceSummary.totalAll, isHideBalance)}
                 </p>
-                <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
-                  Akumulasi seluruh rekening bank & e-wallet aktif
+                <p className="text-[11px] text-emerald-700/80 font-medium mt-1">
+                  Akumulasi seluruh rekening bank & dompet digital aktif
                 </p>
               </div>
 
-              <div className="p-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200">
+              <div className="p-3 rounded-2xl bg-emerald-100/90 text-emerald-800 border border-emerald-200/80 shadow-xs">
                 <Wallet className="w-6 h-6" />
               </div>
             </div>
 
             {/* Perincian Kas Suami vs Istri */}
-            <div className="grid grid-cols-2 gap-3 pt-4 mt-5 border-t border-slate-100 dark:border-slate-800">
-              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800/80">
-                <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block mb-0.5">
+            <div className="grid grid-cols-2 gap-3 pt-4 mt-5 border-t border-emerald-200/60">
+              <div className="p-3.5 rounded-2xl bg-white/90 border border-emerald-100 shadow-xs">
+                <span className="text-[11px] font-bold text-emerald-800 block mb-0.5">
                   Kas Suami
                 </span>
-                <p className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
+                <p className="text-sm sm:text-base font-extrabold text-emerald-950">
                   {formatMaskedRupiah(balanceSummary.totalSuami, isHideBalance)}
                 </p>
               </div>
 
-              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800/80">
-                <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block mb-0.5">
+              <div className="p-3.5 rounded-2xl bg-white/90 border border-emerald-100 shadow-xs">
+                <span className="text-[11px] font-bold text-emerald-800 block mb-0.5">
                   Kas Istri
                 </span>
-                <p className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
+                <p className="text-sm sm:text-base font-extrabold text-emerald-950">
                   {formatMaskedRupiah(balanceSummary.totalIstri, isHideBalance)}
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Kartu Status Inbox Pending */}
-          <div className="rounded-3xl p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+          {/* Kartu Status Inbox Pending (Pastel Amber / Sky) */}
+          <div className={`rounded-3xl p-6 shadow-xs flex flex-col justify-between border ${
+            pendingCount > 0
+              ? 'bg-amber-50/90 border-amber-200/90'
+              : 'bg-sky-50/90 border-sky-200/90'
+          }`}>
             <div>
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+                <span className={`text-xs font-bold uppercase tracking-wider ${
+                  pendingCount > 0 ? 'text-amber-800' : 'text-sky-800'
+                }`}>
                   Status Inbox
                 </span>
-                <span className={`w-2 h-2 rounded-full ${pendingCount > 0 ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`} />
+                <span className={`w-2.5 h-2.5 rounded-full ${
+                  pendingCount > 0 ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'
+                }`} />
               </div>
 
               {pendingCount > 0 ? (
                 <>
-                  <h3 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
+                  <h3 className="text-2xl font-extrabold text-amber-950 tracking-tight">
                     {pendingCount} Transaksi
                   </h3>
-                  <p className="text-xs text-amber-700 dark:text-amber-400 mt-1 font-medium">
-                    Menunggu verifikasi kategori di Inbox.
+                  <p className="text-xs text-amber-800 mt-1 font-semibold leading-relaxed">
+                    Menunggu verifikasi kategori di tab Transactions.
                   </p>
                 </>
               ) : (
                 <>
-                  <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 mt-1">
-                    <CheckCircle2 className="w-5 h-5" />
-                    <span className="font-bold text-base">Inbox Bersih</span>
+                  <div className="flex items-center gap-2 text-sky-800 mt-1">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                    <span className="font-extrabold text-base text-sky-950">Inbox Bersih</span>
                   </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
-                    Semua transaksi telah tervalidasi.
+                  <p className="text-xs text-sky-700/90 mt-1 font-medium leading-relaxed">
+                    Semua transaksi telah tervalidasi dan tercatat rapi.
                   </p>
                 </>
               )}
@@ -436,7 +444,11 @@ export default function DashboardPage() {
 
             <Link
               href="/inbox"
-              className="mt-5 w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-white text-white dark:text-slate-900 font-semibold text-xs transition-colors flex items-center justify-center gap-1.5 shadow-xs"
+              className={`mt-5 w-full py-2.5 px-4 rounded-xl font-bold text-xs transition-colors flex items-center justify-center gap-1.5 shadow-xs text-white ${
+                pendingCount > 0
+                  ? 'bg-amber-600 hover:bg-amber-700 shadow-amber-600/20'
+                  : 'bg-sky-600 hover:bg-sky-700 shadow-sky-600/20'
+              }`}
             >
               <Inbox className="w-3.5 h-3.5" />
               <span>Buka Inbox Transaksi</span>
@@ -444,55 +456,55 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Quick Cashflow Summary Bar */}
+        {/* Quick Cashflow Summary Bar (Pastel Thematic) */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
-          <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
-            <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1">
-              <span className="text-xs font-medium">Pemasukan Terverifikasi</span>
+          <div className="p-4 rounded-2xl bg-emerald-50/80 border border-emerald-200/80 shadow-xs">
+            <div className="flex items-center justify-between text-emerald-800 mb-1">
+              <span className="text-xs font-bold">Pemasukan Terverifikasi</span>
               <ArrowDownLeft className="w-4 h-4 text-emerald-600" />
             </div>
-            <p className="text-base sm:text-lg font-bold text-emerald-600 dark:text-emerald-400">
+            <p className="text-base sm:text-lg font-extrabold text-emerald-950">
               +{formatMaskedRupiah(cashflowSummary.monthlyIn, isHideBalance)}
             </p>
           </div>
 
-          <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
-            <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1">
-              <span className="text-xs font-medium">Pengeluaran Terverifikasi</span>
+          <div className="p-4 rounded-2xl bg-rose-50/80 border border-rose-200/80 shadow-xs">
+            <div className="flex items-center justify-between text-rose-800 mb-1">
+              <span className="text-xs font-bold">Pengeluaran Terverifikasi</span>
               <ArrowUpRight className="w-4 h-4 text-rose-600" />
             </div>
-            <p className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
+            <p className="text-base sm:text-lg font-extrabold text-rose-950">
               -{formatMaskedRupiah(cashflowSummary.monthlyOut, isHideBalance)}
             </p>
           </div>
 
-          <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
-            <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1">
-              <span className="text-xs font-medium">Arus Kas Bersih (Net)</span>
-              <TrendingUp className="w-4 h-4 text-slate-500" />
+          <div className="p-4 rounded-2xl bg-indigo-50/80 border border-indigo-200/80 shadow-xs">
+            <div className="flex items-center justify-between text-indigo-800 mb-1">
+              <span className="text-xs font-bold">Arus Kas Bersih (Net)</span>
+              <TrendingUp className="w-4 h-4 text-indigo-600" />
             </div>
-            <p className={`text-base sm:text-lg font-bold ${cashflowSummary.net >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600'}`}>
+            <p className={`text-base sm:text-lg font-extrabold ${cashflowSummary.net >= 0 ? 'text-indigo-950' : 'text-rose-950'}`}>
               {cashflowSummary.net >= 0 ? '+' : ''}{formatMaskedRupiah(cashflowSummary.net, isHideBalance)}
             </p>
           </div>
         </div>
 
         {/* =========================================================================
-            ROW 2: RINGKASAN SALDO AKUN PERBANKAN & E-WALLET
+            ROW 2: RINGKASAN SALDO AKUN PERBANKAN & E-WALLET (PASTEL CARDS)
             ========================================================================= */}
         <div className="mb-6">
           <div className="flex items-center justify-between mb-3">
             <div>
-              <h2 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+              <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
                 Rekening & Dompet Digital
               </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
+              <p className="text-xs text-slate-500">
                 Saldo tersimpan di masing-masing bank dan e-wallet
               </p>
             </div>
             <Link
               href="/accounts"
-              className="text-xs font-semibold text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white flex items-center gap-0.5"
+              className="text-xs font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-0.5"
             >
               <span>Kelola Akun</span>
               <ChevronRight className="w-3.5 h-3.5" />
@@ -502,28 +514,51 @@ export default function DashboardPage() {
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {accounts.map((acc) => {
               const isBank = acc.type === 'bank';
+              const n = (acc.name || '').toLowerCase();
+              let cardBg = 'bg-slate-50 border-slate-200 text-slate-900';
+              let badgeBg = 'bg-slate-200 text-slate-700';
+              let iconColor = 'text-slate-600';
+
+              if (n.includes('bca') || n.includes('bri')) {
+                cardBg = 'bg-sky-50/90 border-sky-200/90 text-sky-950';
+                badgeBg = 'bg-sky-100 text-sky-800';
+                iconColor = 'text-sky-600';
+              } else if (n.includes('mandiri') || n.includes('jago')) {
+                cardBg = 'bg-amber-50/90 border-amber-200/90 text-amber-950';
+                badgeBg = 'bg-amber-100 text-amber-800';
+                iconColor = 'text-amber-600';
+              } else if (n.includes('gopay') || n.includes('dana')) {
+                cardBg = 'bg-emerald-50/90 border-emerald-200/90 text-emerald-950';
+                badgeBg = 'bg-emerald-100 text-emerald-800';
+                iconColor = 'text-emerald-600';
+              } else if (n.includes('ovo') || n.includes('shopee')) {
+                cardBg = 'bg-purple-50/90 border-purple-200/90 text-purple-950';
+                badgeBg = 'bg-purple-100 text-purple-800';
+                iconColor = 'text-purple-600';
+              }
+
               return (
                 <div
                   key={acc.id}
-                  className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs"
+                  className={`p-3.5 rounded-2xl border shadow-xs transition-transform hover:scale-[1.01] ${cardBg}`}
                 >
                   <div className="flex items-center justify-between gap-2 mb-2">
                     <div className="flex items-center gap-1.5 min-w-0">
                       {isBank ? (
-                        <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <Building2 className={`w-3.5 h-3.5 shrink-0 ${iconColor}`} />
                       ) : (
-                        <Smartphone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <Smartphone className={`w-3.5 h-3.5 shrink-0 ${iconColor}`} />
                       )}
-                      <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
+                      <h4 className="text-xs font-bold truncate">
                         {acc.name}
                       </h4>
                     </div>
-                    <span className="text-[10px] px-1.5 py-0.2 rounded font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${badgeBg}`}>
                       {acc.owner === 'suami' ? 'Suami' : 'Istri'}
                     </span>
                   </div>
 
-                  <p className="text-sm font-bold text-slate-900 dark:text-white tracking-tight">
+                  <p className="text-sm font-extrabold tracking-tight">
                     {formatMaskedRupiah(acc.current_balance, isHideBalance)}
                   </p>
                 </div>

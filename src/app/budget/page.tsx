@@ -196,10 +196,10 @@ export default function BudgetPage() {
         {/* Header Title & Segment Switcher */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-black text-white tracking-tight">
+            <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">
               Batas Anggaran & Tabungan (Savings)
             </h1>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-500">
               Pengawasan batas kuota pengeluaran untuk 8 kategori utama keluarga
             </p>
           </div>
@@ -208,19 +208,19 @@ export default function BudgetPage() {
             <button
               onClick={fetchBudgetData}
               title="Muat ulang budget"
-              className="p-2 rounded-xl bg-slate-900/60 border border-slate-800 text-slate-400 hover:text-white transition-colors"
+              className="p-2 rounded-xl bg-white border border-slate-200 text-slate-500 hover:text-slate-900 transition-colors shadow-xs"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
             </button>
 
             {/* Segmented Switcher */}
-            <div className="p-1 rounded-2xl bg-slate-900/80 border border-slate-800 flex items-center gap-1 shadow-inner">
+            <div className="p-1 rounded-2xl bg-white border border-slate-200 flex items-center gap-1 shadow-xs">
               <button
                 onClick={() => setActiveTab('cards')}
                 className={`p-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
                   activeTab === 'cards'
                     ? 'bg-indigo-600 text-white shadow-xs'
-                    : 'text-slate-400 hover:text-white'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                 }`}
               >
                 <Sliders className="w-3.5 h-3.5" />
@@ -231,7 +231,7 @@ export default function BudgetPage() {
                 className={`p-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
                   activeTab === 'donut'
                     ? 'bg-indigo-600 text-white shadow-xs'
-                    : 'text-slate-400 hover:text-white'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                 }`}
               >
                 <PieChart className="w-3.5 h-3.5" />
@@ -260,13 +260,13 @@ export default function BudgetPage() {
           /* 3. Daftar Kartu 8 Kategori Bersih */
           <div className="space-y-3">
             <div className="flex items-center justify-between pt-1">
-              <h2 className="text-sm font-bold text-white flex items-center gap-1.5">
+              <h2 className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
                 <span>8 Kategori Anggaran Keluarga</span>
               </h2>
 
               <button
                 onClick={() => setSelectedForEdit(budgets[0])}
-                className="text-xs font-bold text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
+                className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Atur Limit Target</span>
