@@ -44,13 +44,14 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `
               try {
-                document.documentElement.classList.remove('dark');
-                document.documentElement.classList.add('light');
-                localStorage.setItem('theme', 'light');
-              } catch (_) {
-                document.documentElement.classList.remove('dark');
-                document.documentElement.classList.add('light');
-              }
+                var t = localStorage.getItem('theme');
+                var m = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                if (t === 'dark' || (!t && m)) {
+                  document.documentElement.classList.add('dark');
+                } else {
+                  document.documentElement.classList.remove('dark');
+                }
+              } catch (_) {}
             `,
           }}
         />

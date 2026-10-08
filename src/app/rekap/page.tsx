@@ -355,6 +355,12 @@ export default function AnalyticsPage() {
           data={dailyData}
           peakInsight={peakInsight}
           monthName={activeDateInfo.monthName}
+          totalExpense={totalExpense}
+          totalIncome={totalIncome}
+          netDifference={netDifference}
+          dailyAverage={dailyAverage}
+          categoryBreakdown={categoryBreakdown}
+          transactionCount={monthTransactions.length}
         />
 
         {/* KOMPOSISI PENGELUARAN PER KATEGORI BULAN INI */}

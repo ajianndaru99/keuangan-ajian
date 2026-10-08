@@ -316,13 +316,13 @@ export default function DashboardPage() {
         {/* Header Ringkasan & Salam */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
           <div>
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 block">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] dark:text-[#a3e6d8] block">
               Ringkasan Keuangan Keluarga
             </span>
-            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight mt-0.5">
+            <h1 className="text-xl sm:text-2xl font-black text-[var(--text-main)] dark:text-white tracking-tight mt-0.5">
               Selamat Datang di Keuangan Keluarga Ajian
             </h1>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            <p className="text-xs text-[var(--text-muted)] dark:text-[#a3e6d8]/90 mt-0.5 font-medium">
               {formatFullWIB(new Date())}
             </p>
           </div>
