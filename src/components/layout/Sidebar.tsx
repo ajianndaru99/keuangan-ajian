@@ -78,11 +78,11 @@ export default function Sidebar({
   ];
 
   const sidebarContent = (
-    <div className="flex flex-col h-full bg-[var(--bg-card)] border-r border-[var(--border-color)] w-64 select-none text-[var(--text-main)]">
+    <div className="flex flex-col h-full bg-[var(--surface-1)] border-r border-[var(--border-color)] w-64 select-none text-[var(--text-main)]">
       {/* Brand Header: Keluarga Ajian */}
-      <div className="p-5 flex items-center justify-between border-b border-[var(--border-color)]/60">
+      <div className="p-5 flex items-center justify-between border-b border-[var(--border-color)]">
         <Link href="/" className="flex items-center gap-3 group">
-          <div className="w-9 h-9 rounded-xl bg-[var(--bg-main)] text-[#007a33] flex items-center justify-center font-bold shadow-xs border border-[var(--border-color)]">
+          <div className="w-9 h-9 rounded-xl bg-[var(--surface-2)] text-[var(--accent-color)] flex items-center justify-center font-bold shadow-xs border border-[var(--border-color)]">
             <Wallet className="w-5 h-5" />
           </div>
           <div>
@@ -90,9 +90,9 @@ export default function Sidebar({
               <span className="text-sm font-extrabold text-[var(--text-main)] tracking-tight">
                 Keluarga Ajian
               </span>
-              <span className="w-1.5 h-1.5 rounded-full bg-[#198754] animate-pulse" />
+              <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-income)] animate-pulse" />
             </div>
-            <span className="text-[10px] font-medium text-[#007a33] block">
+            <span className="text-[10px] font-medium text-[var(--text-muted)] block">
               Financial Management
             </span>
           </div>
@@ -102,7 +102,7 @@ export default function Sidebar({
         {onCloseMobile && (
           <button
             onClick={onCloseMobile}
-            className="md:hidden p-1.5 rounded-lg text-[#007a33] hover:text-[#004d00] hover:bg-[var(--bg-main)]"
+            className="md:hidden p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--surface-2)]"
             aria-label="Tutup Menu"
           >
             <X className="w-5 h-5" />
@@ -114,7 +114,7 @@ export default function Sidebar({
       <div className="flex-1 py-4 px-3 space-y-6 overflow-y-auto no-scrollbar">
         {/* Grup 1: MENU */}
         <div>
-          <span className="px-3 text-[10px] font-bold uppercase tracking-wider text-[#007a33] block mb-2">
+          <span className="px-3 text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] block mb-2">
             MENU
           </span>
           <nav className="space-y-1">
@@ -129,8 +129,8 @@ export default function Sidebar({
                   onClick={onCloseMobile}
                   className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
                     isActive
-                      ? 'bg-[var(--accent-color)] text-[var(--bg-main)] shadow-sm'
-                      : 'text-[#007a33] hover:text-[#004d00] hover:bg-[var(--bg-main)]/60'
+                      ? 'bg-[var(--accent-color)] text-white dark:text-[#121218] shadow-sm font-bold'
+                      : 'text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--surface-2)]'
                   }`}
                 >
                   <div className="flex items-center gap-3">
@@ -142,8 +142,8 @@ export default function Sidebar({
                     <span
                       className={`px-1.5 py-0.5 text-[10px] font-bold rounded-full ${
                         isActive
-                          ? 'bg-[var(--bg-main)] text-[var(--accent-color)]'
-                          : 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
+                          ? 'bg-[var(--surface-1)] text-[var(--accent-color)]'
+                          : 'bg-amber-500/15 text-amber-600 dark:text-amber-300'
                       }`}
                     >
                       {item.badge}
@@ -157,7 +157,7 @@ export default function Sidebar({
 
         {/* Grup 2: GENERAL */}
         <div>
-          <span className="px-3 text-[10px] font-bold uppercase tracking-wider text-[#007a33] block mb-2">
+          <span className="px-3 text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] block mb-2">
             GENERAL
           </span>
           <nav className="space-y-1">
@@ -172,8 +172,8 @@ export default function Sidebar({
                   onClick={onCloseMobile}
                   className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
                     isActive
-                      ? 'bg-[var(--accent-color)] text-[var(--bg-main)] shadow-sm'
-                      : 'text-[#007a33] hover:text-[#004d00] hover:bg-[var(--bg-main)]/60'
+                      ? 'bg-[var(--accent-color)] text-white dark:text-[#121218] shadow-sm font-bold'
+                      : 'text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--surface-2)]'
                   }`}
                 >
                   <Icon className="w-4 h-4 shrink-0" />
@@ -186,10 +186,10 @@ export default function Sidebar({
       </div>
 
       {/* Footer: Tombol Keluar */}
-      <div className="p-3 border-t border-[var(--border-color)]/60">
+      <div className="p-3 border-t border-[var(--border-color)]">
         <button
           onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-[#DC3545] hover:bg-[#fde8ea]/60 transition-colors"
+          className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-[var(--color-expense)] hover:bg-[var(--color-expense)]/10 transition-colors"
         >
           <LogOut className="w-4 h-4 shrink-0" />
           <span>Log Out</span>

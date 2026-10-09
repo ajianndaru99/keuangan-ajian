@@ -17,6 +17,9 @@ import {
   Trash2,
   Search,
   Check,
+  CheckCheck,
+  Copy,
+  FileText,
   Sparkles,
 } from 'lucide-react';
 import { formatRelativeWIB } from '@/lib/utils';
@@ -58,6 +61,13 @@ export default function RawNotificationTable({
   const [search, setSearch] = useState('');
   const [appFilter, setAppFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'unvalidated' | 'validated'>('all');
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const handleCopyContent = (id: string, text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
 
   // Daftar nama aplikasi unik untuk filter dropdown
   const uniqueApps = useMemo(() => {
@@ -235,21 +245,49 @@ export default function RawNotificationTable({
                       </span>
                     </div>
 
-                    {/* Judul & Isi Pesan Notifikasi */}
-                    <div className="pt-1">
+                    {/* Judul & Isi Pesan Notifikasi Full */}
+                    <div className="pt-1 space-y-1.5">
                       {item.title && (
                         <h4 className="text-xs font-bold text-[var(--text-main)] leading-snug">
                           {item.title}
                         </h4>
                       )}
-                      <p className="text-xs text-slate-600 dark:text-slate-300 font-mono bg-[var(--bg-main)]/70 p-2.5 rounded-xl border border-[var(--border-color)]/70 mt-1 leading-relaxed break-words">
-                        {item.content}
-                      </p>
+                      
+                      {/* Box Teks Lengkap dengan Tombol Salin */}
+                      <div className="rounded-xl border border-[var(--border-color)] bg-[var(--surface-2)] overflow-hidden">
+                        <div className="flex items-center justify-between px-3 py-1.5 bg-[var(--surface-2)] border-b border-[var(--border-color)] text-[10px] text-[var(--text-muted)]">
+                          <span className="font-semibold text-[var(--text-muted)] flex items-center gap-1">
+                            <FileText className="w-3 h-3" />
+                            <span>Teks Notifikasi Asli ({item.content.length} karakter)</span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleCopyContent(item.id, item.content)}
+                            className="inline-flex items-center gap-1 font-semibold text-[var(--accent-color)] hover:opacity-80 transition-colors"
+                            title="Salin teks notifikasi ini"
+                          >
+                            {copiedId === item.id ? (
+                              <>
+                                <CheckCheck className="w-3 h-3 text-[var(--color-income)]" />
+                                <span className="text-[var(--color-income)]">Tersalin</span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="w-3 h-3" />
+                                <span>Salin Teks</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                        <p className="p-3 font-mono text-xs text-[var(--text-main)] leading-relaxed whitespace-pre-wrap break-words select-text">
+                          {item.content}
+                        </p>
+                      </div>
                     </div>
 
                     {/* Highlight Nominal Jika Terdeteksi */}
                     {detectedNominal && (
-                      <div className="flex items-center gap-1.5 text-xs font-bold text-[#007a33] pt-0.5">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-[var(--accent-color)] pt-0.5">
                         <Sparkles className="w-3.5 h-3.5" />
                         <span>Nominal Terdeteksi: {detectedNominal}</span>
                       </div>
@@ -261,7 +299,7 @@ export default function RawNotificationTable({
                     {/* Tombol Jadikan Transaksi */}
                     <button
                       onClick={() => onConvertToTransaction(item)}
-                      className="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl bg-[#007a33] hover:bg-[#004d00] text-white text-xs font-bold transition-all shadow-xs"
+                      className="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl bg-[var(--accent-color)] hover:opacity-90 text-white dark:text-[#121218] text-xs font-bold transition-all shadow-xs"
                       title="Ubah notifikasi ini menjadi transaksi resmi dan simpan ke database"
                     >
                       <Plus className="w-3.5 h-3.5" />
@@ -272,14 +310,14 @@ export default function RawNotificationTable({
                     {!isDone ? (
                       <button
                         onClick={() => onIgnoreNotification(item.id)}
-                        className="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl bg-[var(--bg-main)] hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-semibold border border-[var(--border-color)] transition-all"
+                        className="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-xl bg-[var(--surface-2)] hover:bg-[var(--surface-4)] text-[var(--text-muted)] hover:text-[var(--text-main)] text-xs font-semibold border border-[var(--border-color)] transition-all"
                         title="Tandai notifikasi ini sebagai non-transaksi / sudah selesai dilihat"
                       >
                         <EyeOff className="w-3.5 h-3.5" />
                         <span>Abaikan</span>
                       </button>
                     ) : (
-                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 px-2 py-1">
+                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[var(--color-income)] px-2 py-1">
                         <CheckCircle2 className="w-3.5 h-3.5" />
                         <span>Ditinjau</span>
                       </span>
@@ -288,7 +326,7 @@ export default function RawNotificationTable({
                     {/* Tombol Hapus Log */}
                     <button
                       onClick={() => onDeleteNotification(item.id)}
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                      className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--color-expense)] hover:bg-[var(--color-expense)]/10 transition-colors"
                       title="Hapus log notifikasi mentah ini"
                     >
                       <Trash2 className="w-3.5 h-3.5" />

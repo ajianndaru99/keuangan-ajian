@@ -45,26 +45,26 @@ export default function SetBudgetModal({
   const currentVal = parseFloat(limitInput.replace(/[^\d]/g, '')) || 0;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fade-in">
-      <div className="w-full max-w-sm rounded-3xl p-6 bg-[var(--bg-card)] border border-[var(--border-color)] shadow-2xl relative">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+      <div className="w-full max-w-sm rounded-3xl p-6 bg-[var(--surface-3)] border border-[var(--border-color)] shadow-2xl relative">
         {/* Tombol Tutup */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-2 rounded-2xl text-[#007a33] hover:text-[#004d00] hover:bg-[var(--bg-main)] transition-colors"
+          className="absolute top-4 right-4 p-2 rounded-2xl text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--surface-2)] transition-colors"
         >
           <X className="w-5 h-5" />
         </button>
 
         {/* Header */}
         <div className="flex items-center gap-3 mb-4">
-          <div className="w-12 h-12 rounded-2xl bg-[var(--bg-main)] text-[#007a33] flex items-center justify-center text-2xl border border-[var(--border-color)]">
+          <div className="w-12 h-12 rounded-2xl bg-[var(--surface-2)] text-[var(--accent-color)] flex items-center justify-center text-2xl border border-[var(--border-color)]">
             <span>{item.emoji}</span>
           </div>
           <div>
             <h3 className="text-base font-bold text-[var(--text-main)]">
               Atur Budget Kategori
             </h3>
-            <p className="text-xs text-[#007a33]">
+            <p className="text-xs text-[var(--text-muted)]">
               {item.name}
             </p>
           </div>
@@ -73,11 +73,11 @@ export default function SetBudgetModal({
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-bold text-[#007a33] mb-1.5">
+            <label className="block text-xs font-bold text-[var(--text-muted)] mb-1.5">
               Batas Alokasi Bulanan (Rupiah)
             </label>
             <div className="relative">
-              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-[#007a33]">
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-[var(--text-muted)]">
                 Rp
               </span>
               <input
@@ -87,12 +87,12 @@ export default function SetBudgetModal({
                 value={limitInput}
                 onChange={(e) => setLimitInput(e.target.value)}
                 placeholder="Contoh: 1500000"
-                className="w-full pl-11 pr-4 py-3 rounded-2xl bg-[var(--bg-main)] border border-[var(--border-color)] text-[var(--text-main)] font-bold text-base focus:outline-none focus:ring-1 focus:ring-[#007a33] angka-keuangan"
+                className="w-full pl-11 pr-4 py-3 rounded-2xl bg-[var(--surface-2)] border border-[var(--border-color)] text-[var(--text-main)] font-bold text-base focus:outline-none focus:ring-1 focus:ring-[var(--accent-color)] angka-keuangan"
                 autoFocus
               />
             </div>
             {currentVal > 0 && (
-              <p className="text-xs font-bold text-[#198754] mt-1.5">
+              <p className="text-xs font-bold text-income mt-1.5">
                 Pratinjau: {formatRupiah(currentVal)}
               </p>
             )}
@@ -102,7 +102,7 @@ export default function SetBudgetModal({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-3 px-4 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-main)] text-[#007a33] font-bold text-xs hover:bg-[var(--bg-main)]/80 transition-colors"
+              className="flex-1 py-3 px-4 rounded-2xl border border-[var(--border-color)] bg-[var(--surface-2)] text-[var(--text-muted)] hover:text-[var(--text-main)] font-bold text-xs hover:bg-[var(--surface-1)] transition-colors"
             >
               Batal
             </button>

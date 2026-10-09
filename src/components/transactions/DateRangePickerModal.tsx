@@ -85,11 +85,11 @@ export default function DateRangePickerModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#05140f]/60 backdrop-blur-xs">
-      <div className="bg-[var(--bg-card)] rounded-3xl p-5 max-w-sm w-full border border-[var(--border-color)] shadow-xl animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs">
+      <div className="bg-[var(--surface-3)] rounded-t-3xl sm:rounded-3xl p-5 max-w-sm w-full border border-[var(--border-color)] shadow-xl animate-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-150">
         <div className="flex items-center justify-between pb-3 border-b border-[var(--border-color)]/70 mb-4">
           <div className="flex items-center gap-2">
-            <div className="p-2 rounded-xl bg-[var(--bg-main)] text-[#007a33] border border-[var(--border-color)]">
+            <div className="p-2 rounded-xl bg-[var(--surface-2)] text-[var(--accent-color)] border border-[var(--border-color)]">
               <Calendar className="w-4 h-4" />
             </div>
             <h3 className="text-sm font-bold text-[var(--text-main)]">
@@ -98,7 +98,7 @@ export default function DateRangePickerModal({
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-[#007a33] hover:text-[#004d00] hover:bg-[var(--bg-main)]"
+            className="p-1 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--surface-2)] transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -121,7 +121,7 @@ export default function DateRangePickerModal({
                 className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
                   isSelected
                     ? 'bg-[var(--accent-color)] text-[var(--bg-main)] border border-[var(--accent-color)] shadow-xs font-bold'
-                    : 'text-[#007a33] hover:text-[#004d00] hover:bg-[var(--bg-main)]/60 border border-transparent'
+                    : 'text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--surface-2)] border border-transparent'
                 }`}
               >
                 <span>{preset.label}</span>
@@ -133,27 +133,27 @@ export default function DateRangePickerModal({
 
         {/* Form Rentang Kustom */}
         {selectedPreset === 'custom' && (
-          <div className="p-3 rounded-2xl bg-[var(--bg-main)]/60 border border-[var(--border-color)] space-y-2.5 mb-4 animate-in fade-in duration-150">
+          <div className="p-3 rounded-2xl bg-[var(--surface-2)] border border-[var(--border-color)] space-y-2.5 mb-4 animate-in fade-in duration-150">
             <div>
-              <label className="text-[10px] font-semibold text-[#007a33] uppercase block mb-1">
+              <label className="text-[10px] font-semibold text-[var(--text-muted)] uppercase block mb-1">
                 Dari Tanggal
               </label>
               <input
                 type="date"
                 value={customStart}
                 onChange={(e) => setCustomStart(e.target.value)}
-                className="w-full px-3 py-1.5 rounded-xl bg-[var(--bg-card)] border border-[var(--border-color)] text-xs text-[var(--text-main)]"
+                className="w-full px-3 py-1.5 rounded-xl bg-[var(--surface-1)] border border-[var(--border-color)] text-xs text-[var(--text-main)]"
               />
             </div>
             <div>
-              <label className="text-[10px] font-semibold text-[#007a33] uppercase block mb-1">
+              <label className="text-[10px] font-semibold text-[var(--text-muted)] uppercase block mb-1">
                 Sampai Tanggal
               </label>
               <input
                 type="date"
                 value={customEnd}
                 onChange={(e) => setCustomEnd(e.target.value)}
-                className="w-full px-3 py-1.5 rounded-xl bg-[var(--bg-card)] border border-[var(--border-color)] text-xs text-[var(--text-main)]"
+                className="w-full px-3 py-1.5 rounded-xl bg-[var(--surface-1)] border border-[var(--border-color)] text-xs text-[var(--text-main)]"
               />
             </div>
           </div>
@@ -163,7 +163,7 @@ export default function DateRangePickerModal({
         <div className="flex items-center gap-2">
           <button
             onClick={onClose}
-            className="flex-1 py-2 px-3 rounded-xl border border-[var(--border-color)] text-xs font-semibold text-[#007a33] hover:bg-[var(--bg-main)] transition-colors"
+            className="flex-1 py-2 px-3 rounded-xl border border-[var(--border-color)] text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--surface-2)] transition-colors"
           >
             Batal
           </button>

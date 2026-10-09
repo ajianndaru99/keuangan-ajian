@@ -246,33 +246,34 @@ export default function AnalyticsPage() {
         {/* Header Navigasi Periode 1 Bulan */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h2 className="text-xl font-extrabold text-[var(--text-main)] tracking-tight">
-              Analisis Finansial Bulanan (Analytics)
+            <h2 className="text-xl font-extrabold tracking-tight">
+              <span className="font-extrabold text-[var(--text-main)]">Analisis</span>{' '}
+              <span className="font-semibold italic text-[var(--text-accent-italic)]">Finansial Bulanan</span>
             </h2>
-            <p className="text-xs text-[#007a33] mt-0.5">
+            <p className="text-xs text-[var(--text-muted)] mt-0.5">
               Evaluasi mendalam pergerakan pengeluaran keluarga selama 1 bulan penuh
             </p>
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1 p-1 rounded-2xl bg-[var(--bg-card)] border border-[var(--border-color)] shadow-xs">
+            <div className="flex items-center gap-1 p-1 rounded-2xl bg-[var(--surface-1)] border border-[var(--border-color)] shadow-xs">
               <button
                 onClick={() => setMonthOffset((prev) => prev - 1)}
-                className="p-1.5 rounded-xl text-[#007a33] hover:text-[#004d00] hover:bg-[var(--bg-main)] transition-colors"
+                className="p-1.5 rounded-xl text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--surface-2)] transition-colors"
                 title="Bulan Sebelumnya"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
 
               <div className="flex items-center gap-2 px-3 py-1 text-xs font-bold text-[var(--text-main)]">
-                <Calendar className="w-3.5 h-3.5 text-[#007a33]" />
+                <Calendar className="w-3.5 h-3.5 text-[var(--accent-color)]" />
                 <span>{activeDateInfo.monthName}</span>
               </div>
 
               <button
                 onClick={() => setMonthOffset((prev) => prev + 1)}
                 disabled={monthOffset >= 0}
-                className="p-1.5 rounded-xl text-[#007a33] hover:text-[#004d00] hover:bg-[var(--bg-main)] disabled:opacity-30 transition-colors"
+                className="p-1.5 rounded-xl text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--surface-2)] disabled:opacity-30 transition-colors"
                 title="Bulan Berikutnya"
               >
                 <ChevronRight className="w-4 h-4" />
@@ -282,69 +283,69 @@ export default function AnalyticsPage() {
             <button
               onClick={fetchAnalyticsData}
               title="Refresh Analitik"
-              className="p-2 rounded-xl bg-[var(--bg-card)] border border-[var(--border-color)] text-[#007a33] hover:text-[#004d00] transition-colors shadow-xs"
+              className="p-2 rounded-xl bg-[var(--surface-1)] border border-[var(--border-color)] text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--surface-2)] transition-colors shadow-xs"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
             </button>
           </div>
         </div>
 
-        {/* 4 KARTU METRIK UTAMA ANALITIK (SPESIFIKASI WARNA FINANSIAL) */}
+        {/* 4 KARTU METRIK UTAMA ANALITIK: Surface-1 & WCAG AA */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-          {/* 1. Pengeluaran (Merah Bata Muted #DC3545) */}
-          <div className="p-4 rounded-3xl bg-[var(--bg-card)] border border-[var(--border-color)] shadow-xs">
-            <div className="flex items-center justify-between text-[#DC3545] mb-1.5">
+          {/* 1. Pengeluaran: Desaturated WCAG AA */}
+          <div className="p-4 rounded-3xl bg-[var(--surface-1)] border border-[var(--border-color)] shadow-xs">
+            <div className="flex items-center justify-between text-[var(--color-expense)] mb-1.5">
               <span className="text-[11px] font-bold uppercase tracking-wider">Total Pengeluaran</span>
-              <ArrowUpRight className="w-4 h-4 text-[#DC3545]" />
+              <ArrowUpRight className="w-4 h-4 text-[var(--color-expense)]" />
             </div>
-            <p className="text-xl font-extrabold text-[#DC3545] tracking-tight angka-keuangan">
+            <p className="text-xl font-extrabold text-[var(--color-expense)] tracking-tight angka-keuangan">
               -{formatRupiah(totalExpense)}
             </p>
-            <span className="text-[10px] text-[#007a33] mt-1 block font-medium">
+            <span className="text-[10px] text-[var(--text-muted)] mt-1 block font-medium">
               Akumulasi belanja & tagihan terverifikasi
             </span>
           </div>
 
-          {/* 2. Pemasukan (Hijau Teduh #198754) */}
-          <div className="p-4 rounded-3xl bg-[var(--bg-card)] border border-[var(--border-color)] shadow-xs">
-            <div className="flex items-center justify-between text-[#198754] mb-1.5">
+          {/* 2. Pemasukan: Desaturated WCAG AA */}
+          <div className="p-4 rounded-3xl bg-[var(--surface-1)] border border-[var(--border-color)] shadow-xs">
+            <div className="flex items-center justify-between text-[var(--color-income)] mb-1.5">
               <span className="text-[11px] font-bold uppercase tracking-wider">Total Pemasukan</span>
-              <ArrowDownLeft className="w-4 h-4 text-[#198754]" />
+              <ArrowDownLeft className="w-4 h-4 text-[var(--color-income)]" />
             </div>
-            <p className="text-xl font-extrabold text-[#198754] tracking-tight angka-keuangan">
+            <p className="text-xl font-extrabold text-[var(--color-income)] tracking-tight angka-keuangan">
               +{formatRupiah(totalIncome)}
             </p>
-            <span className="text-[10px] text-[#007a33] mt-1 block font-medium">
+            <span className="text-[10px] text-[var(--text-muted)] mt-1 block font-medium">
               Gaji & transfer masuk terverifikasi
             </span>
           </div>
 
           {/* 3. Rata-rata Harian */}
-          <div className="p-4 rounded-3xl bg-[var(--bg-card)] border border-[var(--border-color)] shadow-xs">
-            <div className="flex items-center justify-between text-[#007a33] mb-1.5">
+          <div className="p-4 rounded-3xl bg-[var(--surface-1)] border border-[var(--border-color)] shadow-xs">
+            <div className="flex items-center justify-between text-[var(--text-muted)] mb-1.5">
               <span className="text-[11px] font-bold uppercase tracking-wider">Rata-rata Pengeluaran</span>
-              <TrendingDown className="w-4 h-4 text-[#007a33]" />
+              <TrendingDown className="w-4 h-4 text-[var(--text-muted)]" />
             </div>
             <p className="text-xl font-extrabold text-[var(--text-main)] tracking-tight angka-keuangan">
               {formatRupiah(dailyAverage)}/hari
             </p>
-            <span className="text-[10px] text-[#007a33] mt-1 block font-medium">
+            <span className="text-[10px] text-[var(--text-muted)] mt-1 block font-medium">
               Rata-rata belanja per hari ({activeDateInfo.totalDays} hari)
             </span>
           </div>
 
           {/* 4. Arus Kas Bersih (Net) */}
-          <div className="p-4 rounded-3xl bg-[var(--bg-card)] border border-[var(--border-color)] shadow-xs">
-            <div className="flex items-center justify-between text-[#007a33] mb-1.5">
+          <div className="p-4 rounded-3xl bg-[var(--surface-1)] border border-[var(--border-color)] shadow-xs">
+            <div className="flex items-center justify-between text-[var(--text-muted)] mb-1.5">
               <span className="text-[11px] font-bold uppercase tracking-wider">Arus Kas Bersih (Net)</span>
-              <Wallet className="w-4 h-4 text-[#007a33]" />
+              <Wallet className="w-4 h-4 text-[var(--accent-color)]" />
             </div>
             <p className={`text-xl font-extrabold tracking-tight angka-keuangan ${
-              netDifference >= 0 ? 'text-[#198754]' : 'text-[#DC3545]'
+              netDifference >= 0 ? 'text-[var(--color-income)]' : 'text-[var(--color-expense)]'
             }`}>
               {netDifference >= 0 ? '+' : ''}{formatRupiah(netDifference)}
             </p>
-            <span className="text-[10px] text-[#007a33] mt-1 block font-medium">
+            <span className="text-[10px] text-[var(--text-muted)] mt-1 block font-medium">
               {netDifference >= 0 ? 'Surplus tabungan bulan ini' : 'Defisit kas bulan ini'}
             </span>
           </div>
@@ -365,7 +366,7 @@ export default function AnalyticsPage() {
 
         {/* KOMPOSISI PENGELUARAN PER KATEGORI BULAN INI */}
         {categoryBreakdown.length > 0 && (
-          <div className="rounded-3xl p-6 bg-[var(--bg-card)] border border-[var(--border-color)] shadow-xs">
+          <div className="rounded-3xl p-6 bg-[var(--surface-1)] border border-[var(--border-color)] shadow-xs">
             <h3 className="text-sm font-bold text-[var(--text-main)] mb-4">
               Porsi Pengeluaran per Kategori ({activeDateInfo.monthName})
             </h3>

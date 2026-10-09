@@ -2,7 +2,10 @@
 
 // ==============================================================================
 // COMPONENT: src/components/transactions/TransactionTable.tsx
-// Tabel Transaksi Bersih & Elegan Mengadopsi Desain Monexa (Foto 2)
+// Tabel & Kartu Transaksi Responsif:
+// - Layar Monitor/Desktop: Tampilan Tabel Monexa Lengkap 6 Kolom
+// - Layar HP Android: Tampilan Kartu Mobile Adaptif Vertikal (Bebas Geser Horizontal)
+// - Penayangan Notifikasi Bank Utuh & Tombol Salin Teks
 // ==============================================================================
 
 import { useState } from 'react';
@@ -18,6 +21,11 @@ import {
   CheckCircle2,
   Trash2,
   Edit3,
+  Copy,
+  CheckCheck,
+  FileText,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 
 export interface MonexaTransactionRow {
@@ -52,17 +60,26 @@ export default function TransactionTable({
 }: TransactionTableProps) {
   const { isHideBalance } = usePrivacy();
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+  const [expandedNotifId, setExpandedNotifId] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const handleCopyNotif = (e: React.MouseEvent, id: string, text: string) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
 
   if (transactions.length === 0) {
     return (
-      <div className="rounded-3xl p-12 text-center bg-[var(--bg-card)] border border-[var(--border-color)] shadow-2xs">
-        <div className="w-12 h-12 rounded-2xl bg-[var(--bg-main)] text-[#007a33] flex items-center justify-center mx-auto mb-3 border border-[var(--border-color)]">
+      <div className="rounded-3xl p-8 sm:p-12 text-center bg-[var(--surface-1)] border border-[var(--border-color)] shadow-2xs">
+        <div className="w-12 h-12 rounded-2xl bg-[var(--surface-2)] text-[var(--accent-color)] flex items-center justify-center mx-auto mb-3 border border-[var(--border-color)]">
           <Clock className="w-6 h-6" />
         </div>
         <h3 className="text-sm font-bold text-[var(--text-main)]">
           Tidak Ada Transaksi Ditemukan
         </h3>
-        <p className="text-xs text-[#007a33] mt-1 max-w-sm mx-auto">
+        <p className="text-xs text-[var(--text-muted)] mt-1 max-w-sm mx-auto">
           Tidak ada data transaksi yang cocok dengan filter tanggal atau tipe yang sedang aktif.
         </p>
       </div>
@@ -88,180 +105,381 @@ export default function TransactionTable({
   };
 
   return (
-    <div className="bg-[var(--bg-card)] rounded-3xl border border-[#E2E8F0] shadow-2xs overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full text-left text-xs">
-          {/* Header Tabel Monexa dengan Gridline Tipis #E2E8F0 */}
-          <thead className="bg-[var(--bg-main)]/70 text-[#007a33] border-b border-[#E2E8F0] font-semibold select-none">
-            <tr>
-              <th className="py-3.5 px-4 font-semibold whitespace-nowrap">Transaction Date</th>
-              <th className="py-3.5 px-4 font-semibold whitespace-nowrap">Transaction Name</th>
-              <th className="py-3.5 px-4 font-semibold whitespace-nowrap">Total Amount</th>
-              <th className="py-3.5 px-4 font-semibold whitespace-nowrap">Status</th>
-              <th className="py-3.5 px-4 font-semibold whitespace-nowrap">Noted</th>
-              <th className="py-3.5 px-4 font-semibold text-right whitespace-nowrap">Action</th>
-            </tr>
-          </thead>
+    <div className="space-y-3">
+      {/* =========================================================================
+          1. TAMPILAN MONITOR / LAPTOP / DESKTOP (Tabel Monexa 6 Kolom)
+          ========================================================================= */}
+      <div className="hidden md:block bg-[var(--surface-1)] rounded-3xl border border-[var(--border-color)] shadow-2xs overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-[var(--surface-2)]/80 text-[var(--text-muted)] border-b border-[var(--border-color)] font-semibold select-none">
+              <tr>
+                <th className="py-3.5 px-4 font-semibold whitespace-nowrap">Transaction Date</th>
+                <th className="py-3.5 px-4 font-semibold whitespace-nowrap">Transaction Name</th>
+                <th className="py-3.5 px-4 font-semibold whitespace-nowrap">Total Amount</th>
+                <th className="py-3.5 px-4 font-semibold whitespace-nowrap">Status</th>
+                <th className="py-3.5 px-4 font-semibold whitespace-nowrap min-w-[200px]">Noted & Notifikasi</th>
+                <th className="py-3.5 px-4 font-semibold text-right whitespace-nowrap">Action</th>
+              </tr>
+            </thead>
 
-          {/* Baris Data Transaksi Monexa dengan Garis Kisi Tipis #E2E8F0 */}
-          <tbody className="divide-y divide-[#E2E8F0]">
-            {transactions.map((tx) => {
-              const isIncome = tx.direction === 'in';
-              const isPending = tx.status === 'pending';
+            <tbody className="divide-y divide-[var(--border-color)]">
+              {transactions.map((tx) => {
+                const isIncome = tx.direction === 'in';
+                const isPending = tx.status === 'pending';
+                const isExpanded = expandedNotifId === tx.id;
 
-              return (
-                <tr
-                  key={tx.id}
-                  className="hover:bg-[var(--bg-main)]/50 transition-colors group cursor-pointer"
-                  onClick={() => onSelectTransaction(tx)}
-                >
-                  {/* 1. Transaction Date */}
-                  <td className="py-3.5 px-4 font-medium text-[#007a33] whitespace-nowrap angka-keuangan">
-                    {formatTableDate(tx.transaction_date)}
-                  </td>
+                return (
+                  <tr
+                    key={tx.id}
+                    className="hover:bg-[var(--surface-2)]/60 transition-colors group cursor-pointer"
+                    onClick={() => onSelectTransaction(tx)}
+                  >
+                    {/* 1. Transaction Date */}
+                    <td className="py-3.5 px-4 font-medium text-[var(--text-muted)] whitespace-nowrap angka-keuangan align-top">
+                      {formatTableDate(tx.transaction_date)}
+                    </td>
 
-                  {/* 2. Transaction Name */}
-                  <td className="py-3.5 px-4 whitespace-nowrap">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 border ${
-                          isIncome
-                            ? 'bg-[#e8f5e9] text-[#198754] border-[#198754]/30'
-                            : 'bg-[#fde8ea] text-[#DC3545] border-[#DC3545]/30'
-                        }`}
-                      >
-                        {isIncome ? (
-                          <ArrowDownLeft className="w-4 h-4" />
-                        ) : (
-                          <ArrowUpRight className="w-4 h-4" />
-                        )}
-                      </div>
-
-                      <div className="min-w-0">
-                        <span className="font-bold text-[#004d00] block truncate max-w-xs">
-                          {tx.merchant || 'Transaksi Digital'}
-                        </span>
-                        <div className="flex items-center gap-1.5 text-[11px] text-slate-400 mt-0.5">
-                          <span>{tx.account_name || 'Rekening'}</span>
-                          <span>•</span>
-                          <span className="capitalize">{tx.source_device || 'Suami'}</span>
-                          {tx.category_name && (
-                            <>
-                              <span>•</span>
-                              <span className="text-[#007a33] font-medium">
-                                {tx.category_name}
-                              </span>
-                            </>
+                    {/* 2. Transaction Name */}
+                    <td className="py-3.5 px-4 whitespace-nowrap align-top">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 border ${
+                            isIncome
+                              ? 'bg-income/15 text-income border-income/30'
+                              : 'bg-expense/15 text-expense border-expense/30'
+                          }`}
+                        >
+                          {isIncome ? (
+                            <ArrowDownLeft className="w-4 h-4" />
+                          ) : (
+                            <ArrowUpRight className="w-4 h-4" />
                           )}
                         </div>
+
+                        <div className="min-w-0">
+                          <span className="font-bold text-[var(--text-main)] block truncate max-w-xs">
+                            {tx.merchant || 'Transaksi Digital'}
+                          </span>
+                          <div className="flex items-center gap-1.5 text-[11px] text-[var(--text-muted)] mt-0.5">
+                            <span>{tx.account_name || 'Rekening'}</span>
+                            <span>•</span>
+                            <span className="capitalize">{tx.source_device || 'Suami'}</span>
+                            {tx.category_name && (
+                              <>
+                                <span>•</span>
+                                <span className="text-[var(--text-accent-italic)] font-medium">
+                                  {tx.category_name}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </td>
+                    </td>
 
-                  {/* 3. Total Amount (Muted Red #DC3545 vs Hijau Teduh #198754) */}
-                  <td className="py-3.5 px-4 font-bold tracking-tight whitespace-nowrap">
-                    <span
-                      className={`angka-keuangan font-bold ${
-                        isIncome
-                          ? 'text-[#198754]'
-                          : 'text-[#DC3545]'
-                      }`}
+                    {/* 3. Total Amount */}
+                    <td className="py-3.5 px-4 font-bold tracking-tight whitespace-nowrap align-top">
+                      <span
+                        className={`angka-keuangan font-bold ${
+                          isIncome ? 'text-income' : 'text-expense'
+                        }`}
+                      >
+                        {isIncome ? '+' : '-'}
+                        {formatMaskedRupiah(tx.amount, isHideBalance)}
+                      </span>
+                    </td>
+
+                    {/* 4. Status Badge */}
+                    <td className="py-3.5 px-4 whitespace-nowrap align-top">
+                      {isPending ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-500 dark:text-amber-400 border border-amber-500/30 animate-pulse">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                          Pending Review
+                        </span>
+                      ) : isIncome ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-income/15 text-income border border-income/30">
+                          Income
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-expense/15 text-expense border border-expense/30">
+                          Expense
+                        </span>
+                      )}
+                    </td>
+
+                    {/* 5. Noted & Notifikasi (Full/Expandable) */}
+                    <td className="py-3.5 px-4 align-top max-w-sm">
+                      {tx.raw_notification ? (
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[var(--text-muted)] font-mono text-[11px] break-words line-clamp-2">
+                              {!isExpanded && tx.raw_notification.length > 60
+                                ? `${tx.raw_notification.slice(0, 60)}...`
+                                : tx.raw_notification}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => handleCopyNotif(e, tx.id, tx.raw_notification!)}
+                              className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--accent-color)] transition-colors shrink-0"
+                              title="Salin notifikasi lengkap"
+                            >
+                              {copiedId === tx.id ? (
+                                <CheckCheck className="w-3.5 h-3.5 text-income" />
+                              ) : (
+                                <Copy className="w-3.5 h-3.5" />
+                              )}
+                            </button>
+                          </div>
+
+                          {tx.raw_notification.length > 60 && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setExpandedNotifId(isExpanded ? null : tx.id);
+                              }}
+                              className="text-[10px] font-semibold text-[var(--accent-color)] hover:underline inline-flex items-center gap-0.5"
+                            >
+                              {isExpanded ? (
+                                <>
+                                  <span>Tutup teks</span>
+                                  <ChevronUp className="w-3 h-3" />
+                                </>
+                              ) : (
+                                <>
+                                  <span>Lihat teks utuh</span>
+                                  <ChevronDown className="w-3 h-3" />
+                                </>
+                              )}
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-[var(--text-muted)] text-[11px]">-</span>
+                      )}
+                    </td>
+
+                    {/* 6. Action Menu */}
+                    <td
+                      className="py-3.5 px-4 text-right whitespace-nowrap relative align-top"
+                      onClick={(e) => e.stopPropagation()}
                     >
-                      {isIncome ? '+' : '-'}
-                      {formatMaskedRupiah(tx.amount, isHideBalance)}
-                    </span>
-                  </td>
+                      <button
+                        onClick={() =>
+                          setActiveMenuId(activeMenuId === tx.id ? null : tx.id)
+                        }
+                        className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--surface-2)] transition-colors"
+                        title="Menu Aksi"
+                      >
+                        <MoreVertical className="w-4 h-4" />
+                      </button>
 
-                  {/* 4. Status Badge Kapsul */}
-                  <td className="py-3.5 px-4 whitespace-nowrap">
-                    {isPending ? (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200 animate-pulse">
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                        Pending Review
-                      </span>
-                    ) : isIncome ? (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#e8f5e9] text-[#198754] border border-[#198754]/30">
-                        Income
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-[#fde8ea] text-[#DC3545] border border-[#DC3545]/30">
-                        Expense
-                      </span>
-                    )}
-                  </td>
-
-                  {/* 5. Noted / Keterangan Ringkas */}
-                  <td className="py-3.5 px-4 text-slate-500 dark:text-slate-400 max-w-xs truncate whitespace-nowrap">
-                    {tx.raw_notification ? (
-                      <span title={tx.raw_notification} className="truncate block max-w-xs">
-                        {tx.raw_notification.slice(0, 45)}
-                        {tx.raw_notification.length > 45 ? '...' : ''}
-                      </span>
-                    ) : (
-                      <span className="text-slate-300 dark:text-slate-600">-</span>
-                    )}
-                  </td>
-
-                  {/* 6. Action Menu Vertikal (⋮) */}
-                  <td
-                    className="py-3.5 px-4 text-right whitespace-nowrap relative"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <button
-                      onClick={() =>
-                        setActiveMenuId(activeMenuId === tx.id ? null : tx.id)
-                      }
-                      className="p-1.5 rounded-lg text-[#007a33] hover:text-[#004d00] hover:bg-[var(--bg-main)] transition-colors"
-                      title="Menu Aksi"
-                    >
-                      <MoreVertical className="w-4 h-4" />
-                    </button>
-
-                    {/* Dropdown Menu Popover */}
-                    {activeMenuId === tx.id && (
-                      <div className="absolute right-4 top-10 w-44 rounded-2xl bg-[var(--bg-card)] border border-[var(--border-color)] shadow-xl z-30 p-1 animate-in fade-in zoom-in-95 duration-100 text-left">
-                        <button
-                          onClick={() => {
-                            setActiveMenuId(null);
-                            onSelectTransaction(tx);
-                          }}
-                          className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-[var(--text-main)] hover:bg-[var(--bg-main)]/70 transition-colors"
-                        >
-                          <CheckCircle2 className="w-3.5 h-3.5 text-[#198754]" />
-                          <span>Lihat Detail</span>
-                        </button>
-
-                        <button
-                          onClick={() => {
-                            setActiveMenuId(null);
-                            onEditTransaction(tx);
-                          }}
-                          className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-[var(--text-main)] hover:bg-[var(--bg-main)]/70 transition-colors"
-                        >
-                          <Edit3 className="w-3.5 h-3.5 text-[#007a33]" />
-                          <span>Koreksi Data</span>
-                        </button>
-
-                        {onDeleteTransaction && (
+                      {activeMenuId === tx.id && (
+                        <div className="absolute right-4 top-10 w-44 rounded-2xl bg-[var(--surface-4)] border border-[var(--border-color)] shadow-xl z-30 p-1 animate-in fade-in zoom-in-95 duration-100 text-left">
                           <button
                             onClick={() => {
                               setActiveMenuId(null);
-                              onDeleteTransaction(tx.id);
+                              onSelectTransaction(tx);
                             }}
-                            className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
+                            className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-[var(--text-main)] hover:bg-[var(--surface-2)] transition-colors"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
-                            <span>Hapus Transaksi</span>
+                            <CheckCircle2 className="w-3.5 h-3.5 text-income" />
+                            <span>Lihat Detail</span>
                           </button>
-                        )}
-                      </div>
+
+                          <button
+                            onClick={() => {
+                              setActiveMenuId(null);
+                              onEditTransaction(tx);
+                            }}
+                            className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-[var(--text-main)] hover:bg-[var(--surface-2)] transition-colors"
+                          >
+                            <Edit3 className="w-3.5 h-3.5 text-[var(--accent-color)]" />
+                            <span>Koreksi Data</span>
+                          </button>
+
+                          {onDeleteTransaction && (
+                            <button
+                              onClick={() => {
+                                setActiveMenuId(null);
+                                onDeleteTransaction(tx.id);
+                              }}
+                              className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-rose-500 hover:bg-rose-500/10 transition-colors"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>Hapus Transaksi</span>
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* =========================================================================
+          2. TAMPILAN HP ANDROID (Mobile Transaction Cards Khusus Ponsel)
+          ========================================================================= */}
+      <div className="block md:hidden space-y-3">
+        {transactions.map((tx) => {
+          const isIncome = tx.direction === 'in';
+          const isPending = tx.status === 'pending';
+
+          return (
+            <div
+              key={`mobile-${tx.id}`}
+              onClick={() => onSelectTransaction(tx)}
+              className="p-4 rounded-2xl bg-[var(--surface-1)] border border-[var(--border-color)] shadow-2xs space-y-3 active:scale-[0.99] transition-transform cursor-pointer"
+            >
+              {/* Baris 1: Ikon + Merchant & Waktu + Nominal Besar */}
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div
+                    className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${
+                      isIncome
+                        ? 'bg-income/15 text-income border-income/30'
+                        : 'bg-expense/15 text-expense border-expense/30'
+                    }`}
+                  >
+                    {isIncome ? (
+                      <ArrowDownLeft className="w-4 h-4" />
+                    ) : (
+                      <ArrowUpRight className="w-4 h-4" />
                     )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                  </div>
+                  <div className="min-w-0">
+                    <h4 className="text-xs sm:text-sm font-bold text-[var(--text-main)] truncate">
+                      {tx.merchant || 'Transaksi Digital'}
+                    </h4>
+                    <span className="text-[10px] text-[var(--text-muted)] block font-medium">
+                      {formatTableDate(tx.transaction_date)}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="text-right shrink-0">
+                  <span
+                    className={`angka-keuangan text-sm font-extrabold tracking-tight ${
+                      isIncome ? 'text-income' : 'text-expense'
+                    }`}
+                  >
+                    {isIncome ? '+' : '-'}
+                    {formatMaskedRupiah(tx.amount, isHideBalance)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Baris 2: Chips Metadata (Akun, Pemilik, Kategori, Status) */}
+              <div className="flex items-center gap-1.5 flex-wrap text-[10px]">
+                <span className="px-2 py-0.5 rounded-md bg-[var(--surface-2)] text-[var(--text-muted)] border border-[var(--border-color)] font-semibold flex items-center gap-1">
+                  <Building2 className="w-2.5 h-2.5 text-[var(--accent-color)]" />
+                  <span>{tx.account_name || 'Rekening'}</span>
+                </span>
+
+                <span className="px-2 py-0.5 rounded-md bg-[var(--surface-2)] text-[var(--text-muted)] border border-[var(--border-color)] font-semibold capitalize">
+                  {tx.source_device || 'Suami'}
+                </span>
+
+                {tx.category_name && (
+                  <span className="px-2 py-0.5 rounded-md bg-[var(--surface-2)] text-[var(--text-accent-italic)] border border-[var(--border-color)] font-bold">
+                    {tx.category_name}
+                  </span>
+                )}
+
+                {isPending ? (
+                  <span className="px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-500 dark:text-amber-400 border border-amber-500/30 font-bold ml-auto">
+                    Pending
+                  </span>
+                ) : (
+                  <span
+                    className={`px-2 py-0.5 rounded-md font-bold ml-auto ${
+                      isIncome
+                        ? 'bg-income/15 text-income border border-income/30'
+                        : 'bg-expense/15 text-expense border border-expense/30'
+                    }`}
+                  >
+                    {isIncome ? 'Pemasukan' : 'Pengeluaran'}
+                  </span>
+                )}
+              </div>
+
+              {/* Baris 3: Teks Notifikasi Lengkap (Full Box Khusus HP) */}
+              {tx.raw_notification && (
+                <div
+                  className="rounded-xl border border-[var(--border-color)] bg-[var(--surface-2)] overflow-hidden text-[11px]"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex items-center justify-between px-2.5 py-1 bg-[var(--surface-3)] border-b border-[var(--border-color)] text-[10px] text-[var(--text-muted)]">
+                    <span className="font-semibold text-[var(--accent-color)] flex items-center gap-1">
+                      <FileText className="w-3 h-3" />
+                      <span>Notifikasi Bank Asli</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={(e) => handleCopyNotif(e, tx.id, tx.raw_notification!)}
+                      className="font-semibold text-[var(--text-muted)] hover:text-[var(--text-main)] inline-flex items-center gap-1"
+                    >
+                      {copiedId === tx.id ? (
+                        <>
+                          <CheckCheck className="w-3 h-3 text-income" />
+                          <span className="text-income">Tersalin</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3 h-3" />
+                          <span>Salin</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <p className="p-2.5 font-mono text-[11px] text-[var(--text-main)] leading-relaxed whitespace-pre-wrap break-words select-text">
+                    {tx.raw_notification}
+                  </p>
+                </div>
+              )}
+
+              {/* Baris 4: Aksi Cepat Ramah Jempol */}
+              <div
+                className="flex items-center gap-2 pt-1 border-t border-[var(--border-color)]/60"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <button
+                  type="button"
+                  onClick={() => onSelectTransaction(tx)}
+                  className="flex-1 py-2 px-3 rounded-xl bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-xs font-bold text-[var(--text-main)] border border-[var(--border-color)] flex items-center justify-center gap-1.5 transition-colors"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5 text-income" />
+                  <span>Detail Lengkap</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => onEditTransaction(tx)}
+                  className="py-2 px-3 rounded-xl bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-xs font-bold text-[var(--text-main)] border border-[var(--border-color)] flex items-center justify-center gap-1.5 transition-colors"
+                >
+                  <Edit3 className="w-3.5 h-3.5 text-[var(--accent-color)]" />
+                  <span>Koreksi</span>
+                </button>
+
+                {onDeleteTransaction && (
+                  <button
+                    type="button"
+                    onClick={() => onDeleteTransaction(tx.id)}
+                    className="p-2 rounded-xl text-[var(--text-muted)] hover:text-rose-500 hover:bg-rose-500/10 transition-colors"
+                    title="Hapus Transaksi"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

@@ -69,14 +69,14 @@ export default function RealtimeToast({
         }
       `}
     >
-      <div className="bg-[var(--bg-card)] rounded-2xl border border-[var(--border-color)] p-4 shadow-xl">
+      <div className="bg-[var(--surface-4)] rounded-2xl border border-[var(--border-color)] p-4 shadow-xl">
         <div className="flex items-start gap-3">
           {/* Icon Indikator Arah */}
           <div
             className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${
               isIncome
-                ? 'bg-[#e8f5e9] text-[#198754] border-[#198754]/30'
-                : 'bg-[#fde8ea] text-[#DC3545] border-[#DC3545]/30'
+                ? 'bg-income/15 text-income border-income/30'
+                : 'bg-expense/15 text-expense border-expense/30'
             }`}
           >
             {isIncome ? (
@@ -90,17 +90,17 @@ export default function RealtimeToast({
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-[11px] font-bold text-[#007a33] flex items-center gap-1">
-                  <Bell className="w-3 h-3 text-[#007a33]" />
+                <span className="text-[11px] font-bold text-[var(--accent-color)] flex items-center gap-1">
+                  <Bell className="w-3 h-3 text-[var(--accent-color)]" />
                   Transaksi Baru
                 </span>
                 {data?.accountName && (
-                  <span className="text-[10px] px-1.5 py-0.2 rounded font-bold bg-[var(--bg-main)] text-[#007a33] border border-[var(--border-color)]">
+                  <span className="text-[10px] px-1.5 py-0.2 rounded font-bold bg-[var(--surface-2)] text-[var(--text-muted)] border border-[var(--border-color)]">
                     {data.accountName}
                   </span>
                 )}
                 {data?.sourceDevice && (
-                  <span className="text-[10px] px-1.5 py-0.2 rounded font-bold bg-[var(--bg-main)] text-[#007a33] border border-[var(--border-color)]">
+                  <span className="text-[10px] px-1.5 py-0.2 rounded font-bold bg-[var(--surface-2)] text-[var(--text-muted)] border border-[var(--border-color)]">
                     {ownerLabel}
                   </span>
                 )}
@@ -111,7 +111,7 @@ export default function RealtimeToast({
                   setIsVisible(false);
                   setTimeout(onClose, 300);
                 }}
-                className="text-[#007a33] hover:text-[#004d00] p-0.5 rounded transition-colors"
+                className="text-[var(--text-muted)] hover:text-[var(--text-main)] p-0.5 rounded transition-colors"
                 title="Tutup notifikasi"
               >
                 <X className="w-3.5 h-3.5" />
@@ -125,8 +125,8 @@ export default function RealtimeToast({
               <span
                 className={`text-sm font-bold tracking-tight whitespace-nowrap angka-keuangan ${
                   isIncome
-                    ? 'text-[#198754]'
-                    : 'text-[#DC3545]'
+                    ? 'text-income'
+                    : 'text-expense'
                 }`}
               >
                 {isIncome ? '+' : '-'}{formatRupiah(data?.amount || 0)}
@@ -142,7 +142,7 @@ export default function RealtimeToast({
                     setIsVisible(false);
                     if (data) onViewDetail(data);
                   }}
-                  className="inline-flex items-center gap-1 text-xs font-bold text-[#007a33] hover:text-[#004d00] transition-colors"
+                  className="inline-flex items-center gap-1 text-xs font-bold text-[var(--accent-color)] hover:underline transition-colors"
                 >
                   <span>Lihat Detail</span>
                   <ArrowRight className="w-3 h-3" />

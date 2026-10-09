@@ -47,33 +47,33 @@ export default function AdjustBalanceModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#05140f]/60 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="w-full max-w-sm rounded-3xl bg-[var(--bg-card)] border border-[var(--border-color)] p-6 shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="w-full max-w-sm rounded-3xl bg-[var(--surface-3)] border border-[var(--border-color)] p-6 shadow-2xl">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <span className="p-2 rounded-2xl bg-[var(--bg-main)] text-[#007a33] border border-[var(--border-color)]">
+            <span className="p-2 rounded-2xl bg-[var(--surface-2)] text-[var(--accent-color)] border border-[var(--border-color)]">
               <Calculator className="w-4 h-4" />
             </span>
             <div>
               <h3 className="font-bold text-[var(--text-main)] text-base leading-none">
                 Koreksi Saldo {account.name}
               </h3>
-              <span className="text-[11px] font-semibold text-[#007a33]">
+              <span className="text-[11px] font-semibold text-[var(--text-muted)]">
                 Milik: {account.owner === 'suami' ? '👨 Suami' : '👩 Istri'}
               </span>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-full text-[#007a33] hover:text-[#004d00] hover:bg-[var(--bg-main)] transition-all"
+            className="p-1.5 rounded-full text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--surface-2)] transition-all"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Info Saldo Saat Ini di Sistem */}
-        <div className="mb-4 p-3 rounded-2xl bg-[var(--bg-main)]/60 border border-[var(--border-color)]">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-[#007a33] block mb-0.5">
+        <div className="mb-4 p-3 rounded-2xl bg-[var(--surface-2)] border border-[var(--border-color)]">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] block mb-0.5">
             Saldo Tercatat di Sistem
           </span>
           <p className="text-base font-extrabold text-[var(--text-main)] angka-keuangan">
@@ -83,7 +83,7 @@ export default function AdjustBalanceModal({
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-bold text-[#007a33] mb-1.5">
+            <label className="block text-xs font-bold text-[var(--text-muted)] mb-1.5">
               Saldo Asli di Rekening / m-Banking
             </label>
             <input
@@ -96,20 +96,20 @@ export default function AdjustBalanceModal({
                 setTargetStr(numeric);
               }}
               placeholder="Contoh: Rp 2.500.000"
-              className="w-full px-4 py-3 rounded-2xl bg-[var(--bg-main)] border border-[var(--border-color)] text-base font-bold text-[var(--text-main)] angka-keuangan focus:outline-none focus:ring-1 focus:ring-[#007a33]"
+              className="w-full px-4 py-3 rounded-2xl bg-[var(--surface-2)] border border-[var(--border-color)] text-base font-bold text-[var(--text-main)] angka-keuangan focus:outline-none focus:ring-1 focus:ring-[var(--accent-color)]"
             />
           </div>
 
           {/* Kalkulasi Selisih Penyesuaian */}
           {targetStr && (
-            <div className="p-3 rounded-2xl bg-[var(--bg-main)]/60 border border-[var(--border-color)] text-xs">
+            <div className="p-3 rounded-2xl bg-[var(--surface-2)] border border-[var(--border-color)] text-xs">
               <div className="flex items-center justify-between font-bold">
-                <span className="text-[#007a33]">Selisih Penyesuaian:</span>
-                <span className={`angka-keuangan font-bold ${diff >= 0 ? 'text-[#198754]' : 'text-[#DC3545]'}`}>
+                <span className="text-[var(--text-muted)]">Selisih Penyesuaian:</span>
+                <span className={`angka-keuangan font-bold ${diff >= 0 ? 'text-income' : 'text-expense'}`}>
                   {diff >= 0 ? `+${formatRupiah(diff)}` : `-${formatRupiah(Math.abs(diff))}`}
                 </span>
               </div>
-              <p className="text-[10px] text-[#007a33] mt-1 leading-relaxed">
+              <p className="text-[10px] text-[var(--text-muted)] mt-1 leading-relaxed">
                 {diff >= 0
                   ? 'Akan dicatat otomatis sebagai penyesuaian saldo masuk (surplus).'
                   : 'Akan dicatat otomatis sebagai penyesuaian saldo keluar (selisih biaya/bunga).'}
@@ -118,7 +118,7 @@ export default function AdjustBalanceModal({
           )}
 
           <div>
-            <label className="block text-xs font-bold text-[#007a33] mb-1.5">
+            <label className="block text-xs font-bold text-[var(--text-muted)] mb-1.5">
               Keterangan / Catatan
             </label>
             <input
@@ -126,7 +126,7 @@ export default function AdjustBalanceModal({
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Contoh: Rekonsiliasi akhir bulan"
-              className="w-full px-4 py-2.5 rounded-2xl bg-[var(--bg-main)] border border-[var(--border-color)] text-sm focus:outline-none focus:ring-1 focus:ring-[#007a33] text-[var(--text-main)] font-semibold"
+              className="w-full px-4 py-2.5 rounded-2xl bg-[var(--surface-2)] border border-[var(--border-color)] text-sm focus:outline-none focus:ring-1 focus:ring-[var(--accent-color)] text-[var(--text-main)] font-semibold"
             />
           </div>
 
@@ -134,7 +134,7 @@ export default function AdjustBalanceModal({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-3 px-4 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-main)] text-[#007a33] font-bold text-xs hover:bg-[var(--bg-main)]/80 transition-colors"
+              className="flex-1 py-3 px-4 rounded-2xl border border-[var(--border-color)] bg-[var(--surface-2)] text-[var(--text-muted)] hover:text-[var(--text-main)] font-bold text-xs hover:bg-[var(--surface-1)] transition-colors"
             >
               Batal
             </button>

@@ -37,19 +37,19 @@ export default function RootLayout({
   return (
     <html lang="id" suppressHydrationWarning>
       <head>
-        <meta httpEquiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-        <meta httpEquiv="Pragma" content="no-cache" />
-        <meta httpEquiv="Expires" content="0" />
         <script
           dangerouslySetInnerHTML={{
             __html: `
               try {
-                var t = localStorage.getItem('theme');
+                var t = localStorage.getItem('theme') || 'system';
                 var m = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-                if (t === 'dark' || (!t && m)) {
+                var isDark = t === 'dark' || (t === 'system' && m);
+                if (isDark) {
                   document.documentElement.classList.add('dark');
+                  document.documentElement.classList.remove('light');
                 } else {
                   document.documentElement.classList.remove('dark');
+                  document.documentElement.classList.add('light');
                 }
               } catch (_) {}
             `,

@@ -228,17 +228,18 @@ export default function AccountsPage() {
   return (
     <AppShell userRole={userRole} displayName={displayName} pendingCount={0}>
       <div className="space-y-5">
-        {/* Hero Card: Total Saldo Gabungan Keluarga (Mint Theme Sesuai Lampiran TXT) */}
-        <div className="rounded-3xl p-6 bg-[var(--bg-card)] border border-[var(--border-color)] shadow-xs relative overflow-hidden">
+        {/* Hero Card: Total Saldo Gabungan Keluarga: Surface-1 */}
+        <div className="rounded-3xl p-6 bg-[var(--surface-1)] border border-[var(--border-color)] shadow-xs relative overflow-hidden">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-5">
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-[#007a33] block">
-                  Total Saldo Gabungan Kas Keluarga
+                <span className="text-[11px] font-bold uppercase tracking-wider block">
+                  <span className="font-extrabold text-[var(--text-main)]">Total</span>{' '}
+                  <span className="font-semibold italic text-[var(--text-accent-italic)]">Saldo Kas Keluarga</span>
                 </span>
                 <button
                   onClick={togglePrivacy}
-                  className="text-[#007a33] hover:text-[#004d00] p-0.5 rounded transition-colors"
+                  className="text-[var(--text-muted)] hover:text-[var(--text-main)] p-0.5 rounded transition-colors"
                   title="Sembunyikan / Tampilkan Saldo"
                 >
                   {isHideBalance ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
@@ -247,7 +248,7 @@ export default function AccountsPage() {
               <p className="text-3xl font-extrabold text-[var(--text-main)] tracking-tight leading-none mt-1.5 angka-keuangan">
                 {formatMaskedRupiah(totals.grandTotal, isHideBalance)}
               </p>
-              <span className="text-xs text-[#007a33] font-medium mt-1 block">
+              <span className="text-xs text-[var(--text-muted)] font-medium mt-1 block">
                 Akumulasi seluruh rekening bank & dompet digital aktif ({totals.activeCount} akun)
               </span>
             </div>
@@ -256,17 +257,17 @@ export default function AccountsPage() {
               {accounts.length > 0 && (
                 <button
                   onClick={handleClearAllAccounts}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[#DC3545]/30 bg-[#fde8ea] text-[#DC3545] hover:bg-[#fde8ea]/80 text-xs font-bold transition-colors shadow-2xs"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[var(--color-expense)]/30 bg-[var(--color-expense)]/10 text-[var(--color-expense)] hover:bg-[var(--color-expense)]/20 text-xs font-bold transition-colors shadow-2xs"
                   title="Bersihkan Semua Akun"
                 >
-                  <Trash2 className="w-3.5 h-3.5 text-[#DC3545]" />
+                  <Trash2 className="w-3.5 h-3.5 text-[var(--color-expense)]" />
                   <span>Bersihkan</span>
                 </button>
               )}
 
               <button
                 onClick={() => setIsAddModalOpen(true)}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[var(--accent-color)] hover:opacity-90 active:scale-95 text-[var(--bg-main)] font-bold text-xs transition-all shadow-sm"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[var(--accent-color)] hover:opacity-90 active:scale-95 text-white dark:text-[#121218] font-bold text-xs transition-all shadow-sm"
               >
                 <Plus className="w-4 h-4" />
                 <span>+ Tambah Akun</span>
@@ -275,19 +276,19 @@ export default function AccountsPage() {
           </div>
 
           {/* Subtotal Saldo Suami vs Istri */}
-          <div className="grid grid-cols-2 gap-3 pt-4 border-t border-[var(--border-color)]/70">
-            <div className="p-3.5 rounded-2xl bg-[var(--bg-main)]/60 border border-[var(--border-color)]/80 shadow-xs">
-              <span className="text-[11px] font-bold text-[#007a33] block mb-1">
-                Saldo Suami
+          <div className="grid grid-cols-2 gap-3 pt-4 border-t border-[var(--border-color)]">
+            <div className="p-3.5 rounded-2xl bg-[var(--surface-2)] border border-[var(--border-color)] shadow-xs">
+              <span className="text-[11px] font-bold text-[var(--text-muted)] block mb-1">
+                Saldo Suami (Kepala Keluarga)
               </span>
               <p className="text-base font-extrabold text-[var(--text-main)] truncate angka-keuangan">
                 {formatMaskedRupiah(totals.suamiTotal, isHideBalance)}
               </p>
             </div>
 
-            <div className="p-3.5 rounded-2xl bg-[var(--bg-main)]/60 border border-[var(--border-color)]/80 shadow-xs">
-              <span className="text-[11px] font-bold text-[#007a33] block mb-1">
-                Saldo Istri
+            <div className="p-3.5 rounded-2xl bg-[var(--surface-2)] border border-[var(--border-color)] shadow-xs">
+              <span className="text-[11px] font-bold text-[var(--text-muted)] block mb-1">
+                Saldo Istri (Bendahara)
               </span>
               <p className="text-base font-extrabold text-[var(--text-main)] truncate angka-keuangan">
                 {formatMaskedRupiah(totals.istriTotal, isHideBalance)}
@@ -302,8 +303,8 @@ export default function AccountsPage() {
             onClick={() => setFilterOwner('all')}
             className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all border ${
               filterOwner === 'all'
-                ? 'bg-[var(--accent-color)] text-[var(--bg-main)] border-[var(--accent-color)] shadow-xs'
-                : 'bg-[var(--bg-card)] text-[#007a33] border-[var(--border-color)] hover:text-[#004d00] hover:bg-[var(--bg-main)]'
+                ? 'bg-[var(--accent-color)] text-white dark:text-[#121218] border-[var(--accent-color)] shadow-xs'
+                : 'bg-[var(--surface-1)] text-[var(--text-muted)] border-[var(--border-color)] hover:text-[var(--text-main)] hover:bg-[var(--surface-2)]'
             }`}
           >
             Semua Akun ({accounts.length})
@@ -313,8 +314,8 @@ export default function AccountsPage() {
             onClick={() => setFilterOwner('suami')}
             className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all border ${
               filterOwner === 'suami'
-                ? 'bg-[var(--accent-color)] text-[var(--bg-main)] border-[var(--accent-color)] shadow-xs'
-                : 'bg-[var(--bg-card)] text-[#007a33] border-[var(--border-color)] hover:text-[#004d00] hover:bg-[var(--bg-main)]'
+                ? 'bg-[var(--accent-color)] text-white dark:text-[#121218] border-[var(--accent-color)] shadow-xs'
+                : 'bg-[var(--surface-1)] text-[var(--text-muted)] border-[var(--border-color)] hover:text-[var(--text-main)] hover:bg-[var(--surface-2)]'
             }`}
           >
             Akun Suami ({accounts.filter((a) => a.owner === 'suami').length})
@@ -324,17 +325,18 @@ export default function AccountsPage() {
             onClick={() => setFilterOwner('istri')}
             className={`px-3.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all border ${
               filterOwner === 'istri'
-                ? 'bg-[var(--accent-color)] text-[var(--bg-main)] border-[var(--accent-color)] shadow-xs'
-                : 'bg-[var(--bg-card)] text-[#007a33] border-[var(--border-color)] hover:text-[#004d00] hover:bg-[var(--bg-main)]'
+                ? 'bg-[var(--accent-color)] text-white dark:text-[#121218] border-[var(--accent-color)] shadow-xs'
+                : 'bg-[var(--surface-1)] text-[var(--text-muted)] border-[var(--border-color)] hover:text-[var(--text-main)] hover:bg-[var(--surface-2)]'
             }`}
           >
             Akun Istri ({accounts.filter((a) => a.owner === 'istri').length})
           </button>
 
+
           <button
             onClick={fetchAccounts}
             title="Refresh saldo akun"
-            className="p-2 rounded-xl bg-[var(--bg-card)] border border-[var(--border-color)] text-[#007a33] hover:text-[#004d00] ml-auto shrink-0 transition-colors shadow-xs"
+            className="p-2 rounded-xl bg-[var(--surface-1)] border border-[var(--border-color)] text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--surface-2)] ml-auto shrink-0 transition-colors shadow-xs"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
           </button>
@@ -342,14 +344,14 @@ export default function AccountsPage() {
 
         {/* Daftar Kartu Saldo */}
         {filteredAccounts.length === 0 ? (
-          <div className="text-center py-16 px-6 rounded-3xl bg-[var(--bg-card)] border border-[var(--border-color)] my-4 shadow-xs">
-            <div className="w-12 h-12 rounded-2xl bg-[var(--bg-main)] text-[#007a33] border border-[var(--border-color)] flex items-center justify-center mx-auto mb-3">
+          <div className="text-center py-16 px-6 rounded-3xl bg-[var(--surface-1)] border border-[var(--border-color)] my-4 shadow-xs">
+            <div className="w-12 h-12 rounded-2xl bg-[var(--surface-2)] text-[var(--accent-color)] border border-[var(--border-color)] flex items-center justify-center mx-auto mb-3">
               <Wallet className="w-6 h-6" />
             </div>
             <h3 className="font-bold text-[var(--text-main)] text-base">
               Belum Ada Rekening / Dompet Digital
             </h3>
-            <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto leading-relaxed">
+            <p className="text-xs text-[var(--text-muted)] mt-1 max-w-sm mx-auto leading-relaxed">
               Data tab My Wallet telah bersih dari nol. Klik tombol "+ Tambah Akun" di atas untuk mendaftarkan rekening atau e-wallet keluarga Anda.
             </p>
           </div>

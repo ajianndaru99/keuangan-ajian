@@ -113,13 +113,13 @@ export default function CategoryExpensesChart({ categories }: CategoryExpensesCh
   }
 
   return (
-    <div className="bg-[var(--bg-card)] rounded-3xl p-5 mb-3.5 border border-[var(--border-color)] shadow-xs">
+    <div className="bg-[var(--surface-1)] rounded-3xl p-5 mb-3.5 border border-[var(--border-color)] shadow-xs">
       <div className="flex items-center justify-between mb-4">
         <div>
           <h3 className="text-sm font-bold text-[var(--text-main)]">
             Pengeluaran per Kategori
           </h3>
-          <span className="text-[11px] font-medium text-[#007a33]">
+          <span className="text-[11px] font-medium text-[var(--text-muted)]">
             Sebaran belanja transaksi yang sudah diverifikasi
           </span>
         </div>
@@ -132,14 +132,14 @@ export default function CategoryExpensesChart({ categories }: CategoryExpensesCh
             <XAxis
               dataKey="displayName"
               interval={0}
-              tick={{ fontSize: 10, fill: '#007a33', fontWeight: 600 }}
+              tick={{ fontSize: 10, fill: 'var(--text-muted)', fontWeight: 600 }}
               axisLine={false}
               tickLine={false}
               angle={-20}
               textAnchor="end"
             />
             <YAxis
-              tick={{ fontSize: 9, fill: '#007a33' }}
+              tick={{ fontSize: 9, fill: 'var(--text-muted)' }}
               axisLine={false}
               tickLine={false}
               tickFormatter={(v) => `${v / 1000}k`}
@@ -158,7 +158,7 @@ export default function CategoryExpensesChart({ categories }: CategoryExpensesCh
       {/* Daftar Top 5 Kategori Terboros */}
       <div className="mt-5 pt-4 border-t border-[var(--border-color)]/70">
         <div className="flex items-center gap-1.5 mb-3">
-          <Flame className="w-4 h-4 text-[#DC3545]" />
+          <Flame className="w-4 h-4 text-expense" />
           <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--text-main)]">
             Top 5 Kategori Terboros
           </h4>
@@ -170,14 +170,14 @@ export default function CategoryExpensesChart({ categories }: CategoryExpensesCh
             return (
               <div
                 key={item.category_id}
-                className="p-3 rounded-2xl bg-[var(--bg-main)]/60 border border-[var(--border-color)]/70"
+                className="p-3 rounded-2xl bg-[var(--surface-2)] border border-[var(--border-color)]/70"
               >
                 <div className="flex items-center justify-between gap-2 mb-1.5">
                   <div className="flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-lg bg-[var(--bg-card)] text-[#007a33] text-[10px] font-bold flex items-center justify-center border border-[var(--border-color)]/70">
+                    <span className="w-5 h-5 rounded-lg bg-[var(--surface-1)] text-[var(--accent-color)] text-[10px] font-bold flex items-center justify-center border border-[var(--border-color)]/70">
                       #{index + 1}
                     </span>
-                    <IconComponent className="w-4 h-4 text-[#007a33]" />
+                    <IconComponent className="w-4 h-4 text-[var(--accent-color)]" />
                     <span className="text-xs font-bold text-[var(--text-main)]">
                       {item.category_name}
                     </span>
@@ -187,7 +187,7 @@ export default function CategoryExpensesChart({ categories }: CategoryExpensesCh
                     <span className="text-xs font-extrabold text-[var(--text-main)] angka-keuangan">
                       {formatRupiah(item.total_amount)}
                     </span>
-                    <span className="text-[10px] font-bold text-[#007a33] ml-1.5">
+                    <span className="text-[10px] font-bold text-[var(--text-muted)] ml-1.5">
                       ({item.percentage}%)
                     </span>
                   </div>

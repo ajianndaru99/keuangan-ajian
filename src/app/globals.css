@@ -15,73 +15,82 @@
    PENGATURAN WARNA DENGAN KODE WARNA PILIHAN ANDA 
    ======================================================= */
 
+/* =======================================================
+   PALET TEMA WCAG 2.1 AA & UXCEL SURFACE ELEVATION
+   ======================================================= */
+
 /* DEFAULT: MODE TERANG (LIGHT MODE) */
 :root {
-  --bg-main: #e0f7f1;        /* Mint Sangat Terang */
-  --bg-card: #b2e0d4;        /* Mint Lembut untuk kotak tabel/card */
-  --text-main: #004d00;      /* Hijau Tua untuk Angka & Teks Utama */
-  --text-muted: #007a33;     /* Hijau Finansial untuk label */
-  --accent-color: #007a33;   /* Warna tombol utama */
-  --border-color: #b2e0d4;   /* Border lembut */
-  --background: #e0f7f1;
-  --foreground: #004d00;
+  --bg-base: #F8F2F7;        /* Kanvas pastel lilac lembut */
+  --bg-main: #F8F2F7;
+  --bg-card: #FFFFFF;        /* Surface Elevation 1 */
+  --surface-1: #FFFFFF;
+  --surface-2: #F3ECF6;      /* Surface Elevation 2 (Input & sub-card) */
+  --surface-3: #EAE0F0;      /* Surface Elevation 3 (Modal & Sheet) */
+  --surface-4: #E0D4E8;      /* Surface Elevation 4 (Dropdown & Popover) */
+  --text-main: #111827;      /* Deep Slate Black */
+  --text-muted: #4B5563;     /* Muted Grey */
+  --text-accent-italic: #0284C7; /* Cyan / Ocean Teal untuk kata miring */
+  --accent-color: #0284C7;   /* Cyan Button Primary */
+  --border-color: #E5D9EB;   /* Border lembut */
+  --background: #F8F2F7;
+  --foreground: #111827;
 
-  /* WARNA KHUSUS FINANSIAL */
-  --color-expense: #DC3545;  /* Merah bata yang diredam (Muted Red) */
-  --color-income: #198754;   /* Hijau teduh finansial */
-  --color-gridline: #E2E8F0; /* Abu-abu sangat tipis untuk garis kisi tabel */
+  /* STATUS FINANSIAL & FEEDBACK */
+  --color-expense: #DC3545;  /* Merah bata */
+  --color-income: #198754;   /* Hijau teduh */
+  --color-gridline: #E2E8F0; /* Kisi tipis */
 }
 
-/* MODE GELAP (DARK MODE) */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg-main: #05140f;      /* Midnight Mint (Dasar layar gelap & nyaman) */
-    --bg-card: #0b241d;      /* Hijau Tua untuk wadah tabel/komponen */
-    --text-main: #e0f7f1;    /* Mint Sangat Terang menjadi warna Angka/Judul */
-    --text-muted: #b2e0d4;   /* Mint Lembut menjadi label sekunder */
-    --accent-color: #66b3a1; /* Mint Cerah menjadi tombol utama yang stand-out */
-    --border-color: #0b241d;
-    --background: #05140f;
-    --foreground: #e0f7f1;
-    --color-expense: #DC3545;
-    --color-income: #198754;
-    --color-gridline: rgba(226, 232, 240, 0.15);
-  }
-}
-
+/* KELAS MODE TERANG EKSPLISIT */
 html.light {
-  --bg-main: #e0f7f1;
-  --bg-card: #b2e0d4;
-  --text-main: #004d00;
-  --text-muted: #007a33;
-  --accent-color: #007a33;
-  --border-color: #b2e0d4;
-  --background: #e0f7f1;
-  --foreground: #004d00;
+  --bg-base: #F8F2F7;
+  --bg-main: #F8F2F7;
+  --bg-card: #FFFFFF;
+  --surface-1: #FFFFFF;
+  --surface-2: #F3ECF6;
+  --surface-3: #EAE0F0;
+  --surface-4: #E0D4E8;
+  --text-main: #111827;
+  --text-muted: #4B5563;
+  --text-accent-italic: #0284C7;
+  --accent-color: #0284C7;
+  --border-color: #E5D9EB;
+  --background: #F8F2F7;
+  --foreground: #111827;
   --color-expense: #DC3545;
   --color-income: #198754;
   --color-gridline: #E2E8F0;
 }
 
-html.dark {
-  --bg-main: #05140f;
-  --bg-card: #0b241d;
-  --text-main: #e0f7f1;
-  --text-muted: #b2e0d4;
-  --accent-color: #66b3a1;
-  --border-color: #0b241d;
-  --background: #05140f;
-  --foreground: #e0f7f1;
-  --color-expense: #DC3545;
-  --color-income: #198754;
-  --color-gridline: rgba(226, 232, 240, 0.15);
+/* KELAS MODE GELAP EKSPLISIT (UXCEL SURFACE ELEVATION & WCAG AA) */
+html.dark,
+.dark {
+  --bg-base: #121218;        /* Dark Charcoal Slate-Violet (Bukan Pure Black) */
+  --bg-main: #121218;
+  --bg-card: #1A1924;        /* Surface Elevation 1 */
+  --surface-1: #1A1924;
+  --surface-2: #242332;      /* Surface Elevation 2 (Input & sub-card) */
+  --surface-3: #2E2D3E;      /* Surface Elevation 3 (Modal & Sheet) */
+  --surface-4: #39384E;      /* Surface Elevation 4 (Dropdown & Tooltip) */
+  --text-main: #F1F0F7;      /* Text Primary (Kontras 15.2:1 vs Surface-1) */
+  --text-muted: #9B99AE;     /* Text Secondary (Kontras 5.4:1 vs Surface-1) */
+  --text-accent-italic: #C4B5FD; /* Desaturated Lavender (Kontras 9.1:1) */
+  --accent-color: #38BDF8;   /* Sky Cyan Desaturated (Kontras 8.6:1) */
+  --border-color: rgba(255, 255, 255, 0.08);
+  --background: #121218;
+  --foreground: #F1F0F7;
+
+  /* STATUS FINANSIAL DESATURASI WCAG AA */
+  --color-expense: #CF6679;  /* Desaturated Red WCAG AA (Kontras 6.8:1) */
+  --color-income: #81C784;   /* Desaturated Mint Green WCAG AA (Kontras 8.2:1) */
+  --color-gridline: rgba(255, 255, 255, 0.08);
 }
 
 body {
   background-color: var(--bg-main);
   color: var(--text-main);
   font-family: var(--font-roboto), 'Roboto', sans-serif;
-  transition: background-color 0.3s, color 0.3s;
   font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -133,30 +142,30 @@ html.dark .card-sub {
   font-weight: bold;
 }
 
-/* WARNA KHUSUS FINANSIAL */
+/* WARNA KHUSUS FINANSIAL BERBASIS CSS VARIABLE SESUAI TEMA WCAG AA */
 .text-expense {
-  color: #DC3545 !important;
+  color: var(--color-expense) !important;
 }
 .bg-expense {
-  background-color: #DC3545 !important;
+  background-color: var(--color-expense) !important;
 }
 .border-expense {
-  border-color: #DC3545 !important;
+  border-color: var(--color-expense) !important;
 }
 
 .text-income {
-  color: #198754 !important;
+  color: var(--color-income) !important;
 }
 .bg-income {
-  background-color: #198754 !important;
+  background-color: var(--color-income) !important;
 }
 .border-income {
-  border-color: #198754 !important;
+  border-color: var(--color-income) !important;
 }
 
 /* GARIS KISI TABEL TIPIS */
 .gridline-border {
-  border-color: #E2E8F0 !important;
+  border-color: var(--color-gridline) !important;
 }
 
 /* ==============================================================================

@@ -32,8 +32,8 @@ export default function RemainingBudgetDonut({
   const strokeDashoffset = circumference - (percentageRemaining / 100) * circumference;
 
   return (
-    <div className="bg-[var(--bg-card)] rounded-3xl p-6 border border-[var(--border-color)] shadow-xs relative overflow-hidden flex flex-col items-center text-center">
-      <h2 className="text-xs font-bold uppercase tracking-wider text-[#007a33] mb-3">
+    <div className="bg-[var(--surface-1)] rounded-3xl p-6 border border-[var(--border-color)] shadow-xs relative overflow-hidden flex flex-col items-center text-center">
+      <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] mb-3">
         Sisa Budget Keseluruhan
       </h2>
 
@@ -42,8 +42,8 @@ export default function RemainingBudgetDonut({
         <svg className="w-full h-full -rotate-90 transform" viewBox="0 0 200 200">
           <defs>
             <linearGradient id="budgetRingGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#007a33" />
-              <stop offset="100%" stopColor="#198754" />
+              <stop offset="0%" stopColor="var(--accent-color)" />
+              <stop offset="100%" stopColor="var(--color-income)" />
             </linearGradient>
           </defs>
           {/* Background Ring */}
@@ -54,7 +54,7 @@ export default function RemainingBudgetDonut({
             fill="transparent"
             stroke="currentColor"
             strokeWidth="14"
-            className="text-[var(--bg-main)]"
+            className="text-[var(--surface-2)]"
           />
           {/* Active Progress Ring */}
           <circle
@@ -73,20 +73,20 @@ export default function RemainingBudgetDonut({
 
         {/* Center Content */}
         <div className="absolute inset-0 flex flex-col items-center justify-center px-4">
-          <span className="text-xs font-bold text-[#007a33]">
+          <span className="text-xs font-bold text-[var(--text-muted)]">
             Sisa Budget
           </span>
           <span className="text-2xl font-extrabold tracking-tight text-[var(--text-main)] mt-0.5 angka-keuangan">
             {formatRupiah(remaining)}
           </span>
-          <span className="text-[11px] font-medium text-[#007a33] mt-0.5">
+          <span className="text-[11px] font-medium text-[var(--text-muted)] mt-0.5">
             Tersisa dari {formatRupiah(totalBudget)}
           </span>
 
           {/* Sisa Hari Pill */}
           {daysRemaining !== undefined && (
-            <span className="mt-2.5 inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full bg-[var(--bg-main)] text-[#007a33] border border-[var(--border-color)] shadow-xs">
-              <Clock className="w-3 h-3 text-[#007a33]" />
+            <span className="mt-2.5 inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full bg-[var(--surface-2)] text-[var(--accent-color)] border border-[var(--border-color)] shadow-xs">
+              <Clock className="w-3 h-3 text-[var(--accent-color)]" />
               {daysRemaining} hari lagi
             </span>
           )}
@@ -94,11 +94,11 @@ export default function RemainingBudgetDonut({
       </div>
 
       {/* Date Range Footer */}
-      <div className="mt-3 flex items-center justify-center gap-1.5 text-xs font-semibold text-[#007a33]">
-        <Calendar className="w-3.5 h-3.5 text-[#007a33]" />
+      <div className="mt-3 flex items-center justify-center gap-1.5 text-xs font-semibold text-[var(--text-muted)]">
+        <Calendar className="w-3.5 h-3.5 text-[var(--accent-color)]" />
         <span>{periodText}</span>
         <span className="text-[var(--border-color)]">•</span>
-        <span className="font-bold text-[#198754]">
+        <span className="font-bold text-income">
           {percentageRemaining}% tersedia
         </span>
       </div>

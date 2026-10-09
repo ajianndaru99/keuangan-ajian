@@ -91,25 +91,29 @@ export default function TransactionDetailModal({
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#05140f]/60 backdrop-blur-sm animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="w-full max-w-lg bg-[var(--bg-card)] rounded-3xl border border-[var(--border-color)] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="w-full max-w-lg bg-[var(--surface-3)] rounded-t-3xl sm:rounded-3xl border border-[var(--border-color)] shadow-2xl overflow-hidden flex flex-col max-h-[88vh] sm:max-h-[90vh] animate-in slide-in-from-bottom-6 sm:slide-in-from-bottom-0">
         {/* Header Modal */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-color)]/70 bg-[var(--bg-card)]">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-color)] bg-[var(--surface-3)]">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-bold tracking-wider uppercase text-[#007a33]">
+            <span className="text-xs font-bold tracking-wider uppercase text-[var(--text-muted)]">
               Detail Transaksi
             </span>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--bg-main)] text-[#007a33] border border-[var(--border-color)] font-medium">
+            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+              transaction.status === 'pending'
+                ? 'bg-amber-500/15 text-amber-600 dark:text-amber-300'
+                : 'bg-[var(--color-income)]/15 text-[var(--color-income)]'
+            }`}>
               {transaction.status === 'pending' ? 'Menunggu Verifikasi' : 'Terkonfirmasi'}
             </span>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-xl text-[#007a33] hover:text-[#004d00] hover:bg-[var(--bg-main)] transition-colors"
+            className="p-1.5 rounded-xl text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--surface-4)] transition-colors"
             title="Tutup pop-up"
           >
             <X className="w-4 h-4" />
@@ -119,30 +123,30 @@ export default function TransactionDetailModal({
         {/* Isi Modal (Scrollable jika layar HP) */}
         <div className="p-6 overflow-y-auto space-y-5 flex-1">
           {/* Hero Section: Nominal & Merchant */}
-          <div className="p-4 rounded-2xl bg-[var(--bg-main)]/60 border border-[var(--border-color)]">
+          <div className="p-4 rounded-2xl bg-[var(--surface-2)] border border-[var(--border-color)]">
             <div className="flex items-center justify-between mb-2">
               <span
                 className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full ${
                   isIncome
-                    ? 'bg-[#e8f5e9] text-[#198754] border border-[#198754]/30'
-                    : 'bg-[#fde8ea] text-[#DC3545] border border-[#DC3545]/30'
+                    ? 'bg-[var(--color-income)]/10 text-[var(--color-income)] border border-[var(--color-income)]/30'
+                    : 'bg-[var(--color-expense)]/10 text-[var(--color-expense)] border border-[var(--color-expense)]/30'
                 }`}
               >
                 {isIncome ? (
                   <>
-                    <ArrowDownLeft className="w-3.5 h-3.5 text-[#198754]" />
+                    <ArrowDownLeft className="w-3.5 h-3.5 text-[var(--color-income)]" />
                     Pemasukan
                   </>
                 ) : (
                   <>
-                    <ArrowUpRight className="w-3.5 h-3.5 text-[#DC3545]" />
+                    <ArrowUpRight className="w-3.5 h-3.5 text-[var(--color-expense)]" />
                     Pengeluaran
                   </>
                 )}
               </span>
 
               {referenceNumber && (
-                <span className="font-mono text-[11px] text-[#007a33] bg-[var(--bg-card)] px-2 py-0.5 rounded-md border border-[var(--border-color)]">
+                <span className="font-mono text-[11px] text-[var(--text-muted)] bg-[var(--surface-1)] px-2 py-0.5 rounded-md border border-[var(--border-color)]">
                   Ref: {referenceNumber}
                 </span>
               )}
@@ -150,7 +154,7 @@ export default function TransactionDetailModal({
 
             <div className="mt-1">
               <h2 className={`text-2xl font-extrabold tracking-tight angka-keuangan ${
-                isIncome ? 'text-[#198754]' : 'text-[#DC3545]'
+                isIncome ? 'text-[var(--color-income)]' : 'text-[var(--color-expense)]'
               }`}>
                 {isIncome ? '+' : '-'}{formatRupiah(transaction.amount)}
               </h2>
@@ -162,8 +166,8 @@ export default function TransactionDetailModal({
 
           {/* Grid Metadata */}
           <div className="grid grid-cols-2 gap-3 text-xs">
-            <div className="p-3 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)]">
-              <div className="flex items-center gap-1.5 text-[#007a33] mb-1">
+            <div className="p-3 rounded-2xl border border-[var(--border-color)] bg-[var(--surface-2)]">
+              <div className="flex items-center gap-1.5 text-[var(--text-muted)] mb-1">
                 <CreditCard className="w-3.5 h-3.5" />
                 <span className="font-medium">Akun / Rekening</span>
               </div>
@@ -172,8 +176,8 @@ export default function TransactionDetailModal({
               </p>
             </div>
 
-            <div className="p-3 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)]">
-              <div className="flex items-center gap-1.5 text-[#007a33] mb-1">
+            <div className="p-3 rounded-2xl border border-[var(--border-color)] bg-[var(--surface-2)]">
+              <div className="flex items-center gap-1.5 text-[var(--text-muted)] mb-1">
                 <User className="w-3.5 h-3.5" />
                 <span className="font-medium">Pemilik</span>
               </div>
@@ -182,8 +186,8 @@ export default function TransactionDetailModal({
               </p>
             </div>
 
-            <div className="col-span-2 p-3 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)]">
-              <div className="flex items-center gap-1.5 text-[#007a33] mb-1">
+            <div className="col-span-2 p-3 rounded-2xl border border-[var(--border-color)] bg-[var(--surface-2)]">
+              <div className="flex items-center gap-1.5 text-[var(--text-muted)] mb-1">
                 <Calendar className="w-3.5 h-3.5" />
                 <span className="font-medium">Waktu Transaksi</span>
               </div>
@@ -194,23 +198,23 @@ export default function TransactionDetailModal({
           </div>
 
           {/* Notifikasi Asli (Audit Trail) */}
-          <div className="p-3.5 rounded-2xl bg-[var(--bg-main)]/60 border border-[var(--border-color)] text-xs">
+          <div className="p-3.5 rounded-2xl bg-[var(--surface-2)] border border-[var(--border-color)] text-xs">
             <div className="flex items-center justify-between mb-1.5">
-              <span className="font-semibold text-[#007a33] flex items-center gap-1.5">
-                <FileText className="w-3.5 h-3.5 text-[#007a33]" />
+              <span className="font-semibold text-[var(--text-muted)] flex items-center gap-1.5">
+                <FileText className="w-3.5 h-3.5 text-[var(--text-muted)]" />
                 Teks Notifikasi Asli:
               </span>
               <button
                 type="button"
                 onClick={handleCopyRaw}
-                className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#007a33] hover:text-[#004d00] transition-colors"
+                className="inline-flex items-center gap-1 text-[11px] font-semibold text-[var(--accent-color)] hover:opacity-80 transition-colors"
                 title="Salin teks notifikasi"
               >
-                {copied ? <CheckCheck className="w-3.5 h-3.5 text-[#198754]" /> : <Copy className="w-3.5 h-3.5" />}
+                {copied ? <CheckCheck className="w-3.5 h-3.5 text-[var(--color-income)]" /> : <Copy className="w-3.5 h-3.5" />}
                 <span>{copied ? 'Tersalin' : 'Salin'}</span>
               </button>
             </div>
-            <p className="font-mono text-[11px] text-[var(--text-main)] bg-[var(--bg-card)] p-2.5 rounded-xl border border-[var(--border-color)] leading-relaxed whitespace-pre-wrap break-words">
+            <p className="font-mono text-[11px] text-[var(--text-main)] bg-[var(--surface-1)] p-2.5 rounded-xl border border-[var(--border-color)] leading-relaxed whitespace-pre-wrap break-words">
               {transaction.raw_notification || '-'}
             </p>
           </div>
@@ -219,11 +223,11 @@ export default function TransactionDetailModal({
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-xs font-bold text-[var(--text-main)] flex items-center gap-1.5">
-                <Tag className="w-3.5 h-3.5 text-[#007a33]" />
+                <Tag className="w-3.5 h-3.5 text-[var(--text-muted)]" />
                 Tentukan Kategori:
               </label>
               {selectedCatId && (
-                <span className="text-[11px] text-[#198754] font-bold">
+                <span className="text-[11px] text-[var(--color-income)] font-bold">
                   {categories.find((c) => c.id === selectedCatId)?.name}
                 </span>
               )}
@@ -243,12 +247,12 @@ export default function TransactionDetailModal({
                     }}
                     className={`px-3 py-2 rounded-xl text-xs font-semibold text-left transition-all border flex items-center justify-between gap-1.5 ${
                       isSelected
-                        ? 'bg-[var(--accent-color)] text-[var(--bg-main)] border-[var(--accent-color)] shadow-xs font-bold'
-                        : 'bg-[var(--bg-main)]/60 text-[#007a33] border border-[var(--border-color)] hover:bg-[var(--bg-main)]'
+                        ? 'bg-[var(--accent-color)] text-white dark:text-[#121218] border-[var(--accent-color)] shadow-xs font-bold'
+                        : 'bg-[var(--surface-2)] text-[var(--text-main)] border border-[var(--border-color)] hover:bg-[var(--surface-4)]'
                     }`}
                   >
                     <span className="truncate">{cat.name}</span>
-                    {isSelected && <Check className="w-3.5 h-3.5 shrink-0 text-[var(--bg-main)]" />}
+                    {isSelected && <Check className="w-3.5 h-3.5 shrink-0 text-white dark:text-[#121218]" />}
                   </button>
                 );
               })}
@@ -257,7 +261,7 @@ export default function TransactionDetailModal({
         </div>
 
         {/* Footer Aksi */}
-        <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-[var(--border-color)]/70 bg-[var(--bg-card)]">
+        <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-[var(--border-color)] bg-[var(--surface-3)]">
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -265,7 +269,7 @@ export default function TransactionDetailModal({
                 onClose();
                 onEdit(transaction);
               }}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[var(--border-color)] bg-[var(--bg-main)]/60 text-[#007a33] text-xs font-bold hover:bg-[var(--bg-main)] transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[var(--border-color)] bg-[var(--surface-2)] text-[var(--text-main)] text-xs font-bold hover:bg-[var(--surface-4)] transition-colors"
             >
               <Edit3 className="w-3.5 h-3.5" />
               <span>Koreksi</span>
@@ -274,7 +278,7 @@ export default function TransactionDetailModal({
               type="button"
               disabled={isSubmitting}
               onClick={handleIgnore}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[#DC3545]/30 bg-[#fde8ea]/50 text-[#DC3545] hover:bg-[#fde8ea] text-xs font-bold transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[var(--color-expense)]/30 bg-[var(--color-expense)]/10 text-[var(--color-expense)] hover:bg-[var(--color-expense)]/20 text-xs font-bold transition-colors"
             >
               <Trash2 className="w-3.5 h-3.5" />
               <span>Abaikan</span>
@@ -284,7 +288,7 @@ export default function TransactionDetailModal({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-xl bg-[var(--accent-color)] hover:opacity-90 text-[var(--bg-main)] text-xs font-bold transition-colors shadow-xs"
+            className="px-4 py-2 rounded-xl bg-[var(--surface-4)] hover:bg-[var(--surface-2)] text-[var(--text-main)] text-xs font-bold transition-colors shadow-xs"
           >
             Tutup
           </button>

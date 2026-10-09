@@ -206,24 +206,24 @@ export default function MonthlyPeakSpendingChart({
   return (
     <div className="space-y-4">
       {/* 1. KARTU GRAFIK 1 BULAN (BERSIH DENGAN GRIDLINE TIPIS #E2E8F0) */}
-      <div className="rounded-3xl p-6 bg-[var(--bg-card)] border border-[var(--border-color)] shadow-xs">
+      <div className="rounded-3xl p-6 bg-[var(--surface-1)] border border-[var(--border-color)] shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
           <div>
             <div className="flex items-center gap-2">
-              <div className="p-2 rounded-xl bg-[var(--bg-main)] text-[#007a33] border border-[var(--border-color)]">
+              <div className="p-2 rounded-xl bg-[var(--surface-2)] text-[var(--accent-color)] border border-[var(--border-color)]">
                 <TrendingUp className="w-4 h-4" />
               </div>
               <h3 className="text-base font-extrabold text-[var(--text-main)] tracking-tight">
                 Grafik Penggunaan Selama 1 Bulan ({monthName})
               </h3>
             </div>
-            <p className="text-xs text-slate-500 mt-1">
+            <p className="text-xs text-[var(--text-muted)] mt-1">
               Visualisasi pengeluaran harian dari tanggal 1 sampai akhir bulan dengan penanda hari tertinggi
             </p>
           </div>
 
           {peakInsight.dateStr && (
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-500 dark:text-amber-400 text-xs font-bold">
               <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
               <span>Titik Tertinggi: <strong className="angka-keuangan">{formatRupiah(peakInsight.totalExpense)}</strong></span>
             </div>
@@ -312,17 +312,17 @@ export default function MonthlyPeakSpendingChart({
               <button
                 onClick={handleRequestAnalysis}
                 disabled={isAnalyzing}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[var(--border-color)] bg-[var(--bg-main)] hover:bg-[var(--bg-card)] text-xs font-bold text-[var(--text-main)] transition-all shadow-2xs disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[var(--border-color)] bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-xs font-bold text-[var(--text-main)] transition-all shadow-2xs disabled:opacity-50"
                 title="Perbarui analisis dengan transaksi terbaru"
               >
-                <RefreshCw className={`w-3.5 h-3.5 text-[#007a33] dark:text-[#a3e6d8] ${isAnalyzing ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`w-3.5 h-3.5 text-[var(--accent-color)] ${isAnalyzing ? 'animate-spin' : ''}`} />
                 <span>Analisis Ulang</span>
               </button>
             ) : (
               <button
                 onClick={handleRequestAnalysis}
                 disabled={isAnalyzing}
-                className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#007a33] hover:bg-[#005a26] text-white text-xs font-bold transition-all shadow-sm active:scale-98 disabled:opacity-50"
+                className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[var(--accent-color)] hover:opacity-90 text-[var(--bg-main)] text-xs font-bold transition-all shadow-sm active:scale-98 disabled:opacity-50"
               >
                 {isAnalyzing ? (
                   <>
@@ -344,14 +344,14 @@ export default function MonthlyPeakSpendingChart({
         {hasExpenseData && peakInsight.dateStr ? (
           <div className="space-y-4 pt-1">
             {/* Ringkasan Fakta Angka */}
-            <div className="p-4 rounded-2xl bg-[var(--bg-main)]/60 border border-[var(--border-color)]/80 shadow-2xs space-y-2">
+            <div className="p-4 rounded-2xl bg-[var(--surface-2)] border border-[var(--border-color)]/80 shadow-2xs space-y-2">
               <p className="text-xs text-[var(--text-main)] leading-relaxed">
                 Puncak pengeluaran keluarga pada bulan ini jatuh pada{' '}
-                <strong className="text-[#007a33] dark:text-[#a3e6d8] font-extrabold underline">
+                <strong className="text-[var(--text-accent-italic)] font-extrabold underline">
                   {peakInsight.formattedDate}
                 </strong>{' '}
                 dengan total pengeluaran mencapai{' '}
-                <strong className="text-[#DC3545] font-extrabold angka-keuangan">
+                <strong className="text-expense font-extrabold angka-keuangan">
                   {formatRupiah(peakInsight.totalExpense)}
                 </strong>
                 .
@@ -430,14 +430,14 @@ export default function MonthlyPeakSpendingChart({
         <div className="pt-2 border-t border-[var(--border-color)]/60">
           {/* Status Loading */}
           {isAnalyzing && (
-            <div className="p-5 rounded-2xl bg-[var(--bg-main)] border border-emerald-400/30 flex flex-col items-center justify-center text-center space-y-2 animate-pulse">
-              <div className="w-10 h-10 rounded-2xl bg-[#007a33]/15 text-[#007a33] dark:text-[#a3e6d8] flex items-center justify-center">
+            <div className="p-5 rounded-2xl bg-[var(--surface-2)] border border-[var(--border-color)] flex flex-col items-center justify-center text-center space-y-2 animate-pulse">
+              <div className="w-10 h-10 rounded-2xl bg-income/15 text-income flex items-center justify-center">
                 <Sparkles className="w-5 h-5 animate-spin" />
               </div>
               <h5 className="text-xs font-bold text-[var(--text-main)]">
                 Google Gemini Flash sedang menganalisis keuangan keluarga...
               </h5>
-              <p className="text-[11px] text-[var(--text-muted)] dark:text-[#a3e6d8]/80 max-w-sm">
+              <p className="text-[11px] text-[var(--text-muted)] max-w-sm">
                 Mengevaluasi transaksi pemicu lonjakan, menghitung rasio arus kas, dan merumuskan saran penghematan khusus untuk {monthName}.
               </p>
             </div>
@@ -445,7 +445,7 @@ export default function MonthlyPeakSpendingChart({
 
           {/* Status Error */}
           {analysisError && !isAnalyzing && (
-            <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs text-rose-700 dark:text-rose-200 flex items-start justify-between gap-3">
+            <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-xs text-rose-500 dark:text-rose-300 flex items-start justify-between gap-3">
               <div className="flex items-start gap-2">
                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                 <div>
@@ -464,23 +464,23 @@ export default function MonthlyPeakSpendingChart({
 
           {/* Belum Diminta: Tampilkan Ajakan Hemat Kredit */}
           {!analysisResult && !isAnalyzing && (
-            <div className="p-4 rounded-2xl bg-[var(--bg-main)]/70 border border-dashed border-[var(--border-color)] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+            <div className="p-4 rounded-2xl bg-[var(--surface-2)] border border-dashed border-[var(--border-color)] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 flex items-center justify-center shrink-0">
+                <div className="w-9 h-9 rounded-xl bg-amber-500/15 text-amber-500 dark:text-amber-400 flex items-center justify-center shrink-0">
                   <Bot className="w-5 h-5" />
                 </div>
                 <div>
                   <p className="font-bold text-[var(--text-main)]">
                     Analisis Real AI Gemini Flash Tersedia
                   </p>
-                  <p className="text-[11px] text-[var(--text-muted)] dark:text-[#a3e6d8]/80 mt-0.5">
+                  <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
                     Hanya menganalisis saat Anda meminta tombol di kanan atas untuk menghemat kredit AI.
                   </p>
                 </div>
               </div>
               <button
                 onClick={handleRequestAnalysis}
-                className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-[#007a33] hover:bg-[#005a26] text-white font-bold text-xs shrink-0 transition-colors shadow-2xs"
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-[var(--accent-color)] hover:opacity-90 text-[var(--bg-main)] font-bold text-xs shrink-0 transition-colors shadow-2xs"
               >
                 <Sparkles className="w-3.5 h-3.5 text-amber-300" />
                 <span>Minta Analisis Sekarang</span>
@@ -490,15 +490,15 @@ export default function MonthlyPeakSpendingChart({
 
           {/* HASIL ANALISIS REAL AI GEMINI FLASH */}
           {analysisResult && !isAnalyzing && (
-            <div className="p-5 rounded-2xl bg-[var(--bg-main)] border border-emerald-400/40 shadow-xs space-y-4">
+            <div className="p-5 rounded-2xl bg-[var(--surface-2)] border border-[var(--border-color)] shadow-xs space-y-4">
               {/* Header Badge */}
               <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-[var(--border-color)]/70">
                 <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-[#007a33]/15 text-[#007a33] dark:text-[#a3e6d8] border border-[#007a33]/20">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-[var(--surface-1)] text-[var(--text-accent-italic)] border border-[var(--border-color)]">
                     <Sparkles className="w-3 h-3 text-amber-500" />
                     <span>Dianalisis oleh {analysisResult.modelUsed}</span>
                   </span>
-                  <span className="text-[10px] text-[var(--text-muted)] dark:text-[#a3e6d8]/70">
+                  <span className="text-[10px] text-[var(--text-muted)]">
                     {new Date(analysisResult.generatedAt).toLocaleTimeString('id-ID', {
                       hour: '2-digit',
                       minute: '2-digit',
@@ -511,10 +511,10 @@ export default function MonthlyPeakSpendingChart({
                   <span
                     className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
                       analysisResult.cashFlowStatus === 'surplus' || analysisResult.cashFlowStatus === 'healthy'
-                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                        ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
                         : analysisResult.cashFlowStatus === 'balanced'
-                        ? 'bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300'
-                        : 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
+                        ? 'bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30'
+                        : 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30'
                     }`}
                   >
                     <ShieldCheck className="w-3 h-3" />
@@ -541,7 +541,7 @@ export default function MonthlyPeakSpendingChart({
                 <span className="text-[11px] font-bold text-[var(--text-main)] uppercase tracking-wider block">
                   Kenapa Hari Tersebut Tertinggi?
                 </span>
-                <p className="text-xs text-[var(--text-main)] leading-relaxed bg-[var(--bg-card)]/50 p-3 rounded-xl border border-[var(--border-color)]/70">
+                <p className="text-xs text-[var(--text-main)] leading-relaxed bg-[var(--surface-1)] p-3 rounded-xl border border-[var(--border-color)]/70">
                   {analysisResult.peakAnalysis}
                 </p>
               </div>
@@ -551,7 +551,7 @@ export default function MonthlyPeakSpendingChart({
                 <span className="text-[11px] font-bold text-[var(--text-main)] uppercase tracking-wider block">
                   Kondisi Arus Kas Bulan Ini:
                 </span>
-                <p className="text-xs text-[var(--text-muted)] dark:text-[#a3e6d8] leading-relaxed bg-[var(--bg-card)]/50 p-3 rounded-xl border border-[var(--border-color)]/70">
+                <p className="text-xs text-[var(--text-muted)] leading-relaxed bg-[var(--surface-1)] p-3 rounded-xl border border-[var(--border-color)]/70">
                   {analysisResult.cashFlowEvaluation}
                 </p>
               </div>
@@ -567,9 +567,9 @@ export default function MonthlyPeakSpendingChart({
                     {analysisResult.actionableTips.map((tip, idx) => (
                       <li
                         key={idx}
-                        className="text-xs text-[var(--text-main)] flex items-start gap-2 bg-[var(--bg-card)]/40 p-2.5 rounded-xl border border-[var(--border-color)]/60"
+                        className="text-xs text-[var(--text-main)] flex items-start gap-2 bg-[var(--surface-1)] p-2.5 rounded-xl border border-[var(--border-color)]/60"
                       >
-                        <span className="w-4 h-4 rounded-full bg-[#007a33]/15 text-[#007a33] dark:text-[#a3e6d8] text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">
+                        <span className="w-4 h-4 rounded-full bg-[var(--surface-2)] text-[var(--accent-color)] text-[10px] font-black flex items-center justify-center shrink-0 mt-0.5">
                           {idx + 1}
                         </span>
                         <span className="leading-relaxed">{tip}</span>

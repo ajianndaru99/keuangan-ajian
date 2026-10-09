@@ -85,19 +85,19 @@ export default function ManualTransactionModal({
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#05140f]/60 backdrop-blur-sm animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="w-full max-w-sm rounded-3xl bg-[var(--bg-card)] border border-[var(--border-color)] p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+      <div className="w-full max-w-sm rounded-3xl bg-[var(--surface-3)] border border-[var(--border-color)] p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-bold text-[var(--text-main)] text-base">
             Tambah Transaksi Manual
           </h3>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-[#007a33] hover:text-[#004d00] transition-colors"
+            className="p-1 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--surface-4)] transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -106,10 +106,10 @@ export default function ManualTransactionModal({
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Pemilik Transaksi */}
           <div>
-            <label className="block text-xs font-bold text-[#007a33] mb-1.5">
+            <label className="block text-xs font-bold text-[var(--text-muted)] mb-1.5">
               Pemilik Transaksi
             </label>
-            <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-[var(--bg-main)]/60 border border-[var(--border-color)]">
+            <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-[var(--surface-2)] border border-[var(--border-color)]">
               <button
                 type="button"
                 onClick={() => {
@@ -118,11 +118,11 @@ export default function ManualTransactionModal({
                 }}
                 className={`py-2 text-xs font-bold rounded-lg transition-colors ${
                   device === 'suami'
-                    ? 'bg-[var(--accent-color)] text-[var(--bg-main)] shadow-xs'
-                    : 'text-[#007a33] hover:text-[#004d00]'
+                    ? 'bg-[var(--accent-color)] text-white dark:text-[#121218] shadow-xs'
+                    : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
                 }`}
               >
-                Suami
+                Kepala Keluarga (Suami)
               </button>
               <button
                 type="button"
@@ -132,31 +132,31 @@ export default function ManualTransactionModal({
                 }}
                 className={`py-2 text-xs font-bold rounded-lg transition-colors ${
                   device === 'istri'
-                    ? 'bg-[var(--accent-color)] text-[var(--bg-main)] shadow-xs'
-                    : 'text-[#007a33] hover:text-[#004d00]'
+                    ? 'bg-[var(--accent-color)] text-white dark:text-[#121218] shadow-xs'
+                    : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
                 }`}
               >
-                Istri
+                Bendahara (Istri)
               </button>
             </div>
           </div>
 
           {/* Jenis Transaksi */}
           <div>
-            <label className="block text-xs font-bold text-[#007a33] mb-1.5">
+            <label className="block text-xs font-bold text-[var(--text-muted)] mb-1.5">
               Jenis Transaksi
             </label>
-            <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-[var(--bg-main)]/60 border border-[var(--border-color)]">
+            <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-[var(--surface-2)] border border-[var(--border-color)]">
               <button
                 type="button"
                 onClick={() => setDirection('out')}
                 className={`py-2 text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1.5 ${
                   direction === 'out'
-                    ? 'bg-[#fde8ea] text-[#DC3545] border border-[#DC3545]/40 shadow-xs'
-                    : 'text-[#007a33] hover:text-[#004d00]'
+                    ? 'bg-[var(--color-expense)]/15 text-[var(--color-expense)] border border-[var(--color-expense)]/40 shadow-xs'
+                    : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
                 }`}
               >
-                <ArrowUpRight className="w-3.5 h-3.5 text-[#DC3545]" />
+                <ArrowUpRight className="w-3.5 h-3.5 text-[var(--color-expense)]" />
                 <span>Pengeluaran</span>
               </button>
               <button
@@ -164,11 +164,11 @@ export default function ManualTransactionModal({
                 onClick={() => setDirection('in')}
                 className={`py-2 text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1.5 ${
                   direction === 'in'
-                    ? 'bg-[#e8f5e9] text-[#198754] border border-[#198754]/40 shadow-xs'
-                    : 'text-[#007a33] hover:text-[#004d00]'
+                    ? 'bg-[var(--color-income)]/15 text-[var(--color-income)] border border-[var(--color-income)]/40 shadow-xs'
+                    : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
                 }`}
               >
-                <ArrowDownLeft className="w-3.5 h-3.5 text-[#198754]" />
+                <ArrowDownLeft className="w-3.5 h-3.5 text-[var(--color-income)]" />
                 <span>Pemasukan</span>
               </button>
             </div>
@@ -176,14 +176,14 @@ export default function ManualTransactionModal({
 
           {/* Akun Rekening */}
           <div>
-            <label className="block text-xs font-bold text-[#007a33] mb-1.5">
+            <label className="block text-xs font-bold text-[var(--text-muted)] mb-1.5">
               Rekening / Sumber Dana
             </label>
             <select
               value={activeAccountId}
               onChange={(e) => setSelectedAccountId(e.target.value)}
               required
-              className="w-full px-3.5 py-2.5 rounded-xl bg-[var(--bg-main)] border border-[var(--border-color)] text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#007a33] text-[var(--text-main)]"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-[var(--surface-2)] border border-[var(--border-color)] text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[var(--accent-color)] text-[var(--text-main)]"
             >
               {filteredAccounts.map((acc) => (
                 <option key={acc.id} value={acc.id}>
@@ -195,7 +195,7 @@ export default function ManualTransactionModal({
 
           {/* Nominal */}
           <div>
-            <label className="block text-xs font-bold text-[#007a33] mb-1.5">
+            <label className="block text-xs font-bold text-[var(--text-muted)] mb-1.5">
               Nominal (Rupiah)
             </label>
             <input
@@ -208,13 +208,13 @@ export default function ManualTransactionModal({
                 setAmountStr(numeric);
               }}
               placeholder="Rp 0"
-              className="w-full px-3.5 py-2.5 rounded-xl bg-[var(--bg-main)] border border-[var(--border-color)] text-base font-bold text-[var(--text-main)] angka-keuangan focus:outline-none focus:ring-1 focus:ring-[#007a33]"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-[var(--surface-2)] border border-[var(--border-color)] text-base font-bold text-[var(--text-main)] angka-keuangan focus:outline-none focus:ring-1 focus:ring-[var(--accent-color)]"
             />
           </div>
 
           {/* Merchant */}
           <div>
-            <label className="block text-xs font-bold text-[#007a33] mb-1.5">
+            <label className="block text-xs font-bold text-[var(--text-muted)] mb-1.5">
               Keterangan / Merchant
             </label>
             <input
@@ -223,19 +223,19 @@ export default function ManualTransactionModal({
               value={merchant}
               onChange={(e) => setMerchant(e.target.value)}
               placeholder="Contoh: Belanja Pasar / Listrik"
-              className="w-full px-3.5 py-2.5 rounded-xl bg-[var(--bg-main)] border border-[var(--border-color)] text-sm focus:outline-none focus:ring-1 focus:ring-[#007a33] text-[var(--text-main)] font-semibold"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-[var(--surface-2)] border border-[var(--border-color)] text-sm focus:outline-none focus:ring-1 focus:ring-[var(--accent-color)] text-[var(--text-main)] font-semibold"
             />
           </div>
 
           {/* Kategori Opsional */}
           <div>
-            <label className="block text-xs font-bold text-[#007a33] mb-1.5">
+            <label className="block text-xs font-bold text-[var(--text-muted)] mb-1.5">
               Kategori (Opsional)
             </label>
             <select
               value={categoryId}
               onChange={(e) => setCategoryId(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl bg-[var(--bg-main)] border border-[var(--border-color)] text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#007a33] text-[var(--text-main)]"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-[var(--surface-2)] border border-[var(--border-color)] text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[var(--accent-color)] text-[var(--text-main)]"
             >
               <option value="">-- Masukkan ke Inbox (Pending) --</option>
               {categories
@@ -250,7 +250,7 @@ export default function ManualTransactionModal({
 
           {/* Tanggal */}
           <div>
-            <label className="block text-xs font-bold text-[#007a33] mb-1.5">
+            <label className="block text-xs font-bold text-[var(--text-muted)] mb-1.5">
               Waktu Transaksi
             </label>
             <input
@@ -258,7 +258,7 @@ export default function ManualTransactionModal({
               required
               value={transactionDate}
               onChange={(e) => setTransactionDate(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl bg-[var(--bg-main)] border border-[var(--border-color)] text-xs font-medium focus:outline-none focus:ring-1 focus:ring-[#007a33] text-[var(--text-main)]"
+              className="w-full px-3.5 py-2.5 rounded-xl bg-[var(--surface-2)] border border-[var(--border-color)] text-xs font-medium focus:outline-none focus:ring-1 focus:ring-[var(--accent-color)] text-[var(--text-main)]"
             />
           </div>
 
@@ -266,14 +266,14 @@ export default function ManualTransactionModal({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-2.5 px-4 rounded-xl border border-[var(--border-color)] bg-[var(--bg-main)] text-[#007a33] text-xs font-bold hover:bg-[var(--bg-main)]/80 transition-colors"
+              className="flex-1 py-2.5 px-4 rounded-xl border border-[var(--border-color)] bg-[var(--surface-4)] text-[var(--text-main)] text-xs font-bold hover:bg-[var(--surface-2)] transition-colors"
             >
               Batal
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 py-2.5 px-4 rounded-xl bg-[var(--accent-color)] hover:opacity-90 text-[var(--bg-main)] text-xs font-bold flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50 shadow-xs"
+              className="flex-1 py-2.5 px-4 rounded-xl bg-[var(--accent-color)] hover:opacity-90 text-white dark:text-[#121218] text-xs font-bold flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50 shadow-xs"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>{loading ? 'Menyimpan...' : 'Simpan'}</span>
