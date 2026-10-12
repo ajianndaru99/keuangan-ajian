@@ -204,18 +204,33 @@ export async function POST(req: NextRequest) {
     const rawDedupeSeed = `notif:${sourceDevice}:${app_name}:${received_at_raw || Date.now()}:${amount}:${merchant}`;
     const dedupeHash = crypto.createHash('sha256').update(rawDedupeSeed).digest('hex');
 
-    // Simpan ke raw_notifications jika ada
-    try {
-      await supabase.from('raw_notifications').insert({
-        source_device: sourceDevice,
-        app_name,
-        title: safeTitle,
-        content: safeContent,
-        received_at_raw: String(received_at_raw),
-        dedupe_hash: dedupeHash,
-      });
-    } catch {
-      // Abaikan jika tabel raw_notifications belum dibuat atau tidak wajib
+    // Simpan ke raw_notifications jika household ditemukan
+    if (householdId) {
+      try {
+        const epochMs = typeof received_at_raw === 'number' && received_at_raw > 1000000000 
+          ? received_at_raw 
+          : typeof received_at_raw === 'string' && !isNaN(parseInt(received_at_raw, 10)) && parseInt(received_at_raw, 10) > 1000000000
+          ? parseInt(received_at_raw, 10)
+          : Date.now();
+
+        const { error: rawErr } = await supabase.from('raw_notifications').insert({
+          household_id: householdId,
+          device_id: sourceDevice,
+          source: 'notification',
+          app_name,
+          title: safeTitle,
+          content: safeContent,
+          received_at_raw: String(received_at_raw || Date.now()),
+          received_at: epochMs,
+          outcome: amount > 0 ? 'transaction' : 'needs_review',
+          sensitive: isSensitive,
+        });
+        if (rawErr) {
+          console.error('Gagal simpan raw_notification:', rawErr.message);
+        }
+      } catch (err) {
+        console.error('Exception simpan raw_notification:', err);
+      }
     }
 
     // Jika household ditemukan, simpan ke transactions
