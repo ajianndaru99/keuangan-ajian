@@ -61,6 +61,7 @@ export default function TransactionTable({
   const { isHideBalance } = usePrivacy();
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [expandedNotifId, setExpandedNotifId] = useState<string | null>(null);
+  const [expandAllNotifs, setExpandAllNotifs] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const handleCopyNotif = (e: React.MouseEvent, id: string, text: string) => {
@@ -118,7 +119,22 @@ export default function TransactionTable({
                 <th className="py-3.5 px-4 font-semibold whitespace-nowrap">Transaction Name</th>
                 <th className="py-3.5 px-4 font-semibold whitespace-nowrap">Total Amount</th>
                 <th className="py-3.5 px-4 font-semibold whitespace-nowrap">Status</th>
-                <th className="py-3.5 px-4 font-semibold whitespace-nowrap min-w-[200px]">Noted & Notifikasi</th>
+                <th className="py-3.5 px-4 font-semibold whitespace-nowrap min-w-[260px]">
+                  <div className="flex items-center justify-between gap-2">
+                    <span>Noted & Notifikasi</span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setExpandAllNotifs(!expandAllNotifs);
+                      }}
+                      className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-[var(--surface-3)] hover:bg-[var(--accent-color)] hover:text-white transition-colors"
+                      title="Buka / Tutup seluruh teks notifikasi asli untuk semua baris"
+                    >
+                      {expandAllNotifs ? 'Tutup Semua' : 'Buka Semua'}
+                    </button>
+                  </div>
+                </th>
                 <th className="py-3.5 px-4 font-semibold text-right whitespace-nowrap">Action</th>
               </tr>
             </thead>
@@ -127,7 +143,7 @@ export default function TransactionTable({
               {transactions.map((tx) => {
                 const isIncome = tx.direction === 'in';
                 const isPending = tx.status === 'pending';
-                const isExpanded = expandedNotifId === tx.id;
+                const isExpanded = expandAllNotifs || expandedNotifId === tx.id;
 
                 return (
                   <tr
@@ -208,51 +224,83 @@ export default function TransactionTable({
                       )}
                     </td>
 
-                    {/* 5. Noted & Notifikasi (Full/Expandable) */}
-                    <td className="py-3.5 px-4 align-top max-w-sm">
+                    {/* 5. Noted & Notifikasi (Utuh & Expandable) */}
+                    <td className="py-3.5 px-4 align-top max-w-md">
                       {tx.raw_notification ? (
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-[var(--text-muted)] font-mono text-[11px] break-words line-clamp-2">
-                              {!isExpanded && tx.raw_notification.length > 60
-                                ? `${tx.raw_notification.slice(0, 60)}...`
-                                : tx.raw_notification}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={(e) => handleCopyNotif(e, tx.id, tx.raw_notification!)}
-                              className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--accent-color)] transition-colors shrink-0"
-                              title="Salin notifikasi lengkap"
-                            >
-                              {copiedId === tx.id ? (
-                                <CheckCheck className="w-3.5 h-3.5 text-income" />
-                              ) : (
-                                <Copy className="w-3.5 h-3.5" />
-                              )}
-                            </button>
-                          </div>
-
-                          {tx.raw_notification.length > 60 && (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setExpandedNotifId(isExpanded ? null : tx.id);
-                              }}
-                              className="text-[10px] font-semibold text-[var(--accent-color)] hover:underline inline-flex items-center gap-0.5"
-                            >
-                              {isExpanded ? (
-                                <>
-                                  <span>Tutup teks</span>
-                                  <ChevronUp className="w-3 h-3" />
-                                </>
-                              ) : (
-                                <>
-                                  <span>Lihat teks utuh</span>
-                                  <ChevronDown className="w-3 h-3" />
-                                </>
-                              )}
-                            </button>
+                        <div className="space-y-1.5" onClick={(e) => e.stopPropagation()}>
+                          {isExpanded ? (
+                            <div className="rounded-xl border border-[var(--border-color)] bg-[var(--surface-2)] p-2.5 shadow-2xs">
+                              <div className="flex items-center justify-between gap-2 pb-1.5 mb-1.5 border-b border-[var(--border-color)]/70 text-[10px] text-[var(--text-muted)] font-semibold">
+                                <span className="flex items-center gap-1 text-[var(--accent-color)]">
+                                  <FileText className="w-3 h-3" />
+                                  <span>Notifikasi Utuh ({tx.raw_notification.length} kar.)</span>
+                                </span>
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => handleCopyNotif(e, tx.id, tx.raw_notification!)}
+                                    className="hover:text-[var(--text-main)] transition-colors inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[var(--surface-3)]"
+                                    title="Salin teks notifikasi utuh"
+                                  >
+                                    {copiedId === tx.id ? (
+                                      <>
+                                        <CheckCheck className="w-3 h-3 text-income" />
+                                        <span className="text-income">Tersalin</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Copy className="w-3 h-3" />
+                                        <span>Salin</span>
+                                      </>
+                                    )}
+                                  </button>
+                                  {!expandAllNotifs && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setExpandedNotifId(null)}
+                                      className="hover:text-[var(--text-main)] transition-colors p-0.5 rounded"
+                                      title="Tutup teks"
+                                    >
+                                      <ChevronUp className="w-3 h-3" />
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                              <p className="font-mono text-xs text-[var(--text-main)] leading-relaxed whitespace-pre-wrap break-words select-text">
+                                {tx.raw_notification}
+                              </p>
+                            </div>
+                          ) : (
+                            <div>
+                              <div className="flex items-start gap-1.5">
+                                <span className="text-[var(--text-muted)] font-mono text-[11px] leading-relaxed break-words line-clamp-2">
+                                  {tx.raw_notification}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleCopyNotif(e, tx.id, tx.raw_notification!)}
+                                  className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--accent-color)] transition-colors shrink-0"
+                                  title="Salin notifikasi lengkap"
+                                >
+                                  {copiedId === tx.id ? (
+                                    <CheckCheck className="w-3.5 h-3.5 text-income" />
+                                  ) : (
+                                    <Copy className="w-3.5 h-3.5" />
+                                  )}
+                                </button>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setExpandedNotifId(tx.id);
+                                }}
+                                className="mt-1 text-[10px] font-semibold text-[var(--accent-color)] hover:underline inline-flex items-center gap-0.5"
+                              >
+                                <span>Baca teks utuh</span>
+                                <ChevronDown className="w-3 h-3" />
+                              </button>
+                            </div>
                           )}
                         </div>
                       ) : (
@@ -408,21 +456,21 @@ export default function TransactionTable({
                 )}
               </div>
 
-              {/* Baris 3: Teks Notifikasi Lengkap (Full Box Khusus HP) */}
+              {/* Baris 3: Teks Notifikasi Lengkap Utuh (Full Box Khusus HP) */}
               {tx.raw_notification && (
                 <div
-                  className="rounded-xl border border-[var(--border-color)] bg-[var(--surface-2)] overflow-hidden text-[11px]"
+                  className="rounded-2xl border border-[var(--border-color)] bg-[var(--surface-2)] overflow-hidden text-xs shadow-2xs"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <div className="flex items-center justify-between px-2.5 py-1 bg-[var(--surface-3)] border-b border-[var(--border-color)] text-[10px] text-[var(--text-muted)]">
-                    <span className="font-semibold text-[var(--accent-color)] flex items-center gap-1">
-                      <FileText className="w-3 h-3" />
-                      <span>Notifikasi Bank Asli</span>
+                  <div className="flex items-center justify-between px-3 py-1.5 bg-[var(--surface-3)] border-b border-[var(--border-color)] text-[10px] text-[var(--text-muted)]">
+                    <span className="font-semibold text-[var(--accent-color)] flex items-center gap-1.5">
+                      <FileText className="w-3.5 h-3.5" />
+                      <span>Notifikasi Bank Asli ({tx.raw_notification.length} kar.)</span>
                     </span>
                     <button
                       type="button"
                       onClick={(e) => handleCopyNotif(e, tx.id, tx.raw_notification!)}
-                      className="font-semibold text-[var(--text-muted)] hover:text-[var(--text-main)] inline-flex items-center gap-1"
+                      className="font-semibold text-[var(--text-muted)] hover:text-[var(--text-main)] inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[var(--surface-2)] transition-colors"
                     >
                       {copiedId === tx.id ? (
                         <>
@@ -437,7 +485,7 @@ export default function TransactionTable({
                       )}
                     </button>
                   </div>
-                  <p className="p-2.5 font-mono text-[11px] text-[var(--text-main)] leading-relaxed whitespace-pre-wrap break-words select-text">
+                  <p className="p-3 font-mono text-xs text-[var(--text-main)] leading-relaxed whitespace-pre-wrap break-words select-text">
                     {tx.raw_notification}
                   </p>
                 </div>

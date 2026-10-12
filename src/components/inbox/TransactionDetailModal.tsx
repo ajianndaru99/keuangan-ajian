@@ -197,26 +197,42 @@ export default function TransactionDetailModal({
             </div>
           </div>
 
-          {/* Notifikasi Asli (Audit Trail) */}
-          <div className="p-3.5 rounded-2xl bg-[var(--surface-2)] border border-[var(--border-color)] text-xs">
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="font-semibold text-[var(--text-muted)] flex items-center gap-1.5">
-                <FileText className="w-3.5 h-3.5 text-[var(--text-muted)]" />
-                Teks Notifikasi Asli:
+          {/* Notifikasi Asli (Audit Trail & Bukti Otentik Utuh) */}
+          <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--surface-2)] overflow-hidden shadow-2xs">
+            <div className="flex items-center justify-between px-3.5 py-2 bg-[var(--surface-3)] border-b border-[var(--border-color)] text-xs">
+              <span className="font-bold text-[var(--text-main)] flex items-center gap-1.5">
+                <FileText className="w-3.5 h-3.5 text-[var(--accent-color)]" />
+                <span>Teks Notifikasi Asli (Utuh)</span>
+                {transaction.raw_notification && (
+                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[var(--surface-2)] text-[var(--text-muted)] border border-[var(--border-color)]">
+                    {transaction.raw_notification.length} kar.
+                  </span>
+                )}
               </span>
               <button
                 type="button"
                 onClick={handleCopyRaw}
-                className="inline-flex items-center gap-1 text-[11px] font-semibold text-[var(--accent-color)] hover:opacity-80 transition-colors"
-                title="Salin teks notifikasi"
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold text-[var(--accent-color)] hover:bg-[var(--accent-color)]/10 transition-colors"
+                title="Salin teks notifikasi utuh"
               >
-                {copied ? <CheckCheck className="w-3.5 h-3.5 text-[var(--color-income)]" /> : <Copy className="w-3.5 h-3.5" />}
-                <span>{copied ? 'Tersalin' : 'Salin'}</span>
+                {copied ? (
+                  <>
+                    <CheckCheck className="w-3.5 h-3.5 text-[var(--color-income)]" />
+                    <span className="text-[var(--color-income)]">Tersalin</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>Salin</span>
+                  </>
+                )}
               </button>
             </div>
-            <p className="font-mono text-[11px] text-[var(--text-main)] bg-[var(--surface-1)] p-2.5 rounded-xl border border-[var(--border-color)] leading-relaxed whitespace-pre-wrap break-words">
-              {transaction.raw_notification || '-'}
-            </p>
+            <div className="p-3.5 bg-[var(--surface-1)]">
+              <p className="font-mono text-xs sm:text-sm text-[var(--text-main)] leading-relaxed whitespace-pre-wrap break-words select-text">
+                {transaction.raw_notification || '-'}
+              </p>
+            </div>
           </div>
 
           {/* Pilih Kategori 1-Tap */}
