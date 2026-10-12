@@ -7,8 +7,8 @@ Sistem pencatatan dan pemetaan pengeluaran keuangan digital keluarga (Bank & E-W
 ## Arsitektur & Tech Stack
 - **Database & Auth**: Supabase (PostgreSQL, Row Level Security, Supabase Auth)
 - **Ingestion**: 
-  - **Android Automasi**: MacroDroid (Trigger: *Screenshot Taken* -> HTTP POST)
-  - **iOS Automasi**: Apple Shortcuts (Trigger: *When I take a screenshot* -> HTTP POST)
+  - **Android Automasi (Notifikasi Bank)**: SmsForwarder (Open Source, 0 iklan, Webhook JSON POST otomatis)
+  - **Android & iOS Automasi (Struk)**: Apple Shortcuts & MacroDroid / Web PWA Share
   - **Web Dashboard**: Area Unggah Drag & Drop, Akses Kamera HP, dan Keyboard Paste (`Ctrl + V`)
 - **Vision AI Engine**: Google Gemini Flash API (Multimodal JSON extraction untuk m-banking BCA, Livin Mandiri, BRImo, Jago, GoPay, ShopeePay, DANA, OVO, QRIS, dan struk kasir)
 - **Backend Ingestion**: Next.js API Route (`/api/screenshot`) & Supabase Edge Function (`screenshot-transaction`)
@@ -47,7 +47,8 @@ dashboard-keuangan-keluarga/
 │   ├── screenshot-vision.test.ts                  # Unit test ekstraksi Vision AI & dedupe
 │   └── screenshot-flow.test.ts                    # Integration test alur HTTP endpoint
 ├── docs/
-│   └── macrodroid-screenshot-setup.md             # Panduan automasi MacroDroid Android
+│   ├── smsforwarder-setup.md                      # Panduan automasi SmsForwarder Android
+│   └── macrodroid-screenshot-setup.md             # Panduan arsip automasi MacroDroid Android
 ├── .env.example
 ├── .gitignore
 └── package.json

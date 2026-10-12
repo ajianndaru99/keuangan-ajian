@@ -41,8 +41,14 @@ Deno.serve(async (req) => {
   
   // 2. Baca Payload
   const contentType = req.headers.get('content-type') || '';
-  if (!contentType.includes('application/x-www-form-urlencoded')) {
-    return new Response(JSON.stringify({ error: 'Unsupported Media Type' }), { status: 415 });
+  const isJson = contentType.includes('application/json');
+  const isForm = contentType.includes('application/x-www-form-urlencoded');
+
+  if (!isJson && !isForm) {
+    return new Response(
+      JSON.stringify({ error: 'Unsupported Media Type. Gunakan application/json atau application/x-www-form-urlencoded' }),
+      { status: 415 }
+    );
   }
 
   try {
@@ -83,11 +89,28 @@ Deno.serve(async (req) => {
     }
     const textBody = new TextDecoder('utf-8').decode(merged);
 
-    const parsedBody = new URLSearchParams(textBody);
-    const app_name = parsedBody.get('app_name') || '';
-    let title = parsedBody.get('title') || '';
-    let content = parsedBody.get('text') || '';
-    const received_at_raw = parsedBody.get('received_at') || '';
+    let app_name = '';
+    let title = '';
+    let content = '';
+    let received_at_raw = '';
+
+    if (isJson) {
+      try {
+        const jsonBody = JSON.parse(textBody);
+        app_name = String(jsonBody.app_name || jsonBody.packageName || '').trim();
+        title = String(jsonBody.title || '').trim();
+        content = String(jsonBody.content || jsonBody.text || '').trim();
+        received_at_raw = jsonBody.received_at !== undefined ? String(jsonBody.received_at) : '';
+      } catch {
+        return new Response(JSON.stringify({ error: 'Format JSON tidak valid' }), { status: 400 });
+      }
+    } else {
+      const parsedBody = new URLSearchParams(textBody);
+      app_name = parsedBody.get('app_name') || '';
+      title = parsedBody.get('title') || '';
+      content = parsedBody.get('content') || parsedBody.get('text') || '';
+      received_at_raw = parsedBody.get('received_at') || '';
+    }
 
     if (!app_name || (!title && !content)) {
       return new Response(JSON.stringify({ error: 'Payload tidak lengkap' }), { status: 400 });

@@ -119,9 +119,12 @@ const server = http.createServer(async (req, res) => {
   // HANDLER: /api/notification (Teks dari MacroDroid - FASE 0)
   // --------------------------------------------------------------------------
   if (url.pathname === '/api/notification' || url.pathname.endsWith('notification-catcher')) {
-    if (!contentType.includes('application/x-www-form-urlencoded')) {
+    const isJson = contentType.includes('application/json');
+    const isForm = contentType.includes('application/x-www-form-urlencoded');
+
+    if (!isJson && !isForm) {
       res.statusCode = 415;
-      res.end(JSON.stringify({ error: 'Unsupported Media Type. Gunakan application/x-www-form-urlencoded' }));
+      res.end(JSON.stringify({ error: 'Unsupported Media Type. Gunakan application/json atau application/x-www-form-urlencoded' }));
       return;
     }
     
@@ -150,11 +153,31 @@ const server = http.createServer(async (req, res) => {
     const fullBuffer = Buffer.concat(chunks);
 
     try {
-      const parsedBody = new URLSearchParams(fullBuffer.toString('utf-8'));
-      const app_name = parsedBody.get('app_name') || '';
-      let title = parsedBody.get('title') || '';
-      let text = parsedBody.get('text') || '';
-      const received_at_raw = parsedBody.get('received_at') || '';
+      const textBody = fullBuffer.toString('utf-8');
+      let app_name = '';
+      let title = '';
+      let text = '';
+      let received_at_raw = '';
+
+      if (isJson) {
+        try {
+          const jsonBody = JSON.parse(textBody);
+          app_name = String(jsonBody.app_name || jsonBody.packageName || '').trim();
+          title = String(jsonBody.title || '').trim();
+          text = String(jsonBody.content || jsonBody.text || '').trim();
+          received_at_raw = jsonBody.received_at !== undefined ? String(jsonBody.received_at) : '';
+        } catch {
+          res.statusCode = 400;
+          res.end(JSON.stringify({ error: 'Format JSON tidak valid.' }));
+          return;
+        }
+      } else {
+        const parsedBody = new URLSearchParams(textBody);
+        app_name = parsedBody.get('app_name') || '';
+        title = parsedBody.get('title') || '';
+        text = parsedBody.get('content') || parsedBody.get('text') || '';
+        received_at_raw = parsedBody.get('received_at') || '';
+      }
 
       if (!app_name || (!title && !text)) {
         res.statusCode = 400;
