@@ -37,11 +37,18 @@ export default function DateRangePickerModal({
   if (!isOpen) return null;
 
   const handleApply = () => {
+    const toLocalYmd = (d: Date) => {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    };
+
     let label = 'Semua Waktu';
     const now = new Date();
 
     if (selectedPreset === 'today') {
-      const todayStr = now.toISOString().slice(0, 10);
+      const todayStr = toLocalYmd(now);
       onApply({
         preset: 'today',
         startDate: todayStr,
@@ -49,8 +56,8 @@ export default function DateRangePickerModal({
         label: 'Hari Ini',
       });
     } else if (selectedPreset === 'last7days') {
-      const start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-      const end = now.toISOString().slice(0, 10);
+      const start = toLocalYmd(new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000));
+      const end = toLocalYmd(now);
       onApply({
         preset: 'last7days',
         startDate: start,
@@ -58,8 +65,8 @@ export default function DateRangePickerModal({
         label: '7 Hari Terakhir',
       });
     } else if (selectedPreset === 'thisMonth') {
-      const start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
-      const end = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
+      const start = toLocalYmd(new Date(now.getFullYear(), now.getMonth(), 1));
+      const end = toLocalYmd(new Date(now.getFullYear(), now.getMonth() + 1, 0));
       onApply({
         preset: 'thisMonth',
         startDate: start,

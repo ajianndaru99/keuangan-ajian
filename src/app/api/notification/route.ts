@@ -268,7 +268,7 @@ interface TransactionRecord {
 
       const suggestedCategoryId = categories ? suggestCategoryForMerchant(merchant, categories) : null;
 
-      const { data: tx, error: txError } = await supabase
+      let { data: tx, error: txError } = await supabase
         .from('transactions')
         .insert({
           household_id: householdId,
@@ -287,6 +287,30 @@ interface TransactionRecord {
         })
         .select('*')
         .single();
+
+      // Retry tanpa parse_method jika kolom belum dibuat di database Supabase
+      if (txError && txError.code === '42703') {
+        const retryRes = await supabase
+          .from('transactions')
+          .insert({
+            household_id: householdId,
+            account_id: accountId,
+            category_id: suggestedCategoryId,
+            amount,
+            direction,
+            merchant,
+            raw_notification: `[Notifikasi ${accountName || app_name}] ${safeTitle}: ${safeContent}`,
+            source_device: sourceDevice,
+            transaction_date: transactionDate,
+            status: 'pending',
+            dedupe_hash: dedupeHash,
+            needs_review: isSensitive,
+          })
+          .select('*')
+          .single();
+        tx = retryRes.data;
+        txError = retryRes.error;
+      }
 
       if (txError) {
         if (txError.code === '23505') {

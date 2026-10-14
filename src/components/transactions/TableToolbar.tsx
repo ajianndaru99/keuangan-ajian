@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { DateRangeValue } from './DateRangePickerModal';
 
-export type FlowFilterType = 'all' | 'income' | 'expense';
+export type FlowFilterType = 'all' | 'pending' | 'income' | 'expense';
 
 interface TableToolbarProps {
   currentFlow: FlowFilterType;
@@ -25,6 +25,7 @@ interface TableToolbarProps {
   onExport: () => void;
   onAddTransaction: () => void;
   totalCount?: number;
+  pendingCount?: number;
 }
 
 export default function TableToolbar({
@@ -35,6 +36,7 @@ export default function TableToolbar({
   onExport,
   onAddTransaction,
   totalCount = 0,
+  pendingCount = 0,
 }: TableToolbarProps) {
   return (
     <div className="space-y-4 mb-4">
@@ -96,6 +98,24 @@ export default function TableToolbar({
         >
           <ListFilter className="w-3.5 h-3.5" />
           <span>All</span>
+        </button>
+
+        {/* Pending Review */}
+        <button
+          onClick={() => onFlowChange('pending')}
+          className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+            currentFlow === 'pending'
+              ? 'bg-amber-500/15 text-amber-500 dark:text-amber-400 border border-amber-500/30 shadow-2xs'
+              : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
+          }`}
+        >
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+          <span>Pending</span>
+          {pendingCount > 0 && (
+            <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-amber-500 text-white font-bold leading-tight">
+              {pendingCount}
+            </span>
+          )}
         </button>
 
         {/* Income (Desaturated WCAG AA) */}

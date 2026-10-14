@@ -211,7 +211,7 @@ export default function AddTransactionModal({
         if (profile) {
           const dedupeHash = `manual:${profile.household_id}:${payload.source_device}:${Date.now()}:${payload.amount}:${Math.random().toString(36).slice(2, 8)}`;
           const parseMethod = preloadedData?.parseMethod || (activeTab === 'scan' ? 'vision' : 'manual');
-          await supabase.from('transactions').insert({
+          let insertRes = await supabase.from('transactions').insert({
             household_id: profile.household_id,
             account_id: payload.account_id,
             category_id: payload.category_id,
@@ -226,6 +226,23 @@ export default function AddTransactionModal({
             needs_review: false,
             parse_method: parseMethod,
           });
+
+          if (insertRes.error && insertRes.error.code === '42703') {
+            await supabase.from('transactions').insert({
+              household_id: profile.household_id,
+              account_id: payload.account_id,
+              category_id: payload.category_id,
+              amount: payload.amount,
+              direction: payload.direction,
+              merchant: payload.merchant,
+              raw_notification: payload.notes || `[Manual Input] ${payload.merchant}`,
+              source_device: payload.source_device,
+              transaction_date: payload.transaction_date,
+              status: 'reconciled',
+              dedupe_hash: dedupeHash,
+              needs_review: false,
+            });
+          }
 
           // Jika transaksi ini berasal dari konversi notifikasi mentah, tandai sebagai tervalidasi
           if (preloadedData?.rawNotificationId) {

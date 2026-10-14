@@ -25,7 +25,7 @@ import { TransactionItem } from '@/components/inbox/TransactionCard';
 import { Category } from '@/components/inbox/CategoryChipList';
 import { exportTransactionsToCsv } from '@/lib/export-excel';
 import { extractNominal, extractMerchant, detectAccountInfo } from '@/lib/ai/notification-parser';
-import { CheckCircle2, Smartphone, RefreshCw, AlertTriangle, Trash2 } from 'lucide-react';
+import { CheckCircle2, Smartphone, RefreshCw, AlertTriangle, Trash2, Clock } from 'lucide-react';
 
 const defaultCategories: Category[] = [
   { id: 'cat-1', name: 'Belanja Dapur', type: 'expense', sort_order: 1 },
@@ -58,15 +58,27 @@ export default function InboxTransactionsPage() {
   const [categories, setCategories] = useState<Category[]>(defaultCategories);
   const [accounts, setAccounts] = useState<any[]>([]);
   const [currentHouseholdId, setCurrentHouseholdId] = useState<string | null>(null);
+  const [globalPendingCount, setGlobalPendingCount] = useState<number>(0);
+
+  // Helper tanggal lokal YYYY-MM-DD agar tidak tergeser zona waktu UTC
+  const toLocalYmd = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
 
   // State Filter Toolbar Monexa
   const [flowFilter, setFlowFilter] = useState<FlowFilterType>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [dateRange, setDateRange] = useState<DateRangeValue>({
-    preset: 'thisMonth',
-    label: new Date().toLocaleString('id-ID', { month: 'long', year: 'numeric' }),
-    startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10),
-    endDate: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().slice(0, 10),
+  const [dateRange, setDateRange] = useState<DateRangeValue>(() => {
+    const now = new Date();
+    return {
+      preset: 'thisMonth',
+      label: now.toLocaleString('id-ID', { month: 'long', year: 'numeric' }),
+      startDate: toLocalYmd(new Date(now.getFullYear(), now.getMonth(), 1)),
+      endDate: toLocalYmd(new Date(now.getFullYear(), now.getMonth() + 1, 0)),
+    };
   });
 
   // State Modals & Dialogs
@@ -143,16 +155,57 @@ export default function InboxTransactionsPage() {
           query = query.lte('transaction_date', `${dateRange.endDate}T23:59:59Z`);
         }
 
-        const { data: txData } = await query;
+        const mainRes = await query;
+        let txRows = mainRes.data;
 
-        if (txData) {
-          const normalized = txData.map((item: any) => ({
+        // Fallback jika migrasi kolom parse_method belum diterapkan di database Supabase
+        if (mainRes.error) {
+          console.warn('[Inbox] Query transaksi dengan parse_method gagal, mencoba query fallback:', mainRes.error.message);
+          let fallbackQuery = supabase
+            .from('transactions')
+            .select(`
+              id, household_id, account_id, category_id, amount, direction,
+              merchant, raw_notification, source_device, transaction_date,
+              status, dedupe_hash, needs_review, created_at,
+              accounts (name, type),
+              categories (name)
+            `)
+            .eq('household_id', householdId)
+            .order('transaction_date', { ascending: false });
+
+          if (dateRange.startDate) {
+            fallbackQuery = fallbackQuery.gte('transaction_date', `${dateRange.startDate}T00:00:00Z`);
+          }
+          if (dateRange.endDate) {
+            fallbackQuery = fallbackQuery.lte('transaction_date', `${dateRange.endDate}T23:59:59Z`);
+          }
+
+          const fallbackRes = await fallbackQuery;
+          if (fallbackRes.error) {
+            console.error('[Inbox] Query fallback transaksi juga gagal:', fallbackRes.error.message);
+          } else {
+            // Type-cast aman saat kolom parse_method belum dibuat di database
+            txRows = fallbackRes.data as unknown as typeof mainRes.data;
+          }
+        }
+
+        if (txRows) {
+          const normalized = txRows.map((item: any) => ({
             ...item,
             accounts: Array.isArray(item.accounts) ? item.accounts[0] : item.accounts,
             categories: Array.isArray(item.categories) ? item.categories[0] : item.categories,
           }));
           setTransactions(normalized);
         }
+
+        // Ambil hitungan pending secara global (tanpa terpotong filter tanggal)
+        const { count: pendingTotal } = await supabase
+          .from('transactions')
+          .select('*', { count: 'exact', head: true })
+          .eq('household_id', householdId)
+          .eq('status', 'pending');
+
+        setGlobalPendingCount(pendingTotal || 0);
 
         // 4. Ambil Seluruh Log Notifikasi Mentah (Raw Stream)
         const { data: rawData } = await supabase
@@ -226,7 +279,8 @@ export default function InboxTransactionsPage() {
   const filteredTransactions: MonexaTransactionRow[] = useMemo(() => {
     return transactions
       .filter((tx) => {
-        // Filter Arah Arus Kas
+        // Filter Arah Arus Kas / Status
+        if (flowFilter === 'pending' && tx.status !== 'pending') return false;
         if (flowFilter === 'income' && tx.direction !== 'in') return false;
         if (flowFilter === 'expense' && tx.direction !== 'out') return false;
 
@@ -404,7 +458,7 @@ export default function InboxTransactionsPage() {
     <AppShell
       userRole={userRole}
       displayName={displayName}
-      pendingCount={pendingCount}
+      pendingCount={globalPendingCount}
       searchQuery={searchQuery}
       onSearchChange={setSearchQuery}
     >
@@ -422,9 +476,9 @@ export default function InboxTransactionsPage() {
           >
             <CheckCircle2 className="w-4 h-4" />
             <span>Transaksi Terurai</span>
-            {pendingCount > 0 && (
+            {globalPendingCount > 0 && (
               <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-amber-400 text-slate-900 font-extrabold">
-                {pendingCount} Pending
+                {globalPendingCount} Pending
               </span>
             )}
           </button>
@@ -484,6 +538,34 @@ export default function InboxTransactionsPage() {
             </div>
           )}
 
+          {/* Banner Notifikasi Transaksi Pending di Luar Filter Tanggal */}
+          {globalPendingCount > 0 && transactions.filter((t) => t.status === 'pending').length === 0 && (
+            <div className="mb-4 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 shrink-0">
+                  <Clock className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-xs sm:text-sm font-bold text-[var(--text-main)]">
+                    Ada {globalPendingCount} transaksi menunggu verifikasi di luar filter tanggal &ldquo;{dateRange.label}&rdquo;
+                  </h4>
+                  <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                    Transaksi ini tercatat pada periode tanggal lain. Klik tombol untuk menampilkan semua transaksi yang belum diverifikasi.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setDateRange({ preset: 'all', label: 'Semua Waktu' });
+                  setFlowFilter('pending');
+                }}
+                className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition-colors shrink-0 shadow-xs flex items-center justify-center gap-1.5"
+              >
+                <span>Tampilkan {globalPendingCount} Transaksi Pending</span>
+              </button>
+            </div>
+          )}
+
           <TableToolbar
             currentFlow={flowFilter}
             onFlowChange={setFlowFilter}
@@ -495,6 +577,7 @@ export default function InboxTransactionsPage() {
               setIsAddModalOpen(true);
             }}
             totalCount={filteredTransactions.length}
+            pendingCount={globalPendingCount}
           />
 
           <TransactionTable
