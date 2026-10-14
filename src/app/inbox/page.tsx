@@ -24,7 +24,8 @@ import RawNotificationTable, { RawNotificationItem } from '@/components/inbox/Ra
 import { TransactionItem } from '@/components/inbox/TransactionCard';
 import { Category } from '@/components/inbox/CategoryChipList';
 import { exportTransactionsToCsv } from '@/lib/export-excel';
-import { CheckCircle2, Smartphone, RefreshCw } from 'lucide-react';
+import { extractNominal, extractMerchant, detectAccountInfo } from '@/lib/ai/notification-parser';
+import { CheckCircle2, Smartphone, RefreshCw, AlertTriangle, Trash2 } from 'lucide-react';
 
 const defaultCategories: Category[] = [
   { id: 'cat-1', name: 'Belanja Dapur', type: 'expense', sort_order: 1 },
@@ -56,6 +57,7 @@ export default function InboxTransactionsPage() {
   const [rawNotifications, setRawNotifications] = useState<RawNotificationItem[]>([]);
   const [categories, setCategories] = useState<Category[]>(defaultCategories);
   const [accounts, setAccounts] = useState<any[]>([]);
+  const [currentHouseholdId, setCurrentHouseholdId] = useState<string | null>(null);
 
   // State Filter Toolbar Monexa
   const [flowFilter, setFlowFilter] = useState<FlowFilterType>('all');
@@ -99,6 +101,7 @@ export default function InboxTransactionsPage() {
       if (profile) {
         setUserRole(profile.role);
         setDisplayName(profile.display_name);
+        setCurrentHouseholdId(profile.household_id);
 
         const householdId = profile.household_id;
 
@@ -126,7 +129,7 @@ export default function InboxTransactionsPage() {
           .select(`
             id, household_id, account_id, category_id, amount, direction,
             merchant, raw_notification, source_device, transaction_date,
-            status, dedupe_hash, needs_review, created_at,
+            status, dedupe_hash, needs_review, parse_method, created_at,
             accounts (name, type),
             categories (name)
           `)
@@ -253,6 +256,7 @@ export default function InboxTransactionsPage() {
         category_name: tx.categories?.name,
         raw_notification: tx.raw_notification,
         needs_review: tx.needs_review,
+        parse_method: tx.parse_method,
       }));
   }, [transactions, flowFilter, searchQuery]);
 
@@ -260,6 +264,25 @@ export default function InboxTransactionsPage() {
   const pendingCount = useMemo(() => {
     return transactions.filter((t) => t.status === 'pending').length;
   }, [transactions]);
+
+  // Deteksi jumlah transaksi non-finansial/Rp 0 (chat/promo)
+  const zeroAmountCount = useMemo(() => {
+    return transactions.filter((t) => Number(t.amount || 0) === 0).length;
+  }, [transactions]);
+
+  const handleCleanZeroAmountTransactions = async () => {
+    if (!confirm(`Hapus ${zeroAmountCount} catatan transaksi chat / promo bernilai Rp 0 sekaligus dari riwayat?`)) return;
+    if (isSupabaseConfigured() && currentHouseholdId) {
+      setLoading(true);
+      const supabase = createClient();
+      await supabase
+        .from('transactions')
+        .delete()
+        .eq('household_id', currentHouseholdId)
+        .eq('amount', 0);
+      fetchData();
+    }
+  };
 
   // Handler Aksi Tabel Monexa
   const handleExportCsv = () => {
@@ -321,37 +344,32 @@ export default function InboxTransactionsPage() {
   // Handler Aksi Raw Notifications
   // --------------------------------------------------------------------------
 
-  // Konversi Notifikasi Mentah menjadi Transaksi Resmi
+  // Konversi Notifikasi Mentah menjadi Transaksi Resmi (Layer 3: Verifikasi Manual User)
   const handleConvertToTransaction = (notif: RawNotificationItem) => {
-    // 1. Ekstrak nominal jika ada pola Rp
-    const amountMatch = notif.content.match(/\b(?:rp|idr)\.?\s*(\d[\d.,]*)/i);
-    let parsedAmt: number | undefined = undefined;
-    if (amountMatch) {
-      const clean = amountMatch[1].replace(/[.,]/g, '');
-      const val = parseInt(clean, 10);
-      if (!isNaN(val) && val > 0) parsedAmt = val;
-    }
+    const combinedText = `${notif.title} ${notif.content}`.trim();
+    const lowerCombined = combinedText.toLowerCase();
 
-    // 2. Ekstrak arah transaksi
-    const combined = `${notif.title} ${notif.content}`.toLowerCase();
-    const isIncome = /masuk|terima|kredit|received|from\b/i.test(combined);
+    // 1. Ekstrak nominal menggunakan parser terpadu
+    const parsedNominal = extractNominal(combinedText);
+    const amount = parsedNominal > 0 ? parsedNominal : undefined;
+
+    // 2. Ekstrak arah transaksi & akun
+    const isIncome = /masuk|terima|kredit|received|from\b|top\s*up/i.test(lowerCombined);
     const direction: 'in' | 'out' = isIncome ? 'in' : 'out';
+    const accountInfo = detectAccountInfo(notif.app_name, combinedText);
 
-    // 3. Ekstrak calon nama merchant
-    let merchantCandidate = notif.title || notif.app_name;
-    const toMatch = notif.content.match(/\b(?:to|ke|di|kepada|at)\s+([A-Za-z0-9\s&'.-]+?)(?:\.|\s+need|\s+hubungi|\s+pada|\s+via|\s+dengan|$)/i);
-    if (toMatch && toMatch[1]) {
-      merchantCandidate = toMatch[1].trim();
-    }
+    // 3. Ekstrak calon nama merchant menggunakan parser terpadu
+    const merchantCandidate = extractMerchant(notif.title, combinedText, accountInfo.name);
 
     setPreloadedData({
       merchant: merchantCandidate,
-      amount: parsedAmt,
+      amount,
       direction,
       notes: `[Notifikasi ${notif.app_name}] ${notif.title}: ${notif.content}`,
       transactionDate: notif.server_received_at || notif.created_at,
-      accountName: notif.app_name,
+      accountName: accountInfo.name,
       rawNotificationId: notif.id,
+      parseMethod: 'manual',
     });
 
     setIsAddModalOpen(true);
@@ -440,6 +458,32 @@ export default function InboxTransactionsPage() {
       {/* KONTEN TAB 1: Transaksi Terurai (Tampilan Monexa Asli) */}
       {inboxTab === 'parsed' && (
         <>
+          {/* Banner Pembersihan Notifikasi Chat / Promo Rp 0 */}
+          {zeroAmountCount > 0 && (
+            <div className="mb-4 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 shrink-0">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-xs sm:text-sm font-bold text-[var(--text-main)]">
+                    Terdeteksi {zeroAmountCount} Notifikasi Chat Seller / Promo Masuk (Nominal Rp 0)
+                  </h4>
+                  <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                    Notifikasi chat Shopee/promo sempat tercatat otomatis sebagai transaksi Rp 0. Anda dapat membersihkannya sekarang dengan 1 klik.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={handleCleanZeroAmountTransactions}
+                className="px-3.5 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition-colors shrink-0 shadow-xs flex items-center justify-center gap-2"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Bersihkan Data Chat ({zeroAmountCount})</span>
+              </button>
+            </div>
+          )}
+
           <TableToolbar
             currentFlow={flowFilter}
             onFlowChange={setFlowFilter}

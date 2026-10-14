@@ -7,7 +7,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import crypto from 'node:crypto';
-import { suggestCategoryForMerchant, KNOWN_ACCOUNTS } from '@/lib/vision/gemini';
+import { suggestCategoryForMerchant } from '@/lib/vision/gemini';
+import { parseNotificationPayload } from '@/lib/ai/notification-parser';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,46 +47,6 @@ const SENSITIVE_KEYWORDS = [
 function isSensitiveContent(text: string): boolean {
   const lower = text.toLowerCase();
   return SENSITIVE_KEYWORDS.some(kw => lower.includes(kw));
-}
-
-// Ekstraksi nominal angka sederhana dari teks notifikasi jika tidak menggunakan parser spesifik
-function extractAmountFromText(text: string): { amount: number; direction: 'in' | 'out' } {
-  const clean = text.replace(/,/g, '');
-  // Deteksi arah
-  const isIncoming = /masuk|menerima|diterima|top up|kredit|received|incoming/i.test(text);
-  const direction: 'in' | 'out' = isIncoming ? 'in' : 'out';
-
-  // Deteksi Rp ... atau IDR ...
-  const matchRp = clean.match(/(?:rp|idr)\.?\s*([\d.]+)/i);
-  if (matchRp && matchRp[1]) {
-    const num = parseInt(matchRp[1].replace(/\./g, ''), 10);
-    if (!isNaN(num) && num > 0) return { amount: num, direction };
-  }
-
-  // Deteksi angka digit panjang
-  const matchDigit = clean.match(/\b(\d{4,10})\b/);
-  if (matchDigit && matchDigit[1]) {
-    const num = parseInt(matchDigit[1], 10);
-    if (!isNaN(num) && num > 0) return { amount: num, direction };
-  }
-
-  return { amount: 0, direction };
-}
-
-// Deteksi nama merchant dari teks
-function extractMerchantFromText(text: string, title: string): string {
-  // Cek pola "ke <Merchant>" atau "di <Merchant>"
-  const matchKe = text.match(/(?:ke|di|kepada|pembayaran ke|merchant)\s+([A-Za-z0-9\s&'-]{3,30})/i);
-  if (matchKe && matchKe[1]) {
-    return matchKe[1].trim().replace(/\s+(berhasil|sukses|pada|sebesar|rp).*$/i, '');
-  }
-
-  // Fallback ke judul jika ada
-  if (title && title.length > 2 && !/notif|transaksi|bank/i.test(title)) {
-    return title.trim();
-  }
-
-  return 'Merchant';
 }
 
 export async function POST(req: NextRequest) {
@@ -148,9 +109,9 @@ export async function POST(req: NextRequest) {
     // Identifikasi device / role pengirim
     const sourceDevice = clientApiKey?.includes('istri') ? 'istri' : 'suami';
 
-    // Ekstraksi transaksi
-    const { amount, direction } = extractAmountFromText(safeContent);
-    const merchant = extractMerchantFromText(safeContent, safeTitle);
+    // Ekstraksi notifikasi cerdas (Regex presisi + AI Fallback)
+    const parsed = await parseNotificationPayload(app_name, safeTitle, safeContent, process.env.GEMINI_API_KEY);
+    const { amount, direction, merchant, accountName, isTransaction } = parsed;
 
     // Tanggal transaksi
     let transactionDate = new Date().toISOString();
@@ -175,6 +136,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           status: 'success',
+          is_transaction: isTransaction,
           message: 'Notifikasi diterima (mode simulasi lokal).',
           data: {
             app_name,
@@ -204,7 +166,24 @@ export async function POST(req: NextRequest) {
     const rawDedupeSeed = `notif:${sourceDevice}:${app_name}:${received_at_raw || Date.now()}:${amount}:${merchant}`;
     const dedupeHash = crypto.createHash('sha256').update(rawDedupeSeed).digest('hex');
 
-    // Simpan ke raw_notifications jika household ditemukan
+interface TransactionRecord {
+  id: string;
+  household_id: string;
+  account_id: string | null;
+  category_id: string | null;
+  amount: number;
+  direction: 'in' | 'out';
+  merchant: string;
+  raw_notification: string;
+  source_device: 'suami' | 'istri';
+  transaction_date: string;
+  status: string;
+  dedupe_hash: string;
+  needs_review: boolean;
+  parse_method?: string;
+}
+
+    // 1. Simpan ke raw_notifications SELALU (Fase 0: simpan log mentah apa adanya)
     if (householdId) {
       try {
         const epochMs = typeof received_at_raw === 'number' && received_at_raw > 1000000000 
@@ -222,31 +201,63 @@ export async function POST(req: NextRequest) {
           content: safeContent,
           received_at_raw: String(received_at_raw || Date.now()),
           received_at: epochMs,
-          outcome: amount > 0 ? 'transaction' : 'needs_review',
+          outcome: isTransaction ? 'transaction' : 'ignored',
+          reasons: parsed.reasons,
+          parser_version: parsed.parseMethod,
           sensitive: isSensitive,
         });
         if (rawErr) {
           console.error('Gagal simpan raw_notification:', rawErr.message);
         }
-      } catch (err) {
-        console.error('Exception simpan raw_notification:', err);
+      } catch (err: unknown) {
+        console.error('Exception simpan raw_notification:', err instanceof Error ? err.message : err);
       }
     }
 
-    // Jika household ditemukan, simpan ke transactions
-    let newTransaction: any = null;
+    // 2. Filter: Jika BUKAN transaksi finansial atau nominal 0, jangan masukkan ke riwayat transaksi!
+    if (!isTransaction || amount <= 0) {
+      return NextResponse.json(
+        {
+          status: 'success',
+          is_transaction: false,
+          message: 'Notifikasi dicatat di raw stream, diabaikan dari riwayat transaksi karena bukan transaksi finansial.',
+          data: {
+            app_name,
+            title: safeTitle,
+            amount: 0,
+            merchant,
+            reasons: parsed.reasons,
+            parse_method: parsed.parseMethod,
+          },
+        },
+        { status: 201, headers: corsHeaders }
+      );
+    }
+
+    // 3. Masukkan ke tabel transactions jika sah bernilai > 0
+    let newTransaction: TransactionRecord | null = null;
     if (householdId) {
-      // Cari akun yang cocok
+      // Cari akun yang paling cocok
       const { data: accounts } = await supabase
         .from('accounts')
-        .select('id, name')
+        .select('id, name, owner, type')
         .eq('household_id', householdId);
 
       let accountId = accounts?.[0]?.id || null;
       if (accounts && accounts.length > 0) {
-        const lowerApp = app_name.toLowerCase();
-        const matched = accounts.find(a => lowerApp.includes(a.name.toLowerCase()));
-        if (matched) accountId = matched.id;
+        const target = (accountName || app_name).toLowerCase();
+        // Prioritas 1: nama bank/wallet cocok dan pemilik sesuai sourceDevice
+        const exactMatch = accounts.find(a => 
+          (target.includes(a.name.toLowerCase()) || a.name.toLowerCase().includes(target)) && a.owner === sourceDevice
+        );
+        // Prioritas 2: nama bank/wallet cocok (apapun pemiliknya)
+        const nameMatch = accounts.find(a =>
+          target.includes(a.name.toLowerCase()) || a.name.toLowerCase().includes(target)
+        );
+        // Prioritas 3: akun default milik sourceDevice
+        const deviceDefault = accounts.find(a => a.owner === sourceDevice);
+
+        accountId = exactMatch?.id || nameMatch?.id || deviceDefault?.id || accounts[0].id;
       }
 
       // Cari kategori
@@ -266,12 +277,13 @@ export async function POST(req: NextRequest) {
           amount,
           direction,
           merchant,
-          raw_notification: `[Notifikasi ${app_name}] ${safeTitle}: ${safeContent}`,
+          raw_notification: `[Notifikasi ${accountName || app_name}] ${safeTitle}: ${safeContent}`,
           source_device: sourceDevice,
           transaction_date: transactionDate,
           status: 'pending',
           dedupe_hash: dedupeHash,
-          needs_review: amount === 0 || isSensitive,
+          needs_review: isSensitive,
+          parse_method: parsed.parseMethod,
         })
         .select('*')
         .single();
@@ -290,13 +302,14 @@ export async function POST(req: NextRequest) {
         }
         console.error('[Notification Insert Error]:', txError.message);
       } else {
-        newTransaction = tx;
+        newTransaction = tx as TransactionRecord;
       }
     }
 
     return NextResponse.json(
       {
         status: 'success',
+        is_transaction: true,
         message: 'Notifikasi berhasil dicatat ke sistem.',
         data: newTransaction || {
           app_name,
@@ -304,16 +317,18 @@ export async function POST(req: NextRequest) {
           amount,
           merchant,
           direction,
+          parse_method: parsed.parseMethod,
         },
       },
       { status: 201, headers: corsHeaders }
     );
-  } catch (error: any) {
-    console.error('[Notification Route Error]:', error?.message || error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('[Notification Route Error]:', errorMessage);
     return NextResponse.json(
       {
         error: 'Terjadi kesalahan pemrosesan notifikasi.',
-        message: error?.message || String(error),
+        message: errorMessage,
       },
       { status: 500, headers: corsHeaders }
     );

@@ -16,8 +16,6 @@ import {
   ArrowUpRight,
   Clock,
   Building2,
-  Smartphone,
-  Tag,
   CheckCircle2,
   Trash2,
   Edit3,
@@ -26,6 +24,8 @@ import {
   FileText,
   ChevronDown,
   ChevronUp,
+  Sparkles,
+  Camera,
 } from 'lucide-react';
 
 export interface MonexaTransactionRow {
@@ -41,6 +41,7 @@ export interface MonexaTransactionRow {
   category_name?: string;
   raw_notification?: string | null;
   needs_review?: boolean;
+  parse_method?: 'regex' | 'ai_gemini' | 'manual' | 'vision';
 }
 
 interface TransactionTableProps {
@@ -48,7 +49,6 @@ interface TransactionTableProps {
   onSelectTransaction: (item: MonexaTransactionRow) => void;
   onEditTransaction: (item: MonexaTransactionRow) => void;
   onDeleteTransaction?: (id: string) => void;
-  onQuickCategorize?: (id: string) => void;
 }
 
 export default function TransactionTable({
@@ -56,7 +56,6 @@ export default function TransactionTable({
   onSelectTransaction,
   onEditTransaction,
   onDeleteTransaction,
-  onQuickCategorize,
 }: TransactionTableProps) {
   const { isHideBalance } = usePrivacy();
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
@@ -103,6 +102,37 @@ export default function TransactionTable({
     } catch {
       return isoStr;
     }
+  };
+
+  const renderParseMethodBadge = (method?: 'regex' | 'ai_gemini' | 'manual' | 'vision') => {
+    if (method === 'ai_gemini') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/15 text-purple-600 dark:text-purple-300 border border-purple-500/30">
+          <Sparkles className="w-2.5 h-2.5" />
+          AI Gemini
+        </span>
+      );
+    }
+    if (method === 'manual') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/15 text-blue-600 dark:text-blue-300 border border-blue-500/30">
+          Manual
+        </span>
+      );
+    }
+    if (method === 'vision') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-500/15 text-teal-600 dark:text-teal-300 border border-teal-500/30">
+          <Camera className="w-2.5 h-2.5" />
+          Foto Struk
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30">
+        Regex
+      </span>
+    );
   };
 
   return (
@@ -206,22 +236,25 @@ export default function TransactionTable({
                       </span>
                     </td>
 
-                    {/* 4. Status Badge */}
+                    {/* 4. Status Badge & Parse Method */}
                     <td className="py-3.5 px-4 whitespace-nowrap align-top">
-                      {isPending ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-500 dark:text-amber-400 border border-amber-500/30 animate-pulse">
-                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                          Pending Review
-                        </span>
-                      ) : isIncome ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-income/15 text-income border border-income/30">
-                          Income
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-expense/15 text-expense border border-expense/30">
-                          Expense
-                        </span>
-                      )}
+                      <div className="flex flex-col gap-1 items-start">
+                        {isPending ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-500 dark:text-amber-400 border border-amber-500/30 animate-pulse">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                            Pending Review
+                          </span>
+                        ) : isIncome ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-income/15 text-income border border-income/30">
+                            Income
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-expense/15 text-expense border border-expense/30">
+                            Expense
+                          </span>
+                        )}
+                        {renderParseMethodBadge(tx.parse_method)}
+                      </div>
                     </td>
 
                     {/* 5. Noted & Notifikasi (Utuh & Expandable) */}
@@ -438,6 +471,8 @@ export default function TransactionTable({
                     {tx.category_name}
                   </span>
                 )}
+
+                {renderParseMethodBadge(tx.parse_method)}
 
                 {isPending ? (
                   <span className="px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-500 dark:text-amber-400 border border-amber-500/30 font-bold ml-auto">

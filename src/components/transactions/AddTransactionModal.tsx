@@ -11,13 +11,8 @@ import {
   Camera,
   UploadCloud,
   Sparkles,
-  Check,
   AlertCircle,
-  Building2,
-  Calendar,
   FileText,
-  DollarSign,
-  Tag,
   ArrowDownLeft,
   ArrowUpRight,
 } from 'lucide-react';
@@ -42,6 +37,7 @@ export interface PreloadedTransactionData {
   transactionDate?: string;
   accountName?: string;
   rawNotificationId?: string;
+  parseMethod?: 'regex' | 'ai_gemini' | 'manual' | 'vision';
 }
 
 interface AddTransactionModalProps {
@@ -169,8 +165,9 @@ export default function AddTransactionModal({
         // Beralih ke tab form konfirmasi
         setActiveTab('manual');
       }
-    } catch (err: any) {
-      setScanError(err.message || 'Terjadi kesalahan saat memproses gambar.');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Terjadi kesalahan saat memproses gambar.';
+      setScanError(msg);
     } finally {
       setIsScanning(false);
     }
@@ -213,6 +210,7 @@ export default function AddTransactionModal({
 
         if (profile) {
           const dedupeHash = `manual:${profile.household_id}:${payload.source_device}:${Date.now()}:${payload.amount}:${Math.random().toString(36).slice(2, 8)}`;
+          const parseMethod = preloadedData?.parseMethod || (activeTab === 'scan' ? 'vision' : 'manual');
           await supabase.from('transactions').insert({
             household_id: profile.household_id,
             account_id: payload.account_id,
@@ -226,6 +224,7 @@ export default function AddTransactionModal({
             status: 'reconciled',
             dedupe_hash: dedupeHash,
             needs_review: false,
+            parse_method: parseMethod,
           });
 
           // Jika transaksi ini berasal dari konversi notifikasi mentah, tandai sebagai tervalidasi
@@ -240,8 +239,9 @@ export default function AddTransactionModal({
 
       onSuccess();
       onClose();
-    } catch (err: any) {
-      alert('Gagal menyimpan transaksi: ' + (err.message || err));
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      alert('Gagal menyimpan transaksi: ' + msg);
     } finally {
       setIsSubmitting(false);
     }

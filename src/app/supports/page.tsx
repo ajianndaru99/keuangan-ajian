@@ -11,19 +11,11 @@ import AppShell from '@/components/layout/AppShell';
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
 import {
   Smartphone,
-  CheckCircle2,
-  AlertTriangle,
   Play,
   HelpCircle,
   Copy,
-  Check,
-  ShieldCheck,
   RefreshCw,
-  ExternalLink,
-  SlidersHorizontal,
   Send,
-  Zap,
-  Info,
   CheckCheck,
 } from 'lucide-react';
 
