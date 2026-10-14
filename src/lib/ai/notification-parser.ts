@@ -15,6 +15,7 @@ export interface ParsedNotificationResult {
   outcome: 'transaction' | 'ignored';
   reasons: string[];
   parseMethod: 'regex' | 'ai_gemini' | 'manual';
+  transactionDate?: string;
 }
 
 // Pola kata kunci chat dari penjual/pembeli marketplace (Shopee, Tokopedia, dll)
@@ -42,13 +43,17 @@ const PROMO_PATTERNS = [
   /\bklaim\s*(?:hadiah|koin|reward)\b/i,
 ];
 
-// Pola transaksi keuangan sah
+// Pola transaksi keuangan sah (m-banking & e-wallet Indonesia)
 const FINANCIAL_ACTION_PATTERNS = [
   /\b(berhasil|sukses|successful|terkirim)\b/i,
   /\b(pembayaran|payment|paid|bayar|spent)\b/i,
   /\b(transfer|transferred|mentransfer|kirim\s*uang)\b/i,
   /\b(terima|diterima|received|incoming|masuk|top\s*up|kredit|debit)\b/i,
   /\b(qris|edc|merchant)\b/i,
+  /\b(uang\s*keluar|uang\s*masuk|dana\s*masuk|transfer\s*masuk)\b/i,
+  /\b(kamu\s+telah\s+(?:membayar|mentransfer|menerima|melakukan)|you\s+have\s+(?:made|paid|transferred))\b/i,
+  /\b(kantong|jago|bank\s*jago)\b/i,
+  /\b(transaksi|transaction)\b/i,
 ];
 
 /**
@@ -70,29 +75,113 @@ export function detectAccountInfo(appName: string, text: string): { name: string
 }
 
 /**
+ * Ekstraksi tanggal & waktu transaksi dari isi notifikasi (WIB / Asia/Jakarta)
+ * Contoh: "12 October 2026, 17:11 WIB" -> "2026-10-12T10:11:00.000Z" (sore hari)
+ */
+export function extractNotificationDate(text: string): string | null {
+  const MONTHS: Record<string, number> = {
+    jan: 0, januari: 0, january: 0,
+    feb: 1, februari: 1, february: 1,
+    mar: 2, maret: 2, march: 2,
+    apr: 3, april: 3,
+    mei: 4, may: 4,
+    jun: 5, juni: 5, june: 5,
+    jul: 6, juli: 6, july: 6,
+    agu: 7, agustus: 7, aug: 7, august: 7,
+    sep: 8, september: 8,
+    okt: 9, oktober: 9, oct: 9, october: 9,
+    nop: 10, nov: 10, november: 10,
+    des: 11, desember: 11, dec: 11, december: 11,
+  };
+
+  // 1. Pola: "12 October 2026, 17:11 WIB" atau "12 Okt 2026 17:11"
+  const textDateMatch = text.match(/\b(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})[,\s]+(?:pukul\s+)?(\d{1,2})[:.](\d{2})(?::(\d{2}))?\s*(?:wib|wita|wit)?\b/i);
+  if (textDateMatch) {
+    const day = parseInt(textDateMatch[1], 10);
+    const mStr = textDateMatch[2].toLowerCase();
+    const year = parseInt(textDateMatch[3], 10);
+    const hour = parseInt(textDateMatch[4], 10);
+    const minute = parseInt(textDateMatch[5], 10);
+    const second = textDateMatch[6] ? parseInt(textDateMatch[6], 10) : 0;
+
+    if (MONTHS[mStr] !== undefined) {
+      const month = MONTHS[mStr];
+      const utcMs = Date.UTC(year, month, day, hour - 7, minute, second);
+      return new Date(utcMs).toISOString();
+    }
+  }
+
+  // 2. Pola numerik: "12-10-2026 17:11" atau "12/10/2026 17:11"
+  const numericDateMatch = text.match(/\b(\d{1,2})[-/](\d{1,2})[-/](\d{4})[,\s]+(?:pukul\s+)?(\d{1,2})[:.](\d{2})(?::(\d{2}))?\b/);
+  if (numericDateMatch) {
+    const day = parseInt(numericDateMatch[1], 10);
+    const month = parseInt(numericDateMatch[2], 10) - 1;
+    const year = parseInt(numericDateMatch[3], 10);
+    const hour = parseInt(numericDateMatch[4], 10);
+    const minute = parseInt(numericDateMatch[5], 10);
+    const second = numericDateMatch[6] ? parseInt(numericDateMatch[6], 10) : 0;
+    const utcMs = Date.UTC(year, month, day, hour - 7, minute, second);
+    return new Date(utcMs).toISOString();
+  }
+
+  return null;
+}
+
+/**
  * Ekstraksi nominal rupiah dari judul dan isi teks secara presisi
+ * Mendukung variasi format Indonesia (titik) & perbankan Inggris (koma), serta unit singkatan (73rb, 73k)
  */
 export function extractNominal(text: string): number {
-  // 1. Format: Rp 10.000 / Rp. 10.000 / IDR 10.000 / Rp10.000
-  const rpMatch = text.match(/(?:rp|idr)\.?\s*([\d.]+)/i);
-  if (rpMatch && rpMatch[1]) {
-    const rawDigits = rpMatch[1].replace(/\./g, '').trim();
-    const val = parseInt(rawDigits, 10);
-    if (!isNaN(val) && val > 0) return val;
+  // 1. Format singkatan: 73rb, 73 rb, 73ribu, 73 ribu, 73k, 1.5jt, dll.
+  const shorthandMatch = text.match(/(?:rp|idr)?\.?\s*(\d+(?:[.,]\d+)?)\s*(rb|ribu|k|jt|juta)\b/i);
+  if (shorthandMatch) {
+    const num = parseFloat(shorthandMatch[1].replace(',', '.'));
+    const unit = shorthandMatch[2].toLowerCase();
+    if (!isNaN(num) && num > 0) {
+      if (unit === 'rb' || unit === 'ribu' || unit === 'k') return Math.round(num * 1000);
+      if (unit === 'jt' || unit === 'juta') return Math.round(num * 1000000);
+    }
   }
 
-  // 2. Format: Sebesar 10.000 / nominal 10.000 / total 10.000 / amount Rp 10.000
-  const keywordMatch = text.match(/(?:sebesar|nominal|total|amount|paid|transferred|spent)\s*(?:rp|idr)?\.?\s*([\d.]+)/i);
-  if (keywordMatch && keywordMatch[1]) {
-    const rawDigits = keywordMatch[1].replace(/\./g, '').trim();
-    const val = parseInt(rawDigits, 10);
-    if (!isNaN(val) && val > 0) return val;
+  // 2. Format standar: Rp 10.000 / Rp 10,000 / IDR 10,000 / Rp 10.000,00 / Rp 10,000.00
+  const rpRegex = /(?:rp|idr)\.?\s*([\d.,]+)/gi;
+  const candidates: number[] = [];
+  let match: RegExpExecArray | null;
+  while ((match = rpRegex.exec(text)) !== null) {
+    let raw = match[1].trim().replace(/[.,]+$/, '');
+    if (/^\d{1,3}(?:[.,]\d{3})+(?:[.,]\d{2})$/.test(raw)) {
+      raw = raw.slice(0, -3);
+    }
+    const cleaned = raw.replace(/[.,]/g, '');
+    const val = parseInt(cleaned, 10);
+    if (!isNaN(val) && val > 0) {
+      candidates.push(val);
+    }
   }
 
-  // 3. Pola angka ribuan Indonesia: 10.000 atau 73.000 (minimal ada 1 titik pemisah ribuan)
-  const dotThousandMatch = text.match(/\b(\d{1,3}(?:\.\d{3})+)\b/);
-  if (dotThousandMatch && dotThousandMatch[1]) {
-    const val = parseInt(dotThousandMatch[1].replace(/\./g, ''), 10);
+  if (candidates.length > 0) {
+    return candidates[0];
+  }
+
+  // 3. Keyword konteks finansial (sebesar 10.000, total 10,000, amount Rp 10.000, uang keluar 10.000)
+  const kwRegex = /(?:sebesar|nominal|total|amount|paid|transferred|spent|uang keluar|uang masuk)\s*(?:rp|idr)?\.?\s*([\d.,]+)/gi;
+  while ((match = kwRegex.exec(text)) !== null) {
+    let raw = match[1].trim().replace(/[.,]+$/, '');
+    if (/^\d{1,3}(?:[.,]\d{3})+(?:[.,]\d{2})$/.test(raw)) {
+      raw = raw.slice(0, -3);
+    }
+    const cleaned = raw.replace(/[.,]/g, '');
+    const val = parseInt(cleaned, 10);
+    if (!isNaN(val) && val > 0) {
+      return val;
+    }
+  }
+
+  // 4. Pola angka ribuan murni (10.000 atau 73.000 atau 10,000)
+  const thousandsMatch = text.match(/\b(\d{1,3}(?:[.,]\d{3})+)\b/);
+  if (thousandsMatch) {
+    const cleaned = thousandsMatch[1].replace(/[.,]/g, '');
+    const val = parseInt(cleaned, 10);
     if (!isNaN(val) && val > 0) return val;
   }
 
@@ -103,21 +192,19 @@ export function extractNominal(text: string): number {
  * Ekstraksi nama merchant / tujuan transaksi
  */
 export function extractMerchant(title: string, text: string, defaultAccount: string): string {
-  // Pola: "ke <Merchant>" atau "di <Merchant>" atau "to <Merchant>"
-  const matchTarget = text.match(/(?:ke|di|kepada|pembayaran ke|payment to|transferred to|paid to)\s+([A-Za-z0-9\s&'._-]{3,35})/i);
+  const combined = `${title} ${text}`;
+
+  // Pola: "ke <Merchant>" / "di <Merchant>" / "to <Merchant>" / "at <Merchant>"
+  const matchTarget = combined.match(/\b(?:ke|di|kepada|pembayaran\s+ke|payment\s+to|transferred\s+to|paid\s+to|transfer\s+ke|kirim\s+ke|to|at)\b\s+([A-Za-z0-9\s&'._,-]{3,50})/i);
   if (matchTarget && matchTarget[1]) {
     const cleanMerchant = matchTarget[1]
       .trim()
-      .replace(/\s+(berhasil|sukses|pada|sebesar|rp|idr|successful|is\s+successful).*$/i, '');
-    if (cleanMerchant.length >= 2 && !/notifikasi|informasi|status/i.test(cleanMerchant)) {
+      .replace(/\s+(berhasil|sukses|pada|tanggal|tgl|sebesar|senilai|rp|idr|successful|is\s+successful).*$/i, '')
+      .replace(/[,.-]+$/, '')
+      .trim();
+    if (cleanMerchant.length >= 2 && !/^(?:notifikasi|informasi|status|rp|idr)$/i.test(cleanMerchant)) {
       return cleanMerchant;
     }
-  }
-
-  // Pola subjek email/notif Jago: "You have made a payment to pentol anugerah, BMBNG LP"
-  const jagoSubjectMatch = `${title} ${text}`.match(/payment to\s+([A-Za-z0-9\s&'._-]{3,35})/i);
-  if (jagoSubjectMatch && jagoSubjectMatch[1]) {
-    return jagoSubjectMatch[1].trim().replace(/\s+(berhasil|sukses|pada|sebesar).*$/i, '');
   }
 
   // Fallback: jika judul bukan username chat dan tidak generik
@@ -240,11 +327,16 @@ export async function parseNotificationPayload(
   const lowerCombined = combinedText.toLowerCase();
 
   // 1. Deteksi Chat Penjual / Pembeli (Shopee Chat, Marketplace Chat)
-  const isChat = CHAT_PATTERNS.some((pattern) => pattern.test(combinedText));
   const isChatAppName = appName.toLowerCase().includes('shopee') || appName.toLowerCase().includes('tokopedia');
-  const hasNoFinancialWords = !FINANCIAL_ACTION_PATTERNS.some((p) => p.test(combinedText));
+  const isBankApp = /jago|mandiri|livin|bca|bri|brimo|dana|gopay|ovo|seabank/i.test(`${appName} ${title}`);
+  const hasFinancialWords = FINANCIAL_ACTION_PATTERNS.some((p) => p.test(combinedText));
+  const hasNoFinancialWords = !hasFinancialWords;
 
-  if (isChat || (isChatAppName && hasNoFinancialWords && !combinedText.includes('Rp'))) {
+  // Notifikasi chat: HANYA jika BUKAN aplikasi bank resmi dan tidak memiliki kata kunci transaksi finansial
+  const isChatText = CHAT_PATTERNS.some((pattern) => pattern.test(combinedText));
+  const isChat = !isBankApp && (isChatText || (isChatAppName && hasNoFinancialWords && !combinedText.includes('Rp')));
+
+  if (isChat) {
     return {
       isTransaction: false,
       amount: 0,
@@ -261,7 +353,7 @@ export async function parseNotificationPayload(
 
   // 2. Deteksi Promo / Voucher / Diskon Iklan
   const isPromo = PROMO_PATTERNS.some((pattern) => pattern.test(combinedText));
-  if (isPromo && hasNoFinancialWords) {
+  if (isPromo && hasNoFinancialWords && !isBankApp) {
     return {
       isTransaction: false,
       amount: 0,
@@ -281,9 +373,10 @@ export async function parseNotificationPayload(
   const isIncoming = /masuk|menerima|diterima|top up|kredit|received|incoming|sent you/i.test(lowerCombined);
   const direction: 'in' | 'out' = isIncoming ? 'in' : 'out';
 
-  // 4. Ekstraksi Nominal Angka
+  // 4. Ekstraksi Nominal Angka & Tanggal
   let amount = extractNominal(combinedText);
   let merchant = extractMerchant(title, combinedText, accountInfo.name);
+  const transactionDate = extractNotificationDate(combinedText) || undefined;
 
   // 5. Fallback ke AI Gemini Flash jika nominal belum terdeteksi namun ada indikasi transaksi
   if (amount === 0 && FINANCIAL_ACTION_PATTERNS.some((p) => p.test(combinedText)) && geminiApiKey) {
@@ -302,6 +395,7 @@ export async function parseNotificationPayload(
         outcome: 'transaction',
         reasons: ['Diekstraksi cerdas oleh Gemini Flash AI Fallback'],
         parseMethod: 'ai_gemini',
+        transactionDate,
       };
     }
   }
@@ -320,5 +414,6 @@ export async function parseNotificationPayload(
     outcome: isTransaction ? 'transaction' : 'ignored',
     reasons: isTransaction ? [] : ['Nominal transaksi tidak terdeteksi atau bernilai 0'],
     parseMethod: 'regex',
+    transactionDate,
   };
 }

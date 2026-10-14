@@ -24,7 +24,7 @@ import RawNotificationTable, { RawNotificationItem } from '@/components/inbox/Ra
 import { TransactionItem } from '@/components/inbox/TransactionCard';
 import { Category } from '@/components/inbox/CategoryChipList';
 import { exportTransactionsToCsv } from '@/lib/export-excel';
-import { extractNominal, extractMerchant, detectAccountInfo } from '@/lib/ai/notification-parser';
+import { extractNominal, extractMerchant, detectAccountInfo, extractNotificationDate } from '@/lib/ai/notification-parser';
 import { CheckCircle2, Smartphone, RefreshCw, AlertTriangle, Trash2, Clock } from 'lucide-react';
 
 const defaultCategories: Category[] = [
@@ -415,12 +415,21 @@ export default function InboxTransactionsPage() {
     // 3. Ekstrak calon nama merchant menggunakan parser terpadu
     const merchantCandidate = extractMerchant(notif.title, combinedText, accountInfo.name);
 
+    // 4. Ekstrak waktu transaksi (prioritas: waktu spesifik dalam teks notifikasi e.g. 17:11 WIB, lalu received_at dari HP)
+    let txDateIso = notif.server_received_at || notif.created_at;
+    const textDate = extractNotificationDate(combinedText);
+    if (textDate) {
+      txDateIso = textDate;
+    } else if (notif.received_at && notif.received_at > 1000000000) {
+      txDateIso = new Date(notif.received_at).toISOString();
+    }
+
     setPreloadedData({
       merchant: merchantCandidate,
       amount,
       direction,
-      notes: `[Notifikasi ${notif.app_name}] ${notif.title}: ${notif.content}`,
-      transactionDate: notif.server_received_at || notif.created_at,
+      notes: `[Notifikasi ${accountInfo.name || notif.app_name}] ${notif.title}: ${notif.content}`,
+      transactionDate: txDateIso,
       accountName: accountInfo.name,
       rawNotificationId: notif.id,
       parseMethod: 'manual',

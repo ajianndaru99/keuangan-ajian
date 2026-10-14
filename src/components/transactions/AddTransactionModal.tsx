@@ -66,7 +66,13 @@ export default function AddTransactionModal({
   const [amount, setAmount] = useState<number | ''>('');
   const [direction, setDirection] = useState<'out' | 'in'>('out');
   const [transactionDate, setTransactionDate] = useState(() => {
-    return new Date().toISOString().slice(0, 16);
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
   });
   const [accountId, setAccountId] = useState<string>(accounts[0]?.id || '');
   const [categoryId, setCategoryId] = useState<string>('');
@@ -90,7 +96,13 @@ export default function AddTransactionModal({
       if (preloadedData.notes) setNotes(preloadedData.notes);
       if (preloadedData.transactionDate) {
         try {
-          setTransactionDate(new Date(preloadedData.transactionDate).toISOString().slice(0, 16));
+          const d = new Date(preloadedData.transactionDate);
+          const year = d.getFullYear();
+          const month = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          const hours = String(d.getHours()).padStart(2, '0');
+          const minutes = String(d.getMinutes()).padStart(2, '0');
+          setTransactionDate(`${year}-${month}-${day}T${hours}:${minutes}`);
         } catch {
           // Abaikan kesalahan parse
         }

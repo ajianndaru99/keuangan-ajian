@@ -44,11 +44,11 @@ describe('Notification Smart Parser & Chat/Promo Filter', () => {
     assert.equal(res.parseMethod, 'regex');
   });
 
-  test('Mengekstrak pembayaran Bank Jago via Regex (Layer 1)', async () => {
+  test('Mengekstrak pembayaran Bank Jago sore hari (17:11 WIB) via Regex (Layer 1)', async () => {
     const res = await parseNotificationPayload(
       'com.jago.bank',
-      'You have made a payment to pentol anugerah, BMBNG LP',
-      'Thank you for trusting Jago! You have made a payment, Amount Rp 10.000 Transaction Date 12 October 2026'
+      'You have made a payment to pentol anugerah, BMBNG LP 💸',
+      'Thank you for trusting Jago! You have made a payment, and here are the details: Amount Rp 10.000 Transaction Date 12 October 2026, 17:11 WIB Tip Amount Rp 0'
     );
     assert.equal(res.isTransaction, true);
     assert.equal(res.amount, 10000);
@@ -56,6 +56,30 @@ describe('Notification Smart Parser & Chat/Promo Filter', () => {
     assert.equal(res.accountName, 'Jago');
     assert.equal(res.parseMethod, 'regex');
     assert.ok(res.merchant.toLowerCase().includes('pentol anugerah'));
+    assert.equal(res.transactionDate, '2026-10-12T10:11:00.000Z');
+  });
+
+  test('Mengekstrak notifikasi Bank Jago bahasa Indonesia dengan salam sore dan uang keluar', async () => {
+    const res = await parseNotificationPayload(
+      'com.jago.bank',
+      'Kantong Utama',
+      'Selamat sore! Kamu telah membayar Rp 10.000 ke pentol anugerah, BMBNG LP pada tanggal 12 Okt 2026 17:11 WIB'
+    );
+    assert.equal(res.isTransaction, true);
+    assert.equal(res.amount, 10000);
+    assert.equal(res.direction, 'out');
+    assert.equal(res.accountName, 'Jago');
+    assert.ok(res.merchant.toLowerCase().includes('pentol anugerah'));
+    assert.equal(res.transactionDate, '2026-10-12T10:11:00.000Z');
+
+    const resUangKeluar = await parseNotificationPayload(
+      'com.jago.bank',
+      'Uang keluar',
+      'Uang keluar sebesar Rp 10.000 untuk pembayaran ke pentol anugerah, BMBNG LP'
+    );
+    assert.equal(resUangKeluar.isTransaction, true);
+    assert.equal(resUangKeluar.amount, 10000);
+    assert.ok(resUangKeluar.merchant.toLowerCase().includes('pentol anugerah'));
   });
 
   test('Mengekstrak transaksi sah ShopeePay sebesar Rp 73.000 via Regex (Layer 1)', async () => {
@@ -85,11 +109,20 @@ describe('Notification Smart Parser & Chat/Promo Filter', () => {
     assert.equal(res.parseMethod, 'regex');
   });
 
-  test('Ekstraksi nominal mendukung variasi format rupiah dan titik', () => {
+  test('Ekstraksi nominal mendukung variasi format rupiah, titik, koma, dan singkatan rb/k', () => {
     assert.equal(extractNominal('Rp 10.000'), 10000);
+    assert.equal(extractNominal('Rp 10,000'), 10000);
+    assert.equal(extractNominal('Rp 10,000.00'), 10000);
+    assert.equal(extractNominal('Rp 10.000,00'), 10000);
     assert.equal(extractNominal('Rp73.000'), 73000);
+    assert.equal(extractNominal('Rp 73,000'), 73000);
+    assert.equal(extractNominal('73rb'), 73000);
+    assert.equal(extractNominal('sebesar 73 ribu'), 73000);
+    assert.equal(extractNominal('73k'), 73000);
     assert.equal(extractNominal('sebesar Rp 1.250.000'), 1250000);
     assert.equal(extractNominal('Total 50.000'), 50000);
+    assert.equal(extractNominal('Uang keluar Rp 10.000'), 10000);
+    assert.equal(extractNominal('Amount Rp 10.000 Tip Amount Rp 0'), 10000);
     assert.equal(extractNominal('Tidak ada angka'), 0);
   });
 

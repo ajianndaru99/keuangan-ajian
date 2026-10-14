@@ -113,9 +113,11 @@ export async function POST(req: NextRequest) {
     const parsed = await parseNotificationPayload(app_name, safeTitle, safeContent, process.env.GEMINI_API_KEY);
     const { amount, direction, merchant, accountName, isTransaction } = parsed;
 
-    // Tanggal transaksi
+    // Tanggal transaksi (prioritas: tanggal dalam teks notifikasi -> received_at dari HP -> waktu sekarang)
     let transactionDate = new Date().toISOString();
-    if (typeof received_at_raw === 'number' && received_at_raw > 1000000000) {
+    if (parsed.transactionDate) {
+      transactionDate = parsed.transactionDate;
+    } else if (typeof received_at_raw === 'number' && received_at_raw > 1000000000) {
       transactionDate = new Date(received_at_raw).toISOString();
     } else if (typeof received_at_raw === 'string' && received_at_raw.trim()) {
       const parsedEpoch = parseInt(received_at_raw, 10);
@@ -214,8 +216,10 @@ interface TransactionRecord {
       }
     }
 
-    // 2. Filter: Jika BUKAN transaksi finansial atau nominal 0, jangan masukkan ke riwayat transaksi!
-    if (!isTransaction || amount <= 0) {
+    // 2. Filter: Abaikan jika terkonfirmasi bukan transaksi finansial (misal obrolan chat penjual / promo iklan)
+    // Kecuali jika berasal dari aplikasi bank/e-wallet terdaftar (misal Bank Jago, BCA, Mandiri) yang butuh review nominal manual
+    const isBankApp = /jago|mandiri|livin|bca|bri|brimo|dana|gopay|ovo|seabank/i.test(`${app_name} ${safeTitle}`);
+    if (!isTransaction && !isBankApp) {
       return NextResponse.json(
         {
           status: 'success',
@@ -282,7 +286,7 @@ interface TransactionRecord {
           transaction_date: transactionDate,
           status: 'pending',
           dedupe_hash: dedupeHash,
-          needs_review: isSensitive,
+          needs_review: isSensitive || amount === 0,
           parse_method: parsed.parseMethod,
         })
         .select('*')
@@ -304,7 +308,7 @@ interface TransactionRecord {
             transaction_date: transactionDate,
             status: 'pending',
             dedupe_hash: dedupeHash,
-            needs_review: isSensitive,
+            needs_review: isSensitive || amount === 0,
           })
           .select('*')
           .single();
