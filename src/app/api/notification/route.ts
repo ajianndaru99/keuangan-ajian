@@ -218,7 +218,7 @@ interface TransactionRecord {
 
     // 2. Filter: Abaikan jika terkonfirmasi bukan transaksi finansial (misal obrolan chat penjual / promo iklan)
     // Kecuali jika berasal dari aplikasi bank/e-wallet terdaftar (misal Bank Jago, BCA, Mandiri) yang butuh review nominal manual
-    const isBankApp = /jago|mandiri|livin|bca|bri|brimo|dana|gopay|ovo|seabank|bankbke/i.test(`${app_name} ${safeTitle}`);
+    const isBankApp = /jago|mandiri|livin|bmri|bca|mybca|bri|brimo|bni|wondr|bsi|bsm|byond|seabank|bankbke|saqu|bjj|blu/i.test(`${app_name} ${safeTitle}`);
     if (!isTransaction && !isBankApp) {
       return NextResponse.json(
         {

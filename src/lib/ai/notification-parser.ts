@@ -63,14 +63,19 @@ export function detectAccountInfo(appName: string, text: string): { name: string
   const combined = `${appName} ${text}`.toLowerCase();
 
   if (combined.includes('jago')) return { name: 'Jago', type: 'bank' };
-  if (combined.includes('livin') || combined.includes('mandiri')) return { name: 'Mandiri', type: 'bank' };
-  if (combined.includes('bca')) return { name: 'BCA', type: 'bank' };
+  if (combined.includes('livin') || combined.includes('mandiri') || combined.includes('bmri')) return { name: 'Mandiri', type: 'bank' };
+  if (combined.includes('bca') || combined.includes('mybca')) return { name: 'BCA', type: 'bank' };
   if (combined.includes('brimo') || combined.includes('bri')) return { name: 'BRI', type: 'bank' };
+  if (combined.includes('bni') || combined.includes('wondr')) return { name: 'BNI', type: 'bank' };
+  if (combined.includes('bsi') || combined.includes('bsm') || combined.includes('byond')) return { name: 'BSI', type: 'bank' };
+  if (combined.includes('seabank') || combined.includes('bankbke')) return { name: 'SeaBank', type: 'bank' };
+  if (combined.includes('saqu') || combined.includes('bjj')) return { name: 'Bank Saqu', type: 'bank' };
+  if (combined.includes('blu')) return { name: 'blu BCA', type: 'bank' };
   if (combined.includes('shopeepay') || combined.includes('shopee')) return { name: 'ShopeePay', type: 'ewallet' };
   if (combined.includes('gopay') || combined.includes('gojek')) return { name: 'GoPay', type: 'ewallet' };
-  if (combined.includes('seabank') || combined.includes('bankbke')) return { name: 'SeaBank', type: 'bank' };
   if (combined.includes('dana')) return { name: 'DANA', type: 'ewallet' };
   if (combined.includes('ovo')) return { name: 'OVO', type: 'ewallet' };
+  if (combined.includes('linkaja')) return { name: 'LinkAja', type: 'ewallet' };
 
   return { name: 'BCA', type: 'bank' };
 }
@@ -331,7 +336,7 @@ export async function parseNotificationPayload(
 
   // 1. Deteksi Chat Penjual / Pembeli (Shopee Chat, Marketplace Chat)
   const isChatAppName = appName.toLowerCase().includes('shopee') || appName.toLowerCase().includes('tokopedia');
-  const isBankApp = /jago|mandiri|livin|bca|bri|brimo|dana|gopay|ovo|seabank|bankbke/i.test(`${appName} ${title}`);
+  const isBankApp = /jago|mandiri|livin|bmri|bca|mybca|bri|brimo|bni|wondr|bsi|bsm|byond|seabank|bankbke|saqu|bjj|blu/i.test(`${appName} ${title}`);
   const hasFinancialWords = FINANCIAL_ACTION_PATTERNS.some((p) => p.test(combinedText));
   const hasNoFinancialWords = !hasFinancialWords;
 

@@ -96,14 +96,20 @@ Agar layanan penyadap tetap aktif 24/7 di latar belakang tanpa dibunuh oleh peng
 3. Atur parameter aturan:
    * **Tipe Aturan:** Pilih **App Notification** (Notifikasi Aplikasi).
    * **Target Aplikasi:** Pilih **App List (Daftar Aplikasi)**, lalu centang aplikasi perbankan & e-wallet keluarga Anda:
-     * *BCA mobile / myBCA* (`com.bca` / `com.bca.mybca`)
-     * *Livin' by Mandiri* (`id.co.bankmandiri.livin`)
-     * *Bank Jago* (`com.jago.digitalBanking` atau cari nama aplikasi "Jago")
-     * *BRImo* (`id.co.bri.brimo`)
-     * *GoPay / Gojek* (`com.gojek.app` / `com.gopay.wallet`)
+     * *BCA mobile / myBCA* (`com.bca` / `com.bca.mybca.omni.android`)
+     * *Livin' by Mandiri* (`id.bmri.livin`)
+     * *BRImo (BRI)* (`id.co.bri.brimo`)
+     * *BNI Mobile / wondr by BNI* (`src.com.bni` / `id.bni.wondr`)
+     * *BSI Mobile / BYOND by BSI* (`com.bsm.activity2` / `id.co.bankbsi.byond`)
+     * *Bank Jago* (`com.jago.digitalBanking` / `com.jago.bank` atau cari "Jago")
+     * *SeaBank* (`id.co.bankbkemobile.digitalbank` atau cari "SeaBank")
+     * *Bank Saqu* (`id.co.bjj.saqu` atau cari "Bank Saqu")
+     * *blu by BCA Digital* (`com.bcadigital.blu`)
+     * *GoPay / Gojek* (`com.gojek.gopay` / `com.gojek.app`)
      * *OVO* (`ovo.id`)
-     * *ShopeePay / Shopee* (`com.shopee.id`)
-     * *SeaBank* (`id.co.bankbkemobile.digitalbank` atau cari nama aplikasi "SeaBank")
+     * *DANA* (`id.dana`)
+     * *ShopeePay / Shopee* (`com.shopeepay.id` / `com.shopee.id`)
+     * *LinkAja* (`linkaja.transaction`)
    * **Filter Kata Kunci Pengecualian (Exclude):**  
      Pilih *Contains (Memuat)* -> masukkan:  
      `OTP, kode verifikasi, PIN, jangan berikan`  

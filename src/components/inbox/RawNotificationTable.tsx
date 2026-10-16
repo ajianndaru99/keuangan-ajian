@@ -92,12 +92,16 @@ export default function RawNotificationTable({
   // Normalisasi nama aplikasi ramah pengguna
   const getReadableAppName = (appName: string): string => {
     const lower = (appName || '').toLowerCase();
-    if (lower.includes('livin') || lower.includes('mandiri')) return "Mandiri Livin'";
+    if (lower.includes('livin') || lower.includes('mandiri') || lower.includes('bmri')) return "Mandiri Livin'";
     if (lower.includes('brimo') || lower.includes('bri')) return 'BRImo';
     if (lower.includes('mybca')) return 'myBCA';
     if (lower.includes('bca')) return 'BCA';
+    if (lower.includes('bni') || lower.includes('wondr')) return 'BNI';
+    if (lower.includes('bsi') || lower.includes('bsm') || lower.includes('byond')) return 'BSI';
     if (lower.includes('jago')) return 'Bank Jago';
-    if (lower.includes('seabank')) return 'SeaBank';
+    if (lower.includes('seabank') || lower.includes('bankbke')) return 'SeaBank';
+    if (lower.includes('saqu') || lower.includes('bjj')) return 'Bank Saqu';
+    if (lower.includes('blu')) return 'blu BCA';
     if (lower.includes('shopeepay')) return 'ShopeePay';
     if (lower.includes('shopee')) return 'Shopee';
     if (lower.includes('gopay')) return 'GoPay';
@@ -106,6 +110,7 @@ export default function RawNotificationTable({
     if (lower.includes('kai')) return 'Access by KAI';
     if (lower.includes('ovo')) return 'OVO';
     if (lower.includes('dana')) return 'DANA';
+    if (lower.includes('linkaja')) return 'LinkAja';
     return appName || 'Notifikasi Finansial';
   };
 
