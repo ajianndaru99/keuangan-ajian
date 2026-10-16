@@ -52,7 +52,7 @@ const FINANCIAL_ACTION_PATTERNS = [
   /\b(qris|edc|merchant)\b/i,
   /\b(uang\s*keluar|uang\s*masuk|dana\s*masuk|transfer\s*masuk)\b/i,
   /\b(kamu\s+telah\s+(?:membayar|mentransfer|menerima|melakukan)|you\s+have\s+(?:made|paid|transferred))\b/i,
-  /\b(kantong|jago|bank\s*jago)\b/i,
+  /\b(kantong|jago|bank\s*jago|seabank|bank\s*bke)\b/i,
   /\b(transaksi|transaction)\b/i,
 ];
 
@@ -68,6 +68,7 @@ export function detectAccountInfo(appName: string, text: string): { name: string
   if (combined.includes('brimo') || combined.includes('bri')) return { name: 'BRI', type: 'bank' };
   if (combined.includes('shopeepay') || combined.includes('shopee')) return { name: 'ShopeePay', type: 'ewallet' };
   if (combined.includes('gopay') || combined.includes('gojek')) return { name: 'GoPay', type: 'ewallet' };
+  if (combined.includes('seabank') || combined.includes('bankbke')) return { name: 'SeaBank', type: 'bank' };
   if (combined.includes('dana')) return { name: 'DANA', type: 'ewallet' };
   if (combined.includes('ovo')) return { name: 'OVO', type: 'ewallet' };
 
@@ -330,7 +331,7 @@ export async function parseNotificationPayload(
 
   // 1. Deteksi Chat Penjual / Pembeli (Shopee Chat, Marketplace Chat)
   const isChatAppName = appName.toLowerCase().includes('shopee') || appName.toLowerCase().includes('tokopedia');
-  const isBankApp = /jago|mandiri|livin|bca|bri|brimo|dana|gopay|ovo|seabank/i.test(`${appName} ${title}`);
+  const isBankApp = /jago|mandiri|livin|bca|bri|brimo|dana|gopay|ovo|seabank|bankbke/i.test(`${appName} ${title}`);
   const hasFinancialWords = FINANCIAL_ACTION_PATTERNS.some((p) => p.test(combinedText));
   const hasNoFinancialWords = !hasFinancialWords;
 

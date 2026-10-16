@@ -11,6 +11,7 @@ import { URLSearchParams } from 'node:url';
 
 import { parseLivinNotification } from '../supabase/functions/_shared/parsers/livin.ts';
 import { parseJagoNotification } from '../supabase/functions/_shared/parsers/jago.ts';
+import { parseSeabankNotification } from '../supabase/functions/_shared/parsers/seabank.ts';
 import { normalizeText, parseReceivedAt } from '../supabase/functions/_shared/parsers/fields.ts';
 import { matchesAny, SENSITIVE_PATTERNS } from '../supabase/functions/_shared/parsers/rules.ts';
 
@@ -216,6 +217,8 @@ const server = http.createServer(async (req, res) => {
           parsedResult = parseLivinNotification(titleToSave, contentToSave, received_at_raw);
         } else if (lowerApp.includes('jago')) {
           parsedResult = parseJagoNotification(titleToSave, contentToSave, received_at_raw);
+        } else if (lowerApp.includes('seabank') || lowerApp.includes('bankbke')) {
+          parsedResult = parseSeabankNotification(titleToSave, contentToSave, received_at_raw);
         }
       }
 

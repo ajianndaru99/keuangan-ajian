@@ -22,6 +22,7 @@ describe('1. Normalisasi Akun Bank & E-Wallet (normalizeAccount)', () => {
     assert.deepEqual(normalizeAccount('Livin by Mandiri QRIS'), { name: 'Mandiri', type: 'bank' });
     assert.deepEqual(normalizeAccount('BRImo BRI'), { name: 'BRI', type: 'bank' });
     assert.deepEqual(normalizeAccount('Bank Jago Kantong'), { name: 'Jago', type: 'bank' });
+    assert.deepEqual(normalizeAccount('SeaBank Indonesia'), { name: 'SeaBank', type: 'bank' });
   });
 
   test('Mengenali berbagai e-wallet Indonesia', () => {

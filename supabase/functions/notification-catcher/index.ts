@@ -2,6 +2,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2.48.1';
 import { matchesAny, SENSITIVE_PATTERNS } from '../_shared/parsers/rules.ts';
 import { parseLivinNotification } from '../_shared/parsers/livin.ts';
 import { parseJagoNotification } from '../_shared/parsers/jago.ts';
+import { parseSeabankNotification } from '../_shared/parsers/seabank.ts';
 import { normalizeText, parseReceivedAt } from '../_shared/parsers/fields.ts';
 import { analyzeNotificationWithGemini } from '../_shared/parsers/gemini-text.ts';
 
@@ -144,6 +145,8 @@ Deno.serve(async (req) => {
         parsedResult = parseLivinNotification(title, content, received_at_raw);
       } else if (lowerApp.includes('jago')) {
         parsedResult = parseJagoNotification(title, content, received_at_raw);
+      } else if (lowerApp.includes('seabank') || lowerApp.includes('bankbke')) {
+        parsedResult = parseSeabankNotification(title, content, received_at_raw);
       }
 
       // AI Fallback (Gemini Flash):

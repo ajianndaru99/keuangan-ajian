@@ -103,6 +103,7 @@ Agar layanan penyadap tetap aktif 24/7 di latar belakang tanpa dibunuh oleh peng
      * *GoPay / Gojek* (`com.gojek.app` / `com.gopay.wallet`)
      * *OVO* (`ovo.id`)
      * *ShopeePay / Shopee* (`com.shopee.id`)
+     * *SeaBank* (`id.co.bankbkemobile.digitalbank` atau cari nama aplikasi "SeaBank")
    * **Filter Kata Kunci Pengecualian (Exclude):**  
      Pilih *Contains (Memuat)* -> masukkan:  
      `OTP, kode verifikasi, PIN, jangan berikan`  

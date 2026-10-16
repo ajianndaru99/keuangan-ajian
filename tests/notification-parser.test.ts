@@ -123,6 +123,33 @@ describe('Notification Smart Parser & Chat/Promo Filter', () => {
     assert.equal(res.parseMethod, 'regex');
   });
 
+  test('Mengekstrak transaksi sah SeaBank Rp 50.000 keluar via Regex (Layer 1)', async () => {
+    const res = await parseNotificationPayload(
+      'id.co.bankbkemobile.digitalbank',
+      'Transfer Berhasil',
+      'Kamu telah mentransfer Rp 50.000 ke BUDI UTOMO'
+    );
+    assert.equal(res.isTransaction, true);
+    assert.equal(res.amount, 50000);
+    assert.equal(res.direction, 'out');
+    assert.equal(res.merchant, 'BUDI UTOMO');
+    assert.equal(res.accountName, 'SeaBank');
+    assert.equal(res.parseMethod, 'regex');
+  });
+
+  test('Mengekstrak transaksi uang masuk SeaBank Rp 100.000 via Regex (Layer 1)', async () => {
+    const res = await parseNotificationPayload(
+      'id.co.bankbkemobile.digitalbank',
+      'SeaBank',
+      'Transfer masuk sebesar Rp 100.000 dari SITI AISYAH berhasil'
+    );
+    assert.equal(res.isTransaction, true);
+    assert.equal(res.amount, 100000);
+    assert.equal(res.direction, 'in');
+    assert.equal(res.accountName, 'SeaBank');
+    assert.equal(res.parseMethod, 'regex');
+  });
+
   test('Ekstraksi nominal mendukung variasi format rupiah, titik, koma, dan singkatan rb/k', () => {
     assert.equal(extractNominal('Rp 10.000'), 10000);
     assert.equal(extractNominal('Rp 10,000'), 10000);

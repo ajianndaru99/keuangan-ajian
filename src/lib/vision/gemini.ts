@@ -28,8 +28,9 @@ export const KNOWN_ACCOUNTS: Array<{ name: string; type: 'bank' | 'ewallet'; ali
   { name: 'Mandiri', type: 'bank', aliases: ['mandiri', 'livin', 'livin by mandiri', 'bank mandiri'] },
   { name: 'BRI', type: 'bank', aliases: ['bri', 'brimo', 'bank rakyat indonesia'] },
   { name: 'Jago', type: 'bank', aliases: ['jago', 'bank jago'] },
+  { name: 'SeaBank', type: 'bank', aliases: ['seabank', 'sea bank', 'bank seabank', 'bke', 'bank bke'] },
   { name: 'GoPay', type: 'ewallet', aliases: ['gopay', 'gojek', 'pt dompet anak bangsa'] },
-  { name: 'ShopeePay', type: 'ewallet', aliases: ['shopeepay', 'shopee', 'spaylater', 'sea'] },
+  { name: 'ShopeePay', type: 'ewallet', aliases: ['shopeepay', 'shopee', 'spaylater'] },
   { name: 'DANA', type: 'ewallet', aliases: ['dana', 'pt espay debit indonesia koe'] },
   { name: 'OVO', type: 'ewallet', aliases: ['ovo', 'visionet'] },
 ];
