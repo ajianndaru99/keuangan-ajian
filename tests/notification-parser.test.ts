@@ -59,6 +59,20 @@ describe('Notification Smart Parser & Chat/Promo Filter', () => {
     assert.equal(res.transactionDate, '2026-10-12T10:11:00.000Z');
   });
 
+  test('Mengekstrak pembayaran Bank Jago merchant TOKO MAYAR 98 Rp 70.500 dengan kalimat bantuan', async () => {
+    const res = await parseNotificationPayload(
+      'com.jago.digitalBanking',
+      'Jago',
+      'You have paid Rp 70.500 to TOKO MAYAR 98. Need help? Contact Tanya Jago at 1500 746.'
+    );
+    assert.equal(res.isTransaction, true);
+    assert.equal(res.amount, 70500);
+    assert.equal(res.direction, 'out');
+    assert.equal(res.accountName, 'Jago');
+    assert.equal(res.merchant, 'TOKO MAYAR 98');
+    assert.equal(res.parseMethod, 'regex');
+  });
+
   test('Mengekstrak notifikasi Bank Jago bahasa Indonesia dengan salam sore dan uang keluar', async () => {
     const res = await parseNotificationPayload(
       'com.jago.bank',

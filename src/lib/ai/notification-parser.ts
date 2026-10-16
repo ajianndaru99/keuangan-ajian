@@ -197,9 +197,11 @@ export function extractMerchant(title: string, text: string, defaultAccount: str
   // Pola: "ke <Merchant>" / "di <Merchant>" / "to <Merchant>" / "at <Merchant>"
   const matchTarget = combined.match(/\b(?:ke|di|kepada|pembayaran\s+ke|payment\s+to|transferred\s+to|paid\s+to|transfer\s+ke|kirim\s+ke|to|at)\b\s+([A-Za-z0-9\s&'._,-]{3,50})/i);
   if (matchTarget && matchTarget[1]) {
-    const cleanMerchant = matchTarget[1]
+    // Potong jika ada titik penutup kalimat sebelum kalimat bantuan (misal ". Need help?")
+    const firstSentence = matchTarget[1].split(/[.!?](?:\s|$)/)[0];
+    const cleanMerchant = (firstSentence || matchTarget[1])
       .trim()
-      .replace(/\s+(berhasil|sukses|pada|tanggal|tgl|sebesar|senilai|rp|idr|successful|is\s+successful).*$/i, '')
+      .replace(/\s+(berhasil|sukses|pada|tanggal|tgl|sebesar|senilai|rp|idr|successful|is\s+successful|need\s+help|butuh\s+bantuan|hubungi|contact|tanya\s+jago).*$/i, '')
       .replace(/[,.-]+$/, '')
       .trim();
     if (cleanMerchant.length >= 2 && !/^(?:notifikasi|informasi|status|rp|idr)$/i.test(cleanMerchant)) {

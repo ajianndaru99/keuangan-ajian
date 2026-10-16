@@ -98,7 +98,7 @@ Agar layanan penyadap tetap aktif 24/7 di latar belakang tanpa dibunuh oleh peng
    * **Target Aplikasi:** Pilih **App List (Daftar Aplikasi)**, lalu centang aplikasi perbankan & e-wallet keluarga Anda:
      * *BCA mobile / myBCA* (`com.bca` / `com.bca.mybca`)
      * *Livin' by Mandiri* (`id.co.bankmandiri.livin`)
-     * *Bank Jago* (`com.jago.bank`)
+     * *Bank Jago* (`com.jago.digitalBanking` atau cari nama aplikasi "Jago")
      * *BRImo* (`id.co.bri.brimo`)
      * *GoPay / Gojek* (`com.gojek.app` / `com.gopay.wallet`)
      * *OVO* (`ovo.id`)
