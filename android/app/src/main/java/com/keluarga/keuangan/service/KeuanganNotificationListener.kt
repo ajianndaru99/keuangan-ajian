@@ -56,7 +56,7 @@ class KeuanganNotificationListener : NotificationListenerService() {
         val packageName = sbn.packageName ?: return
 
         // 1. Filter: Hanya proses aplikasi perbankan & e-wallet yang terdaftar
-        if (!AppConfig.BANK_PACKAGES.contains(packageName)) {
+        if (!AppConfig.isFinancialPackage(packageName)) {
             return
         }
 

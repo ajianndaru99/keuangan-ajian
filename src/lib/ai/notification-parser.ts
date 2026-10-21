@@ -80,6 +80,25 @@ const FINANCIAL_ACTION_PATTERNS = [
  * Deteksi nama akun bank atau e-wallet dari packageName atau teks
  */
 export function detectAccountInfo(appName: string, text: string): { name: string; type: 'bank' | 'ewallet' } {
+  const app = (appName || '').toLowerCase();
+
+  // Prioritas 1: Berdasarkan nama aplikasi pengirim (packageName / appName)
+  if (app.includes('jago')) return { name: 'Jago', type: 'bank' };
+  if (app.includes('livin') || app.includes('mandiri') || app.includes('bmri')) return { name: 'Mandiri', type: 'bank' };
+  if (app.includes('bca') || app.includes('mybca')) return { name: 'BCA', type: 'bank' };
+  if (app.includes('brimo') || app.includes('bri')) return { name: 'BRI', type: 'bank' };
+  if (app.includes('bni') || app.includes('wondr')) return { name: 'BNI', type: 'bank' };
+  if (app.includes('bsi') || app.includes('bsm') || app.includes('byond')) return { name: 'BSI', type: 'bank' };
+  if (app.includes('seabank') || app.includes('bankbke')) return { name: 'SeaBank', type: 'bank' };
+  if (app.includes('saqu') || app.includes('bjj')) return { name: 'Bank Saqu', type: 'bank' };
+  if (app.includes('blu')) return { name: 'blu BCA', type: 'bank' };
+  if (app.includes('shopeepay') || app.includes('shopee')) return { name: 'ShopeePay', type: 'ewallet' };
+  if (app.includes('gopay') || app.includes('gojek')) return { name: 'GoPay', type: 'ewallet' };
+  if (app.includes('dana')) return { name: 'DANA', type: 'ewallet' };
+  if (app.includes('ovo')) return { name: 'OVO', type: 'ewallet' };
+  if (app.includes('linkaja') || app.includes('cpm')) return { name: 'LinkAja', type: 'ewallet' };
+
+  // Prioritas 2: Berdasarkan isi teks jika nama aplikasi tidak spesifik
   const combined = `${appName} ${text}`.toLowerCase();
 
   if (combined.includes('jago')) return { name: 'Jago', type: 'bank' };

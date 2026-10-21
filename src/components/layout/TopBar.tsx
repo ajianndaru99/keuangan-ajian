@@ -7,11 +7,9 @@
 
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
-import Link from 'next/link';
 import { usePrivacy } from '@/lib/privacy';
 import {
   Search,
-  Bell,
   Sun,
   Moon,
   Monitor,
@@ -32,7 +30,7 @@ interface TopBarProps {
 export default function TopBar({
   userRole = 'suami',
   displayName,
-  pendingCount = 0,
+  pendingCount: _pendingCount = 0,
   onOpenMobileSidebar,
   searchQuery,
   onSearchChange,
@@ -194,17 +192,6 @@ export default function TopBar({
             {isHideBalance ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
           </button>
 
-          {/* Notifikasi Bell */}
-          <Link
-            href="/inbox"
-            title={pendingCount > 0 ? `${pendingCount} transaksi menunggu verifikasi` : 'Semua transaksi tervalidasi'}
-            className="p-2 rounded-xl text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--surface-2)] transition-colors relative"
-          >
-            <Bell className="w-4 h-4" />
-            {pendingCount > 0 && (
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-amber-500 ring-2 ring-[var(--bg-card)] animate-pulse" />
-            )}
-          </Link>
 
           {/* 3-Way Toggle Theme (Terang / Gelap / Sistem) */}
           <button

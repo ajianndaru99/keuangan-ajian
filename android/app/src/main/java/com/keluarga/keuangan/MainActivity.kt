@@ -38,12 +38,6 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // Standar Finansial OWASP Mobile: Cegah perekaman layar / snapshot latar belakang
-        window.setFlags(
-            WindowManager.LayoutParams.FLAG_SECURE,
-            WindowManager.LayoutParams.FLAG_SECURE
-        )
-
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
@@ -146,10 +140,8 @@ class MainActivity : AppCompatActivity() {
         // Injeksi Bridge JavaScript dua arah
         webView.addJavascriptInterface(WebAppInterface(this), "AndroidBridge")
 
-        // SwipeRefreshLayout
-        binding.swipeRefreshLayout.setOnRefreshListener {
-            webView.reload()
-        }
+        // Nonaktifkan pull-to-refresh agar gulir ke bawah di WebView tidak memicu reload halaman
+        binding.swipeRefreshLayout.isEnabled = false
 
         webView.webViewClient = object : WebViewClient() {
             override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
