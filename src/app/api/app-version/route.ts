@@ -25,11 +25,11 @@ interface RemoteVersionJson {
 }
 
 export async function GET() {
-  // Nilai default cadangan jika server GitHub tidak merespons
+  // Nilai default cadangan jika server GitHub belum merespons
   const defaultVersion = {
-    versionCode: 2,
+    versionCode: 1,
     versionName: '1.0.1',
-    releaseNotes: 'Fitur pembaruan otomatis in-app, izin tangkapan layar, perbaikan filter swipe, dan perluasan listener bank.',
+    releaseNotes: 'Rilis resmi aplikasi Keuangan Keluarga dengan fitur sinkronisasi otomatis dan sistem pembaruan in-app.',
     apkUrl: 'https://github.com/ajianndaru99/keuangan-ajian/releases/latest/download/KeuanganKeluarga-Release.apk',
     fallbackApkUrl: 'https://github.com/ajianndaru99/keuangan-ajian/releases/latest/download/app-release.apk',
     forceUpdate: false,

@@ -37,32 +37,20 @@ jobs:
         run: |
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
 
-      - name: Ensure Permanent Release Keystore
+      - name: Verify Release Keystore
         run: |
           if [ ! -f android/keystore.jks ]; then
-            echo "Membuat keystore rilis permanen untuk keluarga..."
-            keytool -genkeypair -v -keystore android/keystore.jks \
-              -alias keuangan \
-              -keyalg RSA \
-              -keysize 2048 \
-              -validity 10000 \
-              -storepass keluargaKeuangan2024 \
-              -keypass keluargaKeuangan2024 \
-              -dname "CN=KeuanganKeluarga, OU=Family, O=Keluarga, L=Jakarta, ST=DKI, C=ID"
-            
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add android/keystore.jks
-            git commit -m "ci: commit permanent release keystore [skip ci]" || true
-            git push origin main || true
+            echo "Error: android/keystore.jks tidak ditemukan di repositori!"
+            exit 1
           fi
+          echo "Release keystore resmi terverifikasi tersedia."
 
       - name: Build Android APK
         env:
           BUILD_NUMBER: ${{ github.run_number }}
-          KEYSTORE_PASSWORD: keluargaKeuangan2024
-          KEY_ALIAS: keuangan
-          KEY_PASSWORD: keluargaKeuangan2024
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD || 'keluargaKeuangan2024' }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS || 'keuangan' }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || 'keluargaKeuangan2024' }}
         run: |
           cd android
           gradle assembleRelease assembleDebug --stacktrace --no-daemon > build.log 2>&1 || {
@@ -97,8 +85,8 @@ jobs:
           if [ -f dist-apk/app-debug.apk ]; then
             cp dist-apk/app-debug.apk dist-apk/KeuanganKeluarga-Debug.apk
           fi
-          # Buat file version.json otomatis untuk In-App Updater
-          echo "{\"versionCode\": ${{ github.run_number }}, \"versionName\": \"1.0.${{ github.run_number }}\", \"apkUrl\": \"https://github.com/ajianndaru99/keuangan-ajian/releases/latest/download/KeuanganKeluarga-Release.apk\"}" > dist-apk/version.json
+          # Buat file version.json otomatis untuk In-App Updater dengan releaseNotes
+          echo "{\"versionCode\": ${{ github.run_number }}, \"versionName\": \"1.0.${{ github.run_number }}\", \"releaseNotes\": \"Pembaruan otomatis build #${{ github.run_number }} dengan peningkatan keamanan dan stabilitas.\", \"apkUrl\": \"https://github.com/ajianndaru99/keuangan-ajian/releases/latest/download/KeuanganKeluarga-Release.apk\"}" > dist-apk/version.json
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4

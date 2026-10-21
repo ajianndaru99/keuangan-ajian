@@ -174,9 +174,32 @@ object AppUpdateManager {
                     apkFile.delete()
                 }
 
+                val contentLength = body.contentLength()
+                var downloadedBytes = 0L
+                val buffer = ByteArray(8 * 1024)
+                var lastUpdatePercent = -1
+
                 body.byteStream().use { input ->
                     FileOutputStream(apkFile).use { output ->
-                        input.copyTo(output)
+                        var read: Int
+                        while (input.read(buffer).also { read = it } != -1) {
+                            output.write(buffer, 0, read)
+                            downloadedBytes += read
+                            if (contentLength > 0) {
+                                val percent = ((downloadedBytes * 100) / contentLength).toInt()
+                                if (percent != lastUpdatePercent && percent % 10 == 0) {
+                                    lastUpdatePercent = percent
+                                    val currentMb = String.format(java.util.Locale.US, "%.1f", downloadedBytes / (1024.0 * 1024.0))
+                                    val totalMb = String.format(java.util.Locale.US, "%.1f", contentLength / (1024.0 * 1024.0))
+                                    activity.runOnUiThread {
+                                        if (!activity.isFinishing && !activity.isDestroyed) {
+                                            progressDialog.setMessage("Sedang mengunduh berkas installer resmi...\n$currentMb MB / $totalMb MB ($percent%)")
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        output.flush()
                     }
                 }
 
@@ -198,12 +221,14 @@ object AppUpdateManager {
                     throw Exception("Nama paket (${archiveInfo.packageName}) tidak sesuai dengan aplikasi ini.")
                 }
 
-                // Keamanan Tingkat 4: Verifikasi signature kriptografi digital
+                // Keamanan Tingkat 4: Verifikasi signature kriptografi digital (SHA-256 fingerprint)
                 val isSignatureValid = verifyApkSignature(activity, apkFile.absolutePath)
                 if (!isSignatureValid) {
                     apkFile.delete()
-                    throw Exception("Tanda tangan digital (signature) berkas pembaruan tidak cocok.")
+                    throw Exception("Tanda tangan digital (signature) berkas pembaruan tidak cocok dengan aplikasi resmi.")
                 }
+
+                apkFile.deleteOnExit()
 
                 activity.runOnUiThread {
                     progressDialog.dismiss()
@@ -221,41 +246,47 @@ object AppUpdateManager {
     }
 
     /**
+     * Menghitung fingerprint SHA-256 dalam bentuk string heksadesimal dari Signature Android
+     */
+    private fun getSignatureFingerprint(signature: android.content.pm.Signature): String {
+        val digest = java.security.MessageDigest.getInstance("SHA-256")
+        val hash = digest.digest(signature.toByteArray())
+        return hash.joinToString("") { "%02x".format(it) }
+    }
+
+    /**
      * Memverifikasi bahwa tanda tangan digital (signing certificate) paket APK yang diunduh
-     * identik dengan aplikasi yang saat ini terpasang di HP.
+     * identik dengan aplikasi yang saat ini terpasang di HP (Fail-Closed).
      */
     @Suppress("DEPRECATION")
     private fun verifyApkSignature(context: Context, apkPath: String): Boolean {
         return try {
             val pm = context.packageManager
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            val currentSigners = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 val currentInfo = pm.getPackageInfo(context.packageName, PackageManager.GET_SIGNING_CERTIFICATES)
-                val currentSigners = currentInfo.signingInfo?.apkContentsSigners?.map { it.hashCode() }?.toSet() ?: emptySet()
-
-                val archiveInfo = pm.getPackageArchiveInfo(apkPath, PackageManager.GET_SIGNING_CERTIFICATES)
-                val archiveSigners = archiveInfo?.signingInfo?.apkContentsSigners?.map { it.hashCode() }?.toSet() ?: emptySet()
-
-                if (currentSigners.isEmpty() || archiveSigners.isEmpty()) {
-                    true // Biarkan PackageInstaller sistem OS Android yang melakukan final check
-                } else {
-                    currentSigners == archiveSigners
-                }
+                currentInfo.signingInfo?.apkContentsSigners?.map { getSignatureFingerprint(it) }?.toSet() ?: emptySet()
             } else {
                 val currentInfo = pm.getPackageInfo(context.packageName, PackageManager.GET_SIGNATURES)
-                val currentSignatures = currentInfo.signatures?.map { it.hashCode() }?.toSet() ?: emptySet()
+                currentInfo.signatures?.map { getSignatureFingerprint(it) }?.toSet() ?: emptySet()
+            }
 
+            val archiveSigners = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                val archiveInfo = pm.getPackageArchiveInfo(apkPath, PackageManager.GET_SIGNING_CERTIFICATES)
+                archiveInfo?.signingInfo?.apkContentsSigners?.map { getSignatureFingerprint(it) }?.toSet() ?: emptySet()
+            } else {
                 val archiveInfo = pm.getPackageArchiveInfo(apkPath, PackageManager.GET_SIGNATURES)
-                val archiveSignatures = archiveInfo?.signatures?.map { it.hashCode() }?.toSet() ?: emptySet()
+                archiveInfo?.signatures?.map { getSignatureFingerprint(it) }?.toSet() ?: emptySet()
+            }
 
-                if (currentSignatures.isEmpty() || archiveSignatures.isEmpty()) {
-                    true
-                } else {
-                    currentSignatures == archiveSignatures
-                }
+            // Keamanan fail-closed: jika salah satu sertifikat tidak ditemukan atau tidak sama, tolak instalasi
+            if (currentSigners.isEmpty() || archiveSigners.isEmpty()) {
+                false
+            } else {
+                currentSigners == archiveSigners
             }
         } catch (e: Exception) {
-            // Jika terjadi kegagalan pembacaan reflektif, sistem inti Android tetap menjamin signature saat intent dipanggil
-            true
+            // Fail-closed untuk menjaga keamanan data finansial pengguna
+            false
         }
     }
 
