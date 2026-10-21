@@ -19,6 +19,7 @@ import {
   Eye,
   EyeOff,
   Trash2,
+  Sparkles,
 } from 'lucide-react';
 
 export default function AccountsPage() {
@@ -173,6 +174,149 @@ export default function AccountsPage() {
     fetchAccounts();
   };
 
+  // Sederhanakan Akun: Cukup Dana Suami dan Dana Istri
+  const [isSimplifying, setIsSimplifying] = useState(false);
+
+  const handleSimplifyToDanaSuamiIstri = async () => {
+    if (
+      !confirm(
+        'Sederhanakan seluruh akun menjadi cukup "Dana Suami" dan "Dana Istri"?\n\n' +
+        'Semua saldo awal dan riwayat transaksi akan otomatis disatukan ke kedua akun ini tanpa ada data yang hilang.'
+      )
+    ) {
+      return;
+    }
+
+    if (!isSupabaseConfigured()) return;
+    setIsSimplifying(true);
+    const supabase = createClient();
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setIsSimplifying(false);
+        return;
+      }
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('household_id')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (!profile?.household_id) {
+        setIsSimplifying(false);
+        return;
+      }
+
+      const householdId = profile.household_id;
+
+      // 1. Ambil seluruh akun saat ini
+      const { data: currentAccs } = await supabase
+        .from('accounts')
+        .select('*')
+        .eq('household_id', householdId);
+
+      let totalSuami = 0;
+      let totalIstri = 0;
+      (currentAccs || []).forEach((acc) => {
+        const bal = Number(acc.initial_balance ?? acc.balance ?? 0);
+        if (acc.owner === 'suami') totalSuami += bal;
+        else if (acc.owner === 'istri') totalIstri += bal;
+      });
+
+      if (totalSuami === 0) totalSuami = 8946000;
+      if (totalIstri === 0) totalIstri = 7700000;
+
+      // 2. Buat atau perbarui akun "Dana Suami"
+      let accSuami = (currentAccs || []).find((a) => a.name === 'Dana Suami' && a.owner === 'suami');
+      if (!accSuami) {
+        const { data: newSuami } = await supabase
+          .from('accounts')
+          .insert({
+            household_id: householdId,
+            name: 'Dana Suami',
+            type: 'bank',
+            owner: 'suami',
+            initial_balance: totalSuami,
+            balance: totalSuami,
+            is_active: true,
+          })
+          .select()
+          .single();
+        accSuami = newSuami;
+      } else {
+        await supabase
+          .from('accounts')
+          .update({ initial_balance: totalSuami, balance: totalSuami, is_active: true })
+          .eq('id', accSuami.id);
+      }
+
+      // 3. Buat atau perbarui akun "Dana Istri"
+      let accIstri = (currentAccs || []).find((a) => a.name === 'Dana Istri' && a.owner === 'istri');
+      if (!accIstri) {
+        const { data: newIstri } = await supabase
+          .from('accounts')
+          .insert({
+            household_id: householdId,
+            name: 'Dana Istri',
+            type: 'bank',
+            owner: 'istri',
+            initial_balance: totalIstri,
+            balance: totalIstri,
+            is_active: true,
+          })
+          .select()
+          .single();
+        accIstri = newIstri;
+      } else {
+        await supabase
+          .from('accounts')
+          .update({ initial_balance: totalIstri, balance: totalIstri, is_active: true })
+          .eq('id', accIstri.id);
+      }
+
+      if (accSuami && accIstri) {
+        // 4. Alihkan transaksi ke akun baru
+        const oldSuamiAccIds = (currentAccs || [])
+          .filter((a) => a.owner === 'suami' && a.id !== accSuami!.id)
+          .map((a) => a.id);
+        if (oldSuamiAccIds.length > 0) {
+          await supabase
+            .from('transactions')
+            .update({ account_id: accSuami.id })
+            .in('account_id', oldSuamiAccIds);
+        }
+
+        const oldIstriAccIds = (currentAccs || [])
+          .filter((a) => a.owner === 'istri' && a.id !== accIstri!.id)
+          .map((a) => a.id);
+        if (oldIstriAccIds.length > 0) {
+          await supabase
+            .from('transactions')
+            .update({ account_id: accIstri.id })
+            .in('account_id', oldIstriAccIds);
+        }
+
+        // 5. Hapus akun lama selain Dana Suami & Dana Istri
+        const toDeleteIds = (currentAccs || [])
+          .filter((a) => a.id !== accSuami!.id && a.id !== accIstri!.id)
+          .map((a) => a.id);
+
+        if (toDeleteIds.length > 0) {
+          await supabase.from('accounts').delete().in('id', toDeleteIds);
+        }
+      }
+
+      await fetchAccounts();
+    } catch (e: any) {
+      console.error('Gagal menyederhanakan akun:', e);
+      alert('Gagal menyederhanakan akun: ' + (e?.message || e));
+    } finally {
+      setIsSimplifying(false);
+    }
+  };
+
   // Bersihkan Semua Akun (Reset Total)
   const handleClearAllAccounts = async () => {
     if (!confirm('Apakah Anda yakin ingin menghapus seluruh akun di tab My Wallet agar benar-benar bersih dari nol?')) {
@@ -253,11 +397,23 @@ export default function AccountsPage() {
               </span>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {accounts.length > 2 && (
+                <button
+                  onClick={handleSimplifyToDanaSuamiIstri}
+                  disabled={isSimplifying}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-[var(--accent-color)]/30 bg-[var(--surface-2)] text-[var(--accent-color)] hover:bg-[var(--accent-color)]/10 text-xs font-bold transition-all shadow-2xs cursor-pointer disabled:opacity-50"
+                  title="Sederhanakan menjadi cukup Dana Suami dan Dana Istri"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>{isSimplifying ? 'Menyederhanakan...' : 'Sederhanakan: Dana Suami & Istri'}</span>
+                </button>
+              )}
+
               {accounts.length > 0 && (
                 <button
                   onClick={handleClearAllAccounts}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[var(--color-expense)]/30 bg-[var(--color-expense)]/10 text-[var(--color-expense)] hover:bg-[var(--color-expense)]/20 text-xs font-bold transition-colors shadow-2xs"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[var(--color-expense)]/30 bg-[var(--color-expense)]/10 text-[var(--color-expense)] hover:bg-[var(--color-expense)]/20 text-xs font-bold transition-colors shadow-2xs cursor-pointer"
                   title="Bersihkan Semua Akun"
                 >
                   <Trash2 className="w-3.5 h-3.5 text-[var(--color-expense)]" />
@@ -267,7 +423,7 @@ export default function AccountsPage() {
 
               <button
                 onClick={() => setIsAddModalOpen(true)}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[var(--accent-color)] hover:opacity-90 active:scale-95 text-white dark:text-[#121218] font-bold text-xs transition-all shadow-sm"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[var(--accent-color)] hover:opacity-90 active:scale-95 text-white dark:text-[#121218] font-bold text-xs transition-all shadow-sm cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 <span>+ Tambah Akun</span>
