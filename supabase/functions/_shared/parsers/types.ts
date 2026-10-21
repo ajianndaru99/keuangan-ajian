@@ -30,6 +30,12 @@ export interface AmountMention {
   problem?: AmountProblem;
 }
 
+/** Label klasifikasi AI (Gemini). */
+export type AiLabel = 'PENGELUARAN' | 'PEMASUKAN' | 'NOTIFIKASI' | 'PROMO' | 'RAGU';
+
+/** Metode parsing asal transaksi. */
+export type ParseMethod = 'regex' | 'ai_gemini' | 'manual' | 'vision';
+
 /** Alasan sebuah notifikasi tidak langsung menjadi 'transaction'. */
 export type ReasonCode =
   | 'empty_notification'
@@ -46,7 +52,13 @@ export type ReasonCode =
   | 'multiple_main_amounts'
   | `amount_${AmountProblem}`
   | 'received_at_invalid'
-  | 'received_at_in_future';
+  | 'received_at_in_future'
+  | 'ai_low_confidence'
+  | 'ai_uncertain'
+  | 'ai_unavailable'
+  | 'ai_amount_mismatch'
+  | 'ai_promo'
+  | 'ai_notification';
 
 /** Catatan yang tidak menghalangi 'transaction'. */
 export type WarningCode = 'promo_keyword_present' | 'merchant_unknown';
@@ -90,6 +102,10 @@ export interface ParsedNotification {
   /** Kosong jika outcome 'transaction'. Berisi alasan jika 'needs_review' / 'ignored'. */
   reasons: ReasonCode[];
   warnings: WarningCode[];
+  parseMethod?: ParseMethod;
+  aiLabel?: AiLabel | null;
+  aiConfidence?: number | null;
+  aiReason?: string | null;
 }
 
 /** Profil satu aplikasi bank/e-wallet. Parser baru = profil baru + test baru. */

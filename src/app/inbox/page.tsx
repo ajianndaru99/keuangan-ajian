@@ -90,6 +90,11 @@ export default function InboxTransactionsPage() {
   const [editingTransaction, setEditingTransaction] = useState<TransactionItem | null>(null);
   const [incomingToast, setIncomingToast] = useState<ToastTransactionData | null>(null);
 
+  // State Rekonsiliasi AI Gemini (Maksimal 2x per hari)
+  const [aiRemainingQuota, setAiRemainingQuota] = useState<number>(2);
+  const [aiCanRun, setAiCanRun] = useState<boolean>(true);
+  const [isAiReconciling, setIsAiReconciling] = useState<boolean>(false);
+
   // Ambil Data dari Supabase (Transaksi Terurai & Raw Notifications)
   const fetchData = useCallback(async () => {
     if (!isSupabaseConfigured()) return;
@@ -218,6 +223,18 @@ export default function InboxTransactionsPage() {
         if (rawData) {
           setRawNotifications(rawData as RawNotificationItem[]);
         }
+
+        // Ambil status kuota rekonsiliasi AI harian
+        try {
+          const quotaRes = await fetch('/api/ai/daily-reconcile');
+          if (quotaRes.ok) {
+            const qData = await quotaRes.json();
+            setAiRemainingQuota(qData.remaining ?? 2);
+            setAiCanRun(qData.canRun ?? true);
+          }
+        } catch {
+          // Abaikan jika jaringan offline
+        }
       }
     } catch (err) {
       console.warn('Gagal memuat data inbox:', err);
@@ -314,11 +331,6 @@ export default function InboxTransactionsPage() {
       }));
   }, [transactions, flowFilter, searchQuery]);
 
-  // Hitung Transaksi Pending untuk TopBar & Sidebar
-  const pendingCount = useMemo(() => {
-    return transactions.filter((t) => t.status === 'pending').length;
-  }, [transactions]);
-
   // Deteksi jumlah transaksi non-finansial/Rp 0 (chat/promo)
   const zeroAmountCount = useMemo(() => {
     return transactions.filter((t) => Number(t.amount || 0) === 0).length;
@@ -392,6 +404,42 @@ export default function InboxTransactionsPage() {
         .eq('id', transactionId);
     }
     fetchData();
+  };
+
+  // Handler Eksekusi Rekonsiliasi AI Gemini Harian
+  const handleRunAiReconcile = async () => {
+    if (!aiCanRun) {
+      alert('Batas kuota rekonsiliasi AI hari ini sudah tercapai (maksimal 2x per hari). Kuota akan direset kembali besok pukul 00:00 WIB.');
+      return;
+    }
+
+    const confirmMsg = `Jalankan Rekonsiliasi AI Gemini untuk seluruh transaksi harian?\n\n• Mendeteksi transfer sesama rekening keluarga (internal transfer)\n• Menghapus konfirmasi ganda dari bank digital / SMS\n• Menyetujui transaksi belanja riil secara otomatis\n\nSisa kuota harian: ${aiRemainingQuota}x. Lanjutkan?`;
+    if (!confirm(confirmMsg)) return;
+
+    setIsAiReconciling(true);
+    try {
+      const res = await fetch('/api/ai/daily-reconcile', {
+        method: 'POST',
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.error || 'Gagal menjalankan rekonsiliasi AI.');
+        return;
+      }
+
+      setAiRemainingQuota(data.remainingQuota ?? 0);
+      setAiCanRun((data.remainingQuota ?? 0) > 0);
+
+      const summary = `✨ Rekonsiliasi AI Selesai!\n\n${data.summaryNotes}\n\nSisa kuota hari ini: ${data.remainingQuota}x`;
+      alert(summary);
+      await fetchData();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      alert(`Terjadi kesalahan: ${msg}`);
+    } finally {
+      setIsAiReconciling(false);
+    }
   };
 
   // --------------------------------------------------------------------------
@@ -585,6 +633,10 @@ export default function InboxTransactionsPage() {
               setPreloadedData(null);
               setIsAddModalOpen(true);
             }}
+            onRunAiReconcile={handleRunAiReconcile}
+            isAiReconciling={isAiReconciling}
+            aiRemainingQuota={aiRemainingQuota}
+            aiCanRun={aiCanRun}
             totalCount={filteredTransactions.length}
             pendingCount={globalPendingCount}
           />

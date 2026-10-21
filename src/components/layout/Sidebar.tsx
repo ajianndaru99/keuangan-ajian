@@ -9,12 +9,8 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import {
-  LayoutDashboard,
   ReceiptText,
   Wallet,
-  Target,
-  BarChart3,
-  HelpCircle,
   LogOut,
   X,
 } from 'lucide-react';
@@ -42,38 +38,10 @@ export default function Sidebar({
 
   const menuItems = [
     {
-      name: 'Dashboard',
-      href: '/',
-      icon: LayoutDashboard,
-    },
-    {
       name: 'Transactions',
       href: '/inbox',
       icon: ReceiptText,
       badge: pendingCount > 0 ? pendingCount : undefined,
-    },
-    {
-      name: 'My Wallet',
-      href: '/accounts',
-      icon: Wallet,
-    },
-    {
-      name: 'Savings',
-      href: '/budget',
-      icon: Target,
-    },
-    {
-      name: 'Analytics',
-      href: '/rekap',
-      icon: BarChart3,
-    },
-  ];
-
-  const generalItems = [
-    {
-      name: 'Supports',
-      href: '/supports',
-      icon: HelpCircle,
     },
   ];
 
@@ -81,7 +49,7 @@ export default function Sidebar({
     <div className="flex flex-col h-full bg-[var(--surface-1)] border-r border-[var(--border-color)] w-64 select-none text-[var(--text-main)]">
       {/* Brand Header: Keluarga Ajian */}
       <div className="p-5 flex items-center justify-between border-b border-[var(--border-color)]">
-        <Link href="/" className="flex items-center gap-3 group">
+        <Link href="/inbox" className="flex items-center gap-3 group">
           <div className="w-9 h-9 rounded-xl bg-[var(--surface-2)] text-[var(--accent-color)] flex items-center justify-center font-bold shadow-xs border border-[var(--border-color)]">
             <Wallet className="w-5 h-5" />
           </div>
@@ -149,35 +117,6 @@ export default function Sidebar({
                       {item.badge}
                     </span>
                   )}
-                </Link>
-              );
-            })}
-          </nav>
-        </div>
-
-        {/* Grup 2: GENERAL */}
-        <div>
-          <span className="px-3 text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] block mb-2">
-            GENERAL
-          </span>
-          <nav className="space-y-1">
-            {generalItems.map((item) => {
-              const isActive = pathname === item.href;
-              const Icon = item.icon;
-
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={onCloseMobile}
-                  className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
-                    isActive
-                      ? 'bg-[var(--accent-color)] text-white dark:text-[#121218] shadow-sm font-bold'
-                      : 'text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--surface-2)]'
-                  }`}
-                >
-                  <Icon className="w-4 h-4 shrink-0" />
-                  <span>{item.name}</span>
                 </Link>
               );
             })}

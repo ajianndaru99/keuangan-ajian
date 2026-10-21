@@ -4,6 +4,15 @@ const nextConfig = {
   experimental: {
     optimizePackageImports: ['lucide-react', 'recharts'],
   },
+  async redirects() {
+    return [
+      {
+        source: '/',
+        destination: '/inbox',
+        permanent: false,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

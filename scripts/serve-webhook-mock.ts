@@ -9,11 +9,9 @@ import crypto from 'node:crypto';
 import os from 'node:os';
 import { URLSearchParams } from 'node:url';
 
-import { parseLivinNotification } from '../supabase/functions/_shared/parsers/livin.ts';
-import { parseJagoNotification } from '../supabase/functions/_shared/parsers/jago.ts';
-import { parseSeabankNotification } from '../supabase/functions/_shared/parsers/seabank.ts';
 import { normalizeText, parseReceivedAt } from '../supabase/functions/_shared/parsers/fields.ts';
 import { matchesAny, SENSITIVE_PATTERNS } from '../supabase/functions/_shared/parsers/rules.ts';
+import { processNotification } from '../supabase/functions/_shared/parsers/classify.ts';
 
 // Dynamic import vision helper agar server tetap dapat start meskipun arsip diekstrak tanpa src/
 let visionHelper: {
@@ -209,18 +207,16 @@ const server = http.createServer(async (req, res) => {
         received_at_epoch = new Date(receivedAtParsed.iso).getTime();
       }
 
-      // Coba Parse secara on-the-fly untuk memantau performa parser (Kirim raw string received_at_raw)
-      let parsedResult: any = null;
-      if (!isSensitive) {
-        const lowerApp = app_name.toLowerCase();
-        if (lowerApp.includes('livin')) {
-          parsedResult = parseLivinNotification(titleToSave, contentToSave, received_at_raw);
-        } else if (lowerApp.includes('jago')) {
-          parsedResult = parseJagoNotification(titleToSave, contentToSave, received_at_raw);
-        } else if (lowerApp.includes('seabank') || lowerApp.includes('bankbke')) {
-          parsedResult = parseSeabankNotification(titleToSave, contentToSave, received_at_raw);
-        }
-      }
+      // Menggunakan processNotification terpusat dari classify.ts (Layer 1 Regex + Layer 2 AI)
+      const { classification } = await processNotification({
+        appName: app_name,
+        title: titleToSave,
+        content: contentToSave,
+        receivedAtRaw: received_at_raw,
+        receivedAtIso: receivedAtParsed.iso,
+        isSensitive,
+        aiCaller: undefined, // Mock lokal mandiri
+      });
 
       // Idempotency: Menggunakan MD5 title + newline + content sesuai skema DB
       const contentHash = crypto.createHash('md5').update(`${titleToSave}\n${contentToSave}`).digest('hex');
@@ -238,7 +234,7 @@ const server = http.createServer(async (req, res) => {
         return;
       }
 
-      // FASE 0: Simpan data mentah ke "Database"
+      // FASE 0 & FASE 6A: Simpan data mentah ke "Database"
       const newNotification = {
         id: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(7),
         device_id: clientInfo.device_id,
@@ -250,22 +246,31 @@ const server = http.createServer(async (req, res) => {
         received_at: received_at_epoch,
         server_received_at: new Date().toISOString(),
         created_at: new Date().toISOString(),
-        outcome: parsedResult?.outcome,
-        reasons: parsedResult?.reasons,
-        parser_version: parsedResult?.parserVersion,
+        outcome: classification.outcome,
+        reasons: classification.reasons,
+        parser_version: classification.parserVersion,
         sensitive: isSensitive,
+        ai_label: classification.aiLabel,
+        ai_confidence: classification.aiConfidence,
+        ai_reason: classification.aiReason,
         content_hash: contentHash,
       };
 
       rawNotificationsDB.push(newNotification);
       
-      console.log(`[Notifikasi Baru - FASE 0] dari ${clientInfo.device_id} (${app_name}) | Sensitive: ${isSensitive} | Status: Success`);
+      console.log(`[Notifikasi Baru - FASE 6A] dari ${clientInfo.device_id} (${app_name}) | Outcome: ${classification.outcome} | ParseMethod: ${classification.parseMethod} | Sensitive: ${isSensitive}`);
 
       res.statusCode = 201;
       res.end(JSON.stringify({
         status: 'success',
-        message: 'Notifikasi berhasil dicatat (Fase 0).',
-        data: { id: newNotification.id, sensitive: isSensitive }
+        message: 'Notifikasi berhasil dicatat (Fase 6A).',
+        data: {
+          id: newNotification.id,
+          sensitive: isSensitive,
+          outcome: classification.outcome,
+          reasons: classification.reasons,
+          parse_method: classification.parseMethod,
+        }
       }));
     } catch (err: any) {
       res.statusCode = 500;

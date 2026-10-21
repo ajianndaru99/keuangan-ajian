@@ -12,6 +12,7 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   ListFilter,
+  Sparkles,
 } from 'lucide-react';
 import { DateRangeValue } from './DateRangePickerModal';
 
@@ -24,6 +25,10 @@ interface TableToolbarProps {
   onOpenDateModal: () => void;
   onExport: () => void;
   onAddTransaction: () => void;
+  onRunAiReconcile?: () => void;
+  isAiReconciling?: boolean;
+  aiRemainingQuota?: number;
+  aiCanRun?: boolean;
   totalCount?: number;
   pendingCount?: number;
 }
@@ -35,6 +40,10 @@ export default function TableToolbar({
   onOpenDateModal,
   onExport,
   onAddTransaction,
+  onRunAiReconcile,
+  isAiReconciling = false,
+  aiRemainingQuota = 2,
+  aiCanRun = true,
   totalCount = 0,
   pendingCount = 0,
 }: TableToolbarProps) {
@@ -73,6 +82,38 @@ export default function TableToolbar({
             <Download className="w-3.5 h-3.5 text-[var(--accent-color)]" />
             <span>Export CSV</span>
           </button>
+
+          {/* Tombol Rekonsiliasi AI Gemini */}
+          {onRunAiReconcile && (
+            <button
+              onClick={onRunAiReconcile}
+              disabled={!aiCanRun || isAiReconciling}
+              className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-semibold transition-all shadow-2xs ${
+                !aiCanRun
+                  ? 'border-[var(--border-color)] bg-[var(--surface-1)] text-[var(--text-muted)] cursor-not-allowed opacity-60'
+                  : isAiReconciling
+                  ? 'border-purple-500/40 bg-purple-500/10 text-purple-600 dark:text-purple-300 animate-pulse'
+                  : 'border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-purple-700 dark:text-purple-300 hover:border-purple-500/50 active:scale-95'
+              }`}
+              title={
+                !aiCanRun
+                  ? 'Kuota rekonsiliasi hari ini sudah habis (maksimal 2x per hari). Reset pukul 00:00 WIB.'
+                  : `Jalankan rekonsiliasi AI Gemini (Sisa kuota: ${aiRemainingQuota}x)`
+              }
+            >
+              <Sparkles className={`w-3.5 h-3.5 ${isAiReconciling ? 'animate-spin' : 'text-purple-600 dark:text-purple-400'}`} />
+              <span>{isAiReconciling ? 'Audit AI...' : 'Rekonsiliasi AI'}</span>
+              <span className={`px-1.5 py-0.5 text-[10px] font-bold rounded-full ${
+                aiRemainingQuota === 0
+                  ? 'bg-zinc-500/20 text-zinc-500'
+                  : aiRemainingQuota === 1
+                  ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400'
+                  : 'bg-purple-500/20 text-purple-700 dark:text-purple-300'
+              }`}>
+                {aiRemainingQuota}x
+              </span>
+            </button>
+          )}
 
           {/* Tombol Tambah Transaksi Utama (+ Add Transaction) */}
           <button
