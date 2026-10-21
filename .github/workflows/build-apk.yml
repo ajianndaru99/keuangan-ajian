@@ -40,9 +40,23 @@ jobs:
       - name: Build Android Release & Debug APK
         run: |
           cd android
-          gradle wrapper
-          chmod +x gradlew
-          ./gradlew assembleRelease assembleDebug --stacktrace --no-daemon
+          gradle assembleRelease assembleDebug --stacktrace --no-daemon > build.log 2>&1 || {
+            STATUS=$?
+            echo "::error::Gradle build failed with exit code $STATUS"
+            echo "## ❌ Gradle Build Error Log" >> $GITHUB_STEP_SUMMARY
+            echo '```text' >> $GITHUB_STEP_SUMMARY
+            tail -n 120 build.log >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat build.log
+            exit $STATUS
+          }
+
+      - name: Upload Build Log on Failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradle-build-failure-log
+          path: android/build.log
 
       - name: Organize Installer Packages
         run: |
