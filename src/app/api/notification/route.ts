@@ -216,15 +216,14 @@ interface TransactionRecord {
       }
     }
 
-    // 2. Filter: Abaikan jika terkonfirmasi bukan transaksi finansial (misal obrolan chat penjual / promo iklan)
-    // Kecuali jika berasal dari aplikasi bank/e-wallet terdaftar (misal Bank Jago, BCA, Mandiri) yang butuh review nominal manual
-    const isBankApp = /jago|mandiri|livin|bmri|bca|mybca|bri|brimo|bni|wondr|bsi|bsm|byond|seabank|bankbke|saqu|bjj|blu/i.test(`${app_name} ${safeTitle}`);
-    if (!isTransaction && !isBankApp) {
+    // 2. Filter: Abaikan jika terkonfirmasi bukan transaksi finansial (misal obrolan chat penjual / promo iklan / nominal 0)
+    // Transaksi resmi HANYA boleh masuk ke tabel transactions jika isTransaction = true, amount > 0, dan bukan ignored
+    if (!isTransaction || amount <= 0 || parsed.outcome === 'ignored') {
       return NextResponse.json(
         {
           status: 'success',
           is_transaction: false,
-          message: 'Notifikasi dicatat di raw stream, diabaikan dari riwayat transaksi karena bukan transaksi finansial.',
+          message: 'Notifikasi dicatat di raw stream, diabaikan dari riwayat transaksi karena bukan transaksi finansial valid.',
           data: {
             app_name,
             title: safeTitle,

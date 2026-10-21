@@ -240,4 +240,91 @@ describe('Notification Smart Parser & Chat/Promo Filter', () => {
       globalThis.fetch = originalFetch;
     }
   });
+
+  test('Secara tegas menolak notifikasi promo/gamifikasi GoPay dan ShopeePay (Roda Hadiah, Nonton Anime, Diskon Tagihan, Google One)', async () => {
+    const promoSamples = [
+      {
+        app: 'com.gojek.app',
+        title: 'Roda Hadiah',
+        text: 'Putar Roda Hadiah! Dapatkan s.d. 1.000.000 GoPay Coins buat Ajian',
+      },
+      {
+        app: 'com.gojek.app',
+        title: 'Nonton Anime dan klaim paket data',
+        text: 'Nonton anime favorit dan klaim paket data hemat cuma Rp 1 buat Ajian: Cek sekarang!',
+      },
+      {
+        app: 'com.shopeepay.id',
+        title: '🎁 Diskon Bayar Tagihan s.d. 100RB buat Kamu!',
+        text: 'Bayar tagihan PLN dan BPJS hemat s.d. 100RB khusus buat Kamu hari ini!',
+      },
+      {
+        app: 'com.gojek.app',
+        title: '☁ Google One GRATIS 3 Bulan!',
+        text: 'Klaim penyimpanan Google One GRATIS 3 Bulan khusus pengguna setia GoPay',
+      },
+    ];
+
+    for (const sample of promoSamples) {
+      const res = await parseNotificationPayload(sample.app, sample.title, sample.text);
+      assert.equal(res.isTransaction, false, `Seharusnya bukan transaksi: ${sample.title}`);
+      assert.equal(res.amount, 0, `Nominal harus 0: ${sample.title}`);
+      assert.equal(res.outcome, 'ignored', `Outcome harus ignored: ${sample.title}`);
+      assert.equal(res.parseMethod, 'regex', `Harus ditolak langsung oleh regex: ${sample.title}`);
+    }
+  });
+
+  test('Mengekstrak seluruh variasi notifikasi bahasa Inggris Bank Jago secara akurat via Regex', async () => {
+    // 1. Transfer Keluar: You've transferred Rp50.000 to NURUL
+    const txTransfer = await parseNotificationPayload(
+      'com.jago.bank',
+      'Jago',
+      "You've transferred Rp50.000 to NURUL"
+    );
+    assert.equal(txTransfer.isTransaction, true);
+    assert.equal(txTransfer.amount, 50000);
+    assert.equal(txTransfer.direction, 'out');
+    assert.equal(txTransfer.accountName, 'Jago');
+    assert.equal(txTransfer.merchant, 'NURUL');
+    assert.equal(txTransfer.parseMethod, 'regex');
+
+    // 2. Transaksi Belanja Debit: RATIH CITRA SASTINALA spent Rp50.000 at Indomaret
+    const txSpent = await parseNotificationPayload(
+      'com.jago.bank',
+      'Jago',
+      'RATIH CITRA SASTINALA spent Rp50.000 at Indomaret'
+    );
+    assert.equal(txSpent.isTransaction, true);
+    assert.equal(txSpent.amount, 50000);
+    assert.equal(txSpent.direction, 'out');
+    assert.equal(txSpent.accountName, 'Jago');
+    assert.equal(txSpent.merchant, 'Indomaret');
+    assert.equal(txSpent.parseMethod, 'regex');
+
+    // 3. Uang Masuk: You received Rp100.000 from BUDI
+    const txReceived = await parseNotificationPayload(
+      'com.jago.bank',
+      'Jago',
+      'You received Rp100.000 from BUDI'
+    );
+    assert.equal(txReceived.isTransaction, true);
+    assert.equal(txReceived.amount, 100000);
+    assert.equal(txReceived.direction, 'in');
+    assert.equal(txReceived.accountName, 'Jago');
+    assert.equal(txReceived.merchant, 'BUDI');
+    assert.equal(txReceived.parseMethod, 'regex');
+
+    // 4. QRIS Payment: Your QRIS payment of Rp 25.000 to Kopi Kenangan was successful
+    const txQris = await parseNotificationPayload(
+      'com.jago.bank',
+      'QRIS Payment',
+      'Your QRIS payment of Rp 25.000 to Kopi Kenangan was successful'
+    );
+    assert.equal(txQris.isTransaction, true);
+    assert.equal(txQris.amount, 25000);
+    assert.equal(txQris.direction, 'out');
+    assert.equal(txQris.accountName, 'Jago');
+    assert.equal(txQris.merchant, 'Kopi Kenangan');
+    assert.equal(txQris.parseMethod, 'regex');
+  });
 });

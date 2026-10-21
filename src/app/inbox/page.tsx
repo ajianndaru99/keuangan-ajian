@@ -331,21 +331,38 @@ export default function InboxTransactionsPage() {
       }));
   }, [transactions, flowFilter, searchQuery]);
 
-  // Deteksi jumlah transaksi non-finansial/Rp 0 (chat/promo)
-  const zeroAmountCount = useMemo(() => {
-    return transactions.filter((t) => Number(t.amount || 0) === 0).length;
+  // Deteksi transaksi promo / chat / non-finansial yang sempat lolos ke tabel transaksi
+  const promoTransactions = useMemo(() => {
+    return transactions.filter((t) => {
+      const amt = Number(t.amount || 0);
+      if (amt <= 0) return true;
+      if (amt === 1) return true;
+      const combined = `${t.merchant} ${t.raw_notification || ''}`.toLowerCase();
+      return (
+        combined.includes('roda hadiah') ||
+        combined.includes('nonton anime') ||
+        combined.includes('diskon bayar tagihan') ||
+        combined.includes('gratis 3 bulan') ||
+        combined.includes('google one gratis') ||
+        combined.includes('deals sekitarmu') ||
+        combined.includes('flash coffee') ||
+        combined.includes('gopay coins') ||
+        combined.includes('klaim paket data') ||
+        combined.includes('[stiker]')
+      );
+    });
   }, [transactions]);
 
-  const handleCleanZeroAmountTransactions = async () => {
-    if (!confirm(`Hapus ${zeroAmountCount} catatan transaksi chat / promo bernilai Rp 0 sekaligus dari riwayat?`)) return;
+  const handleCleanPromoTransactions = async () => {
+    if (!confirm(`Hapus ${promoTransactions.length} catatan transaksi promo / chat / non-finansial sekaligus dari riwayat?`)) return;
     if (isSupabaseConfigured() && currentHouseholdId) {
       setLoading(true);
       const supabase = createClient();
+      const idsToDelete = promoTransactions.map((p) => p.id);
       await supabase
         .from('transactions')
         .delete()
-        .eq('household_id', currentHouseholdId)
-        .eq('amount', 0);
+        .in('id', idsToDelete);
       fetchData();
     }
   };
@@ -569,8 +586,8 @@ export default function InboxTransactionsPage() {
       {/* KONTEN TAB 1: Transaksi Terurai (Tampilan Monexa Asli) */}
       {inboxTab === 'parsed' && (
         <>
-          {/* Banner Pembersihan Notifikasi Chat / Promo Rp 0 */}
-          {zeroAmountCount > 0 && (
+          {/* Banner Pembersihan Notifikasi Chat / Promo / Non-Finansial */}
+          {promoTransactions.length > 0 && (
             <div className="mb-4 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 shrink-0">
@@ -578,19 +595,19 @@ export default function InboxTransactionsPage() {
                 </div>
                 <div>
                   <h4 className="text-xs sm:text-sm font-bold text-[var(--text-main)]">
-                    Terdeteksi {zeroAmountCount} Notifikasi Chat Seller / Promo Masuk (Nominal Rp 0)
+                    Terdeteksi {promoTransactions.length} Notifikasi Promo / Chat / Iklan Masuk
                   </h4>
                   <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
-                    Notifikasi chat Shopee/promo sempat tercatat otomatis sebagai transaksi Rp 0. Anda dapat membersihkannya sekarang dengan 1 klik.
+                    Notifikasi promo GoPay/ShopeePay sempat tercatat di riwayat transaksi. Anda dapat membersihkannya dari tabel sekarang dengan 1 klik.
                   </p>
                 </div>
               </div>
               <button
-                onClick={handleCleanZeroAmountTransactions}
+                onClick={handleCleanPromoTransactions}
                 className="px-3.5 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition-colors shrink-0 shadow-xs flex items-center justify-center gap-2"
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                <span>Bersihkan Data Chat ({zeroAmountCount})</span>
+                <span>Bersihkan Data Promo ({promoTransactions.length})</span>
               </button>
             </div>
           )}

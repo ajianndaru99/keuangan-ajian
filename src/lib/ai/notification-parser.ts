@@ -30,28 +30,44 @@ const CHAT_PATTERNS = [
   /\b(bisa\s*ka|baik\s*ka|oke\s*ka|iya\s*ka)\b/i,
 ];
 
-// Pola promosi, voucher, dan iklan yang bukan transaksi riil
+// Pola promosi, voucher, diskon, kuis/gamifikasi, dan iklan marketing e-wallet/bank
 const PROMO_PATTERNS = [
-  /\bcuma\s+\d+/i,
+  /\b(?:roda\s*hadiah|spin\s*(?:&|and)\s*win|putar\s*roda|goyang\s*shopee|tebak\s*kata|shopee\s*games|lucky\s*draw|undian|buka\s*kado|mainkan\s*game)\b/i,
+  /\b(?:diskon|cashback|voucher|kupon|ongkir|promo|deals?|penawaran)\b/i,
+  /\b(?:klaim\s*(?:paket|data|koin|coins?|poin|voucher|hadiah|bonus|cashback|saldo|reward))\b/i,
+  /\b(?:gratis\s*(?:\d+\s*(?:bulan|hari|minggu|tahun)|ongkir|kuota|langganan|biaya\s*admin)|google\s*one\s*gratis|free\s*trial)\b/i,
+  /\b(?:nonton\s*.*\s*klaim|paket\s*data\s*hemat|nonton\s*anime)\b/i,
+  /\b(?:buat\s*kamu!?|khusus\s*(?:untukmu|buat\s*kamu)|eksklusif\s*untukmu|jangan\s*lewatkan|serbu\s*sekarang|buruan\s*cek|yuk\s*belanja|hanya\s*hari\s*ini|spesial\s*hari\s*ini)\b/i,
+  /\b(?:cuma\s*(?:rp\s*)?(?:0|1|\d+[\d.,]*)\b|hanya\s*(?:rp\s*)?(?:0|1|\d+[\d.,]*)\b|mulai\s*(?:dari\s*)?(?:rp\s*)?(?:0|1|\d+[\d.,]*)\b)/i,
+  /\b(?:menangkan\s*(?:hadiah|uang|saldo|koin|coins?|poin|s\.?d\.?|hingga))\b/i,
+  /\b(?:dapatkan\s*(?:diskon|cashback|bonus|koin|coins?|poin|hadiah|voucher|gratis))\b/i,
+  /\b(?:s\.?d\.?|up\s*to|hingga)\s*(?:rp|idr)?\.?\s*\d+/i,
   /\bflash\s*(?:coffee|sale|deal)\b/i,
-  /\bdeals\s*sekitarmu\b/i,
   /\bngopi\s*hemat\b/i,
-  /\bdiskon\s*(?:hingga|s\/d|up\s*to|\d+%)/i,
-  /\bvoucher\s*(?:diskon|cashback|gratis)\b/i,
-  /\bpromo\s*(?:spesial|terbatas|spesial\s*hari\s*ini)\b/i,
-  /\bgratis\s*ongkir\b/i,
-  /\bklaim\s*(?:hadiah|koin|reward)\b/i,
 ];
 
-// Pola transaksi keuangan sah (m-banking & e-wallet Indonesia)
+// Pola bukti transaksi sah yang SUDAH SELESAI / BERHASIL (Past-Tense Confirmation)
+const CONFIRMED_TRANSACTION_PATTERNS = [
+  /\b(?:kamu\s+telah\s+(?:membayar|mentransfer|melakukan\s+pembayaran)|you(?:'ve|\s+have)\s+(?:paid|transferred|made\s+a\s+payment|spent))\b/i,
+  /\b(?:pembayaran|payment|transfer|kirim\s+uang|transaksi|transaction)\s+.*?\b(?:berhasil|sukses|successful|completed|selesai|lunas)\b/i,
+  /\b(?:berhasil\s+(?:membayar|transfer|mentransfer|kirim|top\s*up)|sukses\s+(?:membayar|transfer|kirim))\b/i,
+  /\b(?:uang\s+masuk|dana\s+masuk|transfer\s+masuk|dana\s+diterima|menerima\s+dana|menerima\s+transfer)\s*(?:sebesar|senilai)?\b/i,
+  /\b(?:debit|kredit)\s+rekening\s+(?:berhasil|sukses)\b/i,
+  /\bqris\s+payment\s+(?:to\s+.*?\s+)?(?:was\s+)?successful\b/i,
+  /\byou(?:'ve|\s+have)\s+received\b/i,
+  /\b(?:sent\s+you|received\s+(?:rp|idr)?|transferred\s+(?:rp|idr)?|spent\s+(?:rp|idr)?|paid\s+(?:rp|idr)?)\b/i,
+  /\b(?:transaksi\s+berhasil|transaction\s+successful)\b/i,
+];
+
+// Pola transaksi keuangan sah umum (m-banking & e-wallet Indonesia)
 const FINANCIAL_ACTION_PATTERNS = [
-  /\b(berhasil|sukses|successful|terkirim)\b/i,
+  /\b(berhasil|sukses|successful|completed|terkirim)\b/i,
   /\b(pembayaran|payment|paid|bayar|spent)\b/i,
   /\b(transfer|transferred|mentransfer|kirim\s*uang)\b/i,
-  /\b(terima|diterima|received|incoming|masuk|top\s*up|kredit|debit)\b/i,
+  /\b(terima|diterima|received|incoming|masuk|top\s*up|kredit|debit|deposit|credited)\b/i,
   /\b(qris|edc|merchant)\b/i,
   /\b(uang\s*keluar|uang\s*masuk|dana\s*masuk|transfer\s*masuk)\b/i,
-  /\b(kamu\s+telah\s+(?:membayar|mentransfer|menerima|melakukan)|you\s+have\s+(?:made|paid|transferred))\b/i,
+  /\b(kamu\s+telah\s+(?:membayar|mentransfer|menerima|melakukan)|you(?:'ve|\s+have)\s+(?:made|paid|transferred|spent|received))\b/i,
   /\b(kantong|jago|bank\s*jago|seabank|bank\s*bke)\b/i,
   /\b(transaksi|transaction)\b/i,
 ];
@@ -138,8 +154,30 @@ export function extractNotificationDate(text: string): string | null {
  * Mendukung variasi format Indonesia (titik) & perbankan Inggris (koma), serta unit singkatan (73rb, 73k)
  */
 export function extractNominal(text: string): number {
-  // 1. Format singkatan: 73rb, 73 rb, 73ribu, 73 ribu, 73k, 1.5jt, dll.
-  const shorthandMatch = text.match(/(?:rp|idr)?\.?\s*(\d+(?:[.,]\d+)?)\s*(rb|ribu|k|jt|juta)\b/i);
+  if (!text || typeof text !== 'string') return 0;
+
+  // 1. Bersihkan kuantitas non-mata uang: "1.000.000 Coins", "50.000 Poin", "10 GB", "3 Bulan"
+  // agar angka non-uang tidak dikira nominal rupiah
+  let cleanedText = text.replace(
+    /\b\d+[\d.,]*\s*(?:coins?|koin|poin|points?|tiket|kupon|voucher|kali|hari|bulan|minggu|tahun|orang|gb|mb|kb|km|meter|kg|gr|gram|xp|level)\b/gi,
+    ' '
+  );
+
+  // 2. Bersihkan batas promo / diskon maksimum: "Diskon s.d. 100RB", "Cashback hingga 50.000", "hemat up to 25k"
+  // agar angka batas diskon tidak terambil sebagai nominal belanja
+  cleanedText = cleanedText.replace(
+    /\b(?:diskon|cashback|potongan(?:\s+harga)?|hemat|menangkan|s\.?d\.?|up\s*to|hingga)\s*(?:sebesar\s+)?(?:rp|idr)?\.?\s*\d+[\d.,]*(?:\s*(?:rb|k|ribu|jt|juta|%))?/gi,
+    ' '
+  );
+
+  // 3. Bersihkan nominal umpan clickbait marketing ("cuma Rp 1", "hanya Rp 0", "mulai Rp 1")
+  cleanedText = cleanedText.replace(
+    /\b(?:cuma|hanya|mulai(?:\s+dari)?)\s*(?:rp|idr)?\.?\s*(?:0|1)\b/gi,
+    ' '
+  );
+
+  // 4. Format singkatan rupiah: 73rb, 73 rb, 73ribu, 73 ribu, 73k, 1.5jt, dll.
+  const shorthandMatch = cleanedText.match(/(?:rp|idr)?\.?\s*(\d+(?:[.,]\d+)?)\s*(rb|ribu|k|jt|juta)\b/i);
   if (shorthandMatch) {
     const num = parseFloat(shorthandMatch[1].replace(',', '.'));
     const unit = shorthandMatch[2].toLowerCase();
@@ -149,11 +187,11 @@ export function extractNominal(text: string): number {
     }
   }
 
-  // 2. Format standar: Rp 10.000 / Rp 10,000 / IDR 10,000 / Rp 10.000,00 / Rp 10,000.00
+  // 5. Format standar: Rp 10.000 / Rp 10,000 / IDR 10,000 / Rp 10.000,00 / Rp 10,000.00
   const rpRegex = /(?:rp|idr)\.?\s*([\d.,]+)/gi;
   const candidates: number[] = [];
   let match: RegExpExecArray | null;
-  while ((match = rpRegex.exec(text)) !== null) {
+  while ((match = rpRegex.exec(cleanedText)) !== null) {
     let raw = match[1].trim().replace(/[.,]+$/, '');
     if (/^\d{1,3}(?:[.,]\d{3})+(?:[.,]\d{2})$/.test(raw)) {
       raw = raw.slice(0, -3);
@@ -169,9 +207,9 @@ export function extractNominal(text: string): number {
     return candidates[0];
   }
 
-  // 3. Keyword konteks finansial (sebesar 10.000, total 10,000, amount Rp 10.000, uang keluar 10.000)
+  // 6. Keyword konteks finansial (sebesar 10.000, total 10,000, amount Rp 10.000, uang keluar 10.000)
   const kwRegex = /(?:sebesar|nominal|total|amount|paid|transferred|spent|uang keluar|uang masuk)\s*(?:rp|idr)?\.?\s*([\d.,]+)/gi;
-  while ((match = kwRegex.exec(text)) !== null) {
+  while ((match = kwRegex.exec(cleanedText)) !== null) {
     let raw = match[1].trim().replace(/[.,]+$/, '');
     if (/^\d{1,3}(?:[.,]\d{3})+(?:[.,]\d{2})$/.test(raw)) {
       raw = raw.slice(0, -3);
@@ -183,12 +221,12 @@ export function extractNominal(text: string): number {
     }
   }
 
-  // 4. Pola angka ribuan murni (10.000 atau 73.000 atau 10,000)
-  const thousandsMatch = text.match(/\b(\d{1,3}(?:[.,]\d{3})+)\b/);
+  // 7. Pola angka ribuan murni (10.000 atau 73.000 atau 10,000)
+  const thousandsMatch = cleanedText.match(/\b([1-9]\d{0,2}(?:[.,]\d{3})+)\b/);
   if (thousandsMatch) {
     const cleaned = thousandsMatch[1].replace(/[.,]/g, '');
     const val = parseInt(cleaned, 10);
-    if (!isNaN(val) && val > 0) return val;
+    if (!isNaN(val) && val > 0 && val !== 2024 && val !== 2025 && val !== 2026) return val;
   }
 
   return 0;
@@ -200,14 +238,14 @@ export function extractNominal(text: string): number {
 export function extractMerchant(title: string, text: string, defaultAccount: string): string {
   const combined = `${title} ${text}`;
 
-  // Pola: "ke <Merchant>" / "di <Merchant>" / "to <Merchant>" / "at <Merchant>"
-  const matchTarget = combined.match(/\b(?:ke|di|kepada|pembayaran\s+ke|payment\s+to|transferred\s+to|paid\s+to|transfer\s+ke|kirim\s+ke|to|at)\b\s+([A-Za-z0-9\s&'._,-]{3,50})/i);
+  // Pola: "ke <Merchant>" / "di <Merchant>" / "to <Merchant>" / "at <Merchant>" / "dari <Pengirim>" / "from <Pengirim>"
+  const matchTarget = combined.match(/\b(?:ke|di|kepada|pembayaran\s+ke|payment\s+to|transferred\s+to|paid\s+to|transfer\s+ke|kirim\s+ke|to|at|dari|from)\b\s+([A-Za-z0-9\s&'._,-]{3,50})/i);
   if (matchTarget && matchTarget[1]) {
     // Potong jika ada titik penutup kalimat sebelum kalimat bantuan (misal ". Need help?")
     const firstSentence = matchTarget[1].split(/[.!?](?:\s|$)/)[0];
     const cleanMerchant = (firstSentence || matchTarget[1])
       .trim()
-      .replace(/\s+(berhasil|sukses|pada|tanggal|tgl|sebesar|senilai|rp|idr|successful|is\s+successful|need\s+help|butuh\s+bantuan|hubungi|contact|tanya\s+jago).*$/i, '')
+      .replace(/\s+(berhasil|sukses|pada|tanggal|tgl|sebesar|senilai|rp|idr|successful|was\s+successful|is\s+successful|completed|need\s+help|butuh\s+bantuan|hubungi|contact|tanya\s+jago).*$/i, '')
       .replace(/[,.-]+$/, '')
       .trim();
     if (cleanMerchant.length >= 2 && !/^(?:notifikasi|informasi|status|rp|idr)$/i.test(cleanMerchant)) {
@@ -359,26 +397,31 @@ export async function parseNotificationPayload(
     };
   }
 
-  // 2. Deteksi Promo / Voucher / Diskon Iklan
-  const isPromo = PROMO_PATTERNS.some((pattern) => pattern.test(combinedText));
-  if (isPromo && hasNoFinancialWords && !isBankApp) {
+  // 2. Deteksi Promo / Voucher / Diskon / Gamifikasi / Iklan Marketing
+  // ATURAN TEGAS: Jika terdeteksi pola promo DAN tidak ada kalimat bukti sukses pembayaran sah (past-tense),
+  // MAKA PASTI PROMO dan WAJIB DIABAIKAN LANGSUNG (tanpa memanggil AI Gemini)!
+  const isPromoDetected = PROMO_PATTERNS.some((pattern) => pattern.test(combinedText));
+  const hasConfirmedSuccess = CONFIRMED_TRANSACTION_PATTERNS.some((pattern) => pattern.test(combinedText));
+
+  if (isPromoDetected && !hasConfirmedSuccess) {
+    const fallbackAcc = detectAccountInfo(appName, combinedText);
     return {
       isTransaction: false,
       amount: 0,
       direction: 'out',
       merchant: title || 'Promo Penawaran',
-      accountName: 'ShopeePay',
-      accountType: 'ewallet',
+      accountName: fallbackAcc.name,
+      accountType: fallbackAcc.type,
       reference: null,
       outcome: 'ignored',
-      reasons: ['Notifikasi berupa penawaran promo / voucher'],
+      reasons: ['Notifikasi berupa penawaran promo / voucher / gamifikasi dan bukan transaksi sah'],
       parseMethod: 'regex',
     };
   }
 
   // 3. Ekstraksi Akun & Arah Transaksi
   const accountInfo = detectAccountInfo(appName, combinedText);
-  const isIncoming = /masuk|menerima|diterima|top up|kredit|received|incoming|sent you/i.test(lowerCombined);
+  const isIncoming = /masuk|menerima|diterima|top up|kredit|received|incoming|sent you|credited|deposit/i.test(lowerCombined);
   const direction: 'in' | 'out' = isIncoming ? 'in' : 'out';
 
   // 4. Ekstraksi Nominal Angka & Tanggal
@@ -386,8 +429,8 @@ export async function parseNotificationPayload(
   let merchant = extractMerchant(title, combinedText, accountInfo.name);
   const transactionDate = extractNotificationDate(combinedText) || undefined;
 
-  // 5. Fallback ke AI Gemini Flash jika nominal belum terdeteksi namun ada indikasi transaksi
-  if (amount === 0 && FINANCIAL_ACTION_PATTERNS.some((p) => p.test(combinedText)) && geminiApiKey) {
+  // 5. Fallback ke AI Gemini Flash HANYA jika nominal belum terdeteksi namun ada bukti transaksi sah
+  if (amount === 0 && hasConfirmedSuccess && !isPromoDetected && geminiApiKey) {
     const aiResult = await analyzeWithGeminiFlash(appName, title, content, geminiApiKey);
     if (aiResult && aiResult.isTransaction && aiResult.amount > 0) {
       amount = aiResult.amount;
@@ -408,19 +451,19 @@ export async function parseNotificationPayload(
     }
   }
 
-  // 6. Evaluasi Akhir: Transaksi Sah HANYA jika amount > 0
-  const isTransaction = amount > 0;
+  // 6. Evaluasi Akhir: Transaksi Sah HANYA jika amount > 0 dan bukan promo
+  const isTransaction = amount > 0 && (!isPromoDetected || hasConfirmedSuccess);
 
   return {
     isTransaction,
-    amount,
+    amount: isTransaction ? amount : 0,
     direction,
     merchant,
     accountName: accountInfo.name,
     accountType: accountInfo.type,
     reference: null,
     outcome: isTransaction ? 'transaction' : 'ignored',
-    reasons: isTransaction ? [] : ['Nominal transaksi tidak terdeteksi atau bernilai 0'],
+    reasons: isTransaction ? [] : ['Nominal transaksi tidak terdeteksi atau terindikasi bukan transaksi riil'],
     parseMethod: 'regex',
     transactionDate,
   };
