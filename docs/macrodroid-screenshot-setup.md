@@ -1,4 +1,6 @@
-# Panduan Konfigurasi MacroDroid Android (Screenshot ke Dashboard Keuangan)
+# Panduan Konfigurasi MacroDroid Android (Opsi Otomasi Screenshot Latar Belakang)
+
+> **Catatan:** Selain otomasi MacroDroid, screenshot bukti transaksi dan foto struk belanja dapat langsung diunggah melalui tombol kamera, *drag-and-drop*, atau tempel papan klip (*Ctrl + V*) di dashboard web maupun aplikasi Android native.
 
 Dokumen ini memandu langkah demi langkah pemasangan otomasi di ponsel Android menggunakan aplikasi **MacroDroid**.
 

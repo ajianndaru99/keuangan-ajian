@@ -1,4 +1,6 @@
-# Panduan Konfigurasi SmsForwarder Android (Dashboard Keuangan Keluarga)
+# Panduan Konfigurasi SmsForwarder Android (Arsip / Opsi Cadangan)
+
+> **Catatan:** Repositori ini sekarang sudah menyediakan **Aplikasi Android Native All-in-One** di folder `android/` yang siap dipasang langsung (lihat [Panduan Aplikasi Android](file:///c:/Users/FAPERTA%201/Documents/FAPERTA/File%20Ajian/dashboard-keuangan-keluarga/docs/android-app-setup.md)). Panduan SmsForwarder di bawah ini dipertahankan sebagai dokumen arsip atau alternatif pihak ketiga jika Anda tidak ingin mengompilasi APK mandiri.
 
 Panduan ini memandu langkah demi langkah pemasangan dan konfigurasi aplikasi **SmsForwarder** (Open Source, 100% gratis selamanya, tanpa iklan, dan tanpa batas masa percobaan) di ponsel Android Suami dan Istri.
 
