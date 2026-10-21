@@ -19,6 +19,11 @@ export const metadata: Metadata = {
   title: 'Dashboard Keuangan Keluarga',
   description: 'Rekap & pemetaan pengeluaran digital otomatis keluarga.',
   manifest: '/manifest.json',
+  icons: {
+    icon: '/icon.svg',
+    shortcut: '/favicon.ico',
+    apple: '/icon.svg',
+  },
 };
 
 export const viewport: Viewport = {

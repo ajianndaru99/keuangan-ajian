@@ -4,6 +4,8 @@
 // Menggabungkan Regex Berkecepatan Tinggi + Fallback AI Vision/Text Google Gemini Flash
 // ==============================================================================
 
+import { matchesLearnedRules } from './adaptive-rules.ts';
+
 export interface ParsedNotificationResult {
   isTransaction: boolean;
   amount: number;
@@ -44,6 +46,8 @@ const PROMO_PATTERNS = [
   /\b(?:s\.?d\.?|up\s*to|hingga)\s*(?:rp|idr)?\.?\s*\d+/i,
   /\bflash\s*(?:coffee|sale|deal)\b/i,
   /\bngopi\s*hemat\b/i,
+  /\b(?:asuransi(?:\s+penipuan|\s+digital)?|perlindungan\s+dari|aktifkan\s+asuransi|cuma\s+bayar\s+\d+\s+bulan)\b/i,
+  /\bcuma\s+(?:dengan\s+)?(?:rp|idr)?\.?\s*\d+/i,
 ];
 
 // Pola bukti transaksi sah yang SUDAH SELESAI / BERHASIL (Past-Tense Confirmation)
@@ -361,13 +365,14 @@ Kembalikan HANYA format JSON valid tanpa markdown (tanpa \`\`\`json):
 }
 
 /**
- * Parser Utama Notifikasi Ponsel (3 Layer Parsing)
+ * Parser Utama Notifikasi Ponsel (3 Layer Parsing + Layer Adaptif)
  */
 export async function parseNotificationPayload(
   appName: string,
   title: string,
   content: string,
-  geminiApiKey?: string
+  geminiApiKey?: string,
+  learnedRules?: string[]
 ): Promise<ParsedNotificationResult> {
   const combinedText = `${title} ${content}`.trim();
   const lowerCombined = combinedText.toLowerCase();
@@ -397,11 +402,32 @@ export async function parseNotificationPayload(
     };
   }
 
+  // 1.5. Deteksi Aturan Pembelajaran Adaptif (Learned Promo Rules)
+  // Kata kunci promo yang dipelajari dari hasil rekonsiliasi Gemini atau aksi manual pengguna
+  const hasConfirmedSuccess = CONFIRMED_TRANSACTION_PATTERNS.some((pattern) => pattern.test(combinedText));
+  if (learnedRules && learnedRules.length > 0) {
+    const adaptiveMatch = matchesLearnedRules(combinedText, learnedRules);
+    if (adaptiveMatch.matched && !hasConfirmedSuccess) {
+      const fallbackAcc = detectAccountInfo(appName, combinedText);
+      return {
+        isTransaction: false,
+        amount: 0,
+        direction: 'out',
+        merchant: title || 'Promo Terdeteksi (Adaptif)',
+        accountName: fallbackAcc.name,
+        accountType: fallbackAcc.type,
+        reference: null,
+        outcome: 'ignored',
+        reasons: [`Ditolak oleh aturan regex adaptif: "${adaptiveMatch.rule}"`],
+        parseMethod: 'regex',
+      };
+    }
+  }
+
   // 2. Deteksi Promo / Voucher / Diskon / Gamifikasi / Iklan Marketing
   // ATURAN TEGAS: Jika terdeteksi pola promo DAN tidak ada kalimat bukti sukses pembayaran sah (past-tense),
   // MAKA PASTI PROMO dan WAJIB DIABAIKAN LANGSUNG (tanpa memanggil AI Gemini)!
   const isPromoDetected = PROMO_PATTERNS.some((pattern) => pattern.test(combinedText));
-  const hasConfirmedSuccess = CONFIRMED_TRANSACTION_PATTERNS.some((pattern) => pattern.test(combinedText));
 
   if (isPromoDetected && !hasConfirmedSuccess) {
     const fallbackAcc = detectAccountInfo(appName, combinedText);

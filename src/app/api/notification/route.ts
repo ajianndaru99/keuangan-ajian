@@ -48,6 +48,33 @@ function isSensitiveContent(text: string): boolean {
   const lower = text.toLowerCase();
   return SENSITIVE_KEYWORDS.some(kw => lower.includes(kw));
 }
+ 
+// Cache memori aturan promo adaptif (TTL 60 detik)
+let cachedRules: { rules: string[]; timestamp: number } | null = null;
+const CACHE_TTL_MS = 60 * 1000;
+
+async function getLearnedPromoRules(supabaseUrl: string, supabaseKey: string): Promise<string[]> {
+  const now = Date.now();
+  if (cachedRules && now - cachedRules.timestamp < CACHE_TTL_MS) {
+    return cachedRules.rules;
+  }
+
+  if (!supabaseUrl || !supabaseKey) return [];
+
+  try {
+    const client = createSupabaseClient(supabaseUrl, supabaseKey);
+    const { data } = await client
+      .from('learned_promo_rules')
+      .select('keyword')
+      .limit(200);
+
+    const rules = data && Array.isArray(data) ? data.map((r: { keyword: string }) => r.keyword) : [];
+    cachedRules = { rules, timestamp: now };
+    return rules;
+  } catch {
+    return cachedRules ? cachedRules.rules : [];
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -109,8 +136,21 @@ export async function POST(req: NextRequest) {
     // Identifikasi device / role pengirim
     const sourceDevice = clientApiKey?.includes('istri') ? 'istri' : 'suami';
 
-    // Ekstraksi notifikasi cerdas (Regex presisi + AI Fallback)
-    const parsed = await parseNotificationPayload(app_name, safeTitle, safeContent, process.env.GEMINI_API_KEY);
+    // Inisialisasi Supabase Client Env
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+
+    // Ambil aturan promo adaptif dari database (dengan cache 60s)
+    const learnedRules = await getLearnedPromoRules(supabaseUrl, supabaseKey);
+
+    // Ekstraksi notifikasi cerdas (Regex presisi + Layer Adaptif + AI Fallback)
+    const parsed = await parseNotificationPayload(
+      app_name,
+      safeTitle,
+      safeContent,
+      process.env.GEMINI_API_KEY,
+      learnedRules
+    );
     const { amount, direction, merchant, accountName, isTransaction } = parsed;
 
     // Tanggal transaksi (prioritas: tanggal dalam teks notifikasi -> received_at dari HP -> waktu sekarang)
@@ -128,10 +168,6 @@ export async function POST(req: NextRequest) {
         if (!isNaN(d.getTime())) transactionDate = d.toISOString();
       }
     }
-
-    // Inisialisasi Supabase Client
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
     if (!supabaseUrl || !supabaseKey) {
       // Mock response jika env belum diisi

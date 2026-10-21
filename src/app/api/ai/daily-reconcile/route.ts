@@ -15,6 +15,7 @@ import {
   analyzeDailyTransactionsWithGemini,
   MAX_DAILY_RECONCILIATION_RUNS,
 } from '@/lib/ai/daily-reconciler';
+import { extractPromoKeywordsFromText } from '@/lib/ai/adaptive-rules';
 
 export const dynamic = 'force-dynamic';
 
@@ -291,6 +292,39 @@ export async function POST(req: NextRequest) {
         })
         .eq('id', item.txId);
       ignoredCount++;
+    }
+
+    // E. Pembelajaran Otomatis Regex Adaptif (Closed-Loop Learning)
+    // Ekstrak frasa promo dari temuan Gemini dan simpan ke learned_promo_rules
+    if (aiResult.ignored.length > 0 && householdId) {
+      try {
+        const learnedEntries: Array<{ household_id: string; keyword: string; source: 'gemini'; sample_text: string }> = [];
+
+        for (const item of aiResult.ignored) {
+          const tx = pendingTxs.find((t) => t.id === item.txId);
+          if (tx) {
+            const rawText = tx.raw_notification || '';
+            const keywords = extractPromoKeywordsFromText(tx.merchant || '', rawText, item.reason);
+
+            for (const kw of keywords) {
+              learnedEntries.push({
+                household_id: householdId,
+                keyword: kw,
+                source: 'gemini',
+                sample_text: rawText.slice(0, 200),
+              });
+            }
+          }
+        }
+
+        if (learnedEntries.length > 0) {
+          await clientToUse
+            .from('learned_promo_rules')
+            .upsert(learnedEntries, { onConflict: 'household_id,keyword', ignoreDuplicates: true });
+        }
+      } catch (err: unknown) {
+        console.warn('[Adaptive Promo Rules Learning Warn]:', err instanceof Error ? err.message : err);
+      }
     }
 
     // 5. Catat ke Tabel Audit Log ai_reconciliation_logs

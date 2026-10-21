@@ -263,6 +263,11 @@ describe('Notification Smart Parser & Chat/Promo Filter', () => {
         title: '☁ Google One GRATIS 3 Bulan!',
         text: 'Klaim penyimpanan Google One GRATIS 3 Bulan khusus pengguna setia GoPay',
       },
+      {
+        app: 'com.gojek.app',
+        title: '🛡 Dapetin perlindungan dari penipuan cuma dengan Rp100!',
+        text: 'Aktifkan Asuransi Penipuan Digital sekarang dan dapetin diskon terbatas. Cuma bayar 11 bulan buat perlindungan 12 bulan!',
+      },
     ];
 
     for (const sample of promoSamples) {

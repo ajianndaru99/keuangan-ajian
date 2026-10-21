@@ -25,6 +25,7 @@ import { TransactionItem } from '@/components/inbox/TransactionCard';
 import { Category } from '@/components/inbox/CategoryChipList';
 import { exportTransactionsToCsv } from '@/lib/export-excel';
 import { extractNominal, extractMerchant, detectAccountInfo, extractNotificationDate } from '@/lib/ai/notification-parser';
+import { extractPromoKeywordsFromText } from '@/lib/ai/adaptive-rules';
 import { CheckCircle2, Smartphone, RefreshCw, AlertTriangle, Trash2, Clock } from 'lucide-react';
 
 const defaultCategories: Category[] = [
@@ -348,6 +349,10 @@ export default function InboxTransactionsPage() {
         combined.includes('flash coffee') ||
         combined.includes('gopay coins') ||
         combined.includes('klaim paket data') ||
+        combined.includes('perlindungan') ||
+        combined.includes('asuransi') ||
+        combined.includes('cuma bayar') ||
+        combined.includes('cuma dengan rp') ||
         combined.includes('[stiker]')
       );
     });
@@ -359,6 +364,31 @@ export default function InboxTransactionsPage() {
       setLoading(true);
       const supabase = createClient();
       const idsToDelete = promoTransactions.map((p) => p.id);
+
+      // Simpan pembelajaran adaptif dari promo yang dibersihkan
+      try {
+        const learnedEntries: Array<{ household_id: string; keyword: string; source: 'user_manual'; sample_text: string }> = [];
+        for (const p of promoTransactions) {
+          const rawText = p.raw_notification || '';
+          const keywords = extractPromoKeywordsFromText(p.merchant || '', rawText);
+          for (const kw of keywords) {
+            learnedEntries.push({
+              household_id: currentHouseholdId,
+              keyword: kw,
+              source: 'user_manual',
+              sample_text: rawText.slice(0, 200),
+            });
+          }
+        }
+        if (learnedEntries.length > 0) {
+          await supabase
+            .from('learned_promo_rules')
+            .upsert(learnedEntries, { onConflict: 'household_id,keyword', ignoreDuplicates: true });
+        }
+      } catch {
+        // Abaikan jika tabel belum siap
+      }
+
       await supabase
         .from('transactions')
         .delete()
@@ -388,8 +418,29 @@ export default function InboxTransactionsPage() {
   };
 
   const handleIgnore = async (transactionId: string) => {
-    if (isSupabaseConfigured()) {
+    if (isSupabaseConfigured() && currentHouseholdId) {
       const supabase = createClient();
+      const targetTx = transactions.find((t) => t.id === transactionId);
+
+      if (targetTx) {
+        try {
+          const keywords = extractPromoKeywordsFromText(targetTx.merchant || '', targetTx.raw_notification || '');
+          if (keywords.length > 0) {
+            const entries = keywords.map((kw) => ({
+              household_id: currentHouseholdId,
+              keyword: kw,
+              source: 'user_manual' as const,
+              sample_text: (targetTx.raw_notification || '').slice(0, 200),
+            }));
+            await supabase
+              .from('learned_promo_rules')
+              .upsert(entries, { onConflict: 'household_id,keyword', ignoreDuplicates: true });
+          }
+        } catch {
+          // Abaikan jika tabel belum siap
+        }
+      }
+
       await supabase
         .from('transactions')
         .update({ status: 'ignored' })
