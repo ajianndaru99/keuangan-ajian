@@ -74,9 +74,9 @@ export default function SessionLockModal({
     }
   }, [profileName, onUnlock]);
 
-  // Otomatis picu biometrik saat modal pertama kali terbuka jika didukung
+  // Otomatis picu biometrik HANYA jika berjalan di dalam aplikasi Android Native (APK)
   useEffect(() => {
-    if (isOpen && hasBiometrics) {
+    if (isOpen && hasBiometrics && typeof window !== 'undefined' && window.AndroidBridge) {
       const timer = setTimeout(() => {
         handleBiometricAuth();
       }, 300);

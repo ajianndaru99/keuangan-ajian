@@ -49,8 +49,11 @@ export async function checkBiometricsAvailability(): Promise<BiometricAvailabili
     }
   }
 
-  // 2. Periksa WebAuthn API standar peramban
+  // 2. Periksa WebAuthn API standar peramban (Khusus perangkat mobile Android / iOS)
+  // Di desktop/laptop Windows tanpa sensor sidik jari, WebAuthn memicu dialog 'Masukkan USB Security Key'.
+  const isMobile = /android|iphone|ipad|ipod/i.test(navigator.userAgent);
   if (
+    isMobile &&
     window.PublicKeyCredential &&
     typeof window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable === 'function'
   ) {
@@ -68,7 +71,7 @@ export async function checkBiometricsAvailability(): Promise<BiometricAvailabili
     }
   }
 
-  return { available: false, type: 'none', label: 'Biometrik tidak didukung' };
+  return { available: false, type: 'none', label: 'Biometrik tidak didukung di desktop' };
 }
 
 /**
@@ -99,8 +102,9 @@ export async function authenticateWithBiometrics(
     });
   }
 
-  // 2. Jalankan via WebAuthn API
-  if (window.PublicKeyCredential) {
+  // 2. Jalankan via WebAuthn API (Khusus perangkat mobile)
+  const isMobile = typeof navigator !== 'undefined' && /android|iphone|ipad|ipod/i.test(navigator.userAgent);
+  if (isMobile && window.PublicKeyCredential) {
     try {
       const challenge = new Uint8Array(32);
       crypto.getRandomValues(challenge);
