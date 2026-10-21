@@ -14,6 +14,9 @@ jobs:
   build:
     name: Build Keuangan Keluarga APK
     runs-on: ubuntu-latest
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
 
     steps:
       - name: Checkout Repository
@@ -25,30 +28,26 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Setup Gradle 8.5
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.5'
 
-      - name: Grant Execute Permission for Gradlew
+      - name: Accept Android SDK Licenses
         run: |
-          cd android
-          chmod +x gradlew || true
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
 
       - name: Build Android Release & Debug APK
         run: |
           cd android
-          ./gradlew assembleRelease assembleDebug --stacktrace
+          gradle assembleRelease assembleDebug --stacktrace
 
       - name: Organize Installer Packages
         run: |
           mkdir -p dist-apk
-          if [ -f android/app/build/outputs/apk/release/app-release.apk ]; then
-            cp android/app/build/outputs/apk/release/app-release.apk dist-apk/KeuanganKeluarga-Release.apk
-          elif [ -f android/app/build/outputs/apk/release/app-release-unsigned.apk ]; then
-            cp android/app/build/outputs/apk/release/app-release-unsigned.apk dist-apk/KeuanganKeluarga-Release.apk
-          fi
-          if [ -f android/app/build/outputs/apk/debug/app-debug.apk ]; then
-            cp android/app/build/outputs/apk/debug/app-debug.apk dist-apk/KeuanganKeluarga-Debug.apk
-          fi
+          find android/app/build/outputs/apk/release -name "*.apk" -exec cp {} dist-apk/KeuanganKeluarga-Release.apk \; || true
+          find android/app/build/outputs/apk/debug -name "*.apk" -exec cp {} dist-apk/KeuanganKeluarga-Debug.apk \; || true
+          ls -la dist-apk/
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
