@@ -8,6 +8,8 @@
 import { useState } from 'react';
 import Sidebar from '@/components/layout/Sidebar';
 import TopBar from '@/components/layout/TopBar';
+import SessionLockModal from '@/components/auth/SessionLockModal';
+import { useSessionTimeout } from '@/lib/auth/useSessionTimeout';
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -27,9 +29,18 @@ export default function AppShell({
   onSearchChange,
 }: AppShellProps) {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const { isLocked, unlock } = useSessionTimeout(true);
 
   return (
     <div className="min-h-screen flex bg-[var(--bg-main)] text-[var(--text-main)]">
+      {/* Modal Kunci Sesi 1 Jam Inaktivitas */}
+      <SessionLockModal
+        isOpen={isLocked}
+        userRole={userRole}
+        displayName={displayName}
+        onUnlock={unlock}
+      />
+
       {/* Sidebar Kiri */}
       <Sidebar
         pendingCount={pendingCount}

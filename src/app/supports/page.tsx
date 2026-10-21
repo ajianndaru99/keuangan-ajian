@@ -17,6 +17,10 @@ import {
   RefreshCw,
   Send,
   CheckCheck,
+  Download,
+  ShieldCheck,
+  Fingerprint,
+  CheckCircle2,
 } from 'lucide-react';
 
 export default function SupportsPage() {
@@ -295,7 +299,105 @@ export default function SupportsPage() {
           </div>
         </div>
 
-        {/* 2. PANDUAN LENGKAP STEP-BY-STEP MACRODROID DI HP ANDROID */}
+        {/* 2. PAKET APLIKASI ANDROID TERPADU (ALL-IN-ONE APK) */}
+        <div className="rounded-3xl p-5 sm:p-6 bg-[var(--surface-1)] border border-[var(--border-color)] shadow-xs space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-2xl bg-[var(--surface-2)] text-[var(--accent-color)] border border-[var(--border-color)]">
+                <Smartphone className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-[var(--text-main)] font-heading">
+                  Aplikasi Android Resmi: Keuangan Keluarga (All-in-One APK)
+                </h3>
+                <p className="text-xs text-[var(--text-muted)]">
+                  Paket terpadu dasbor keuangan + penangkap mutasi bank otomatis berbiometrik sidik jari
+                </p>
+              </div>
+            </div>
+            <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-[var(--surface-2)] text-[var(--accent-color)] border border-[var(--border-color)]">
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>Universal (Suami &amp; Istri)</span>
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+            {/* Kartu HP Suami */}
+            <div className="p-4 rounded-2xl bg-[var(--surface-2)]/60 border border-[var(--border-color)] space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-[var(--text-main)] flex items-center gap-1.5">
+                  <span>👨</span>
+                  <span>Untuk HP Suami (Infinix Note 30 Pro)</span>
+                </span>
+                <span className="text-[10px] px-2 py-0.5 rounded bg-[var(--surface-1)] text-[var(--accent-color)] font-mono">
+                  XOS 13
+                </span>
+              </div>
+              <ul className="text-xs text-[var(--text-muted)] space-y-1 pl-1">
+                <li className="flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-[var(--color-income)]" />
+                  <span>Sensor sidik jari in-display bawaan Infinix</span>
+                </li>
+                <li className="flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-[var(--color-income)]" />
+                  <span>Koneksi terkunci ke profil Kepala Keluarga</span>
+                </li>
+                <li className="flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-[var(--color-income)]" />
+                  <span>Hemat daya cerdas XOS bebas pembatasan</span>
+                </li>
+              </ul>
+            </div>
+
+            {/* Kartu HP Istri */}
+            <div className="p-4 rounded-2xl bg-[var(--surface-2)]/60 border border-[var(--border-color)] space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-[var(--text-main)] flex items-center gap-1.5">
+                  <span>👩</span>
+                  <span>Untuk HP Istri (Samsung Galaxy A52)</span>
+                </span>
+                <span className="text-[10px] px-2 py-0.5 rounded bg-[var(--surface-1)] text-[var(--accent-color)] font-mono">
+                  One UI
+                </span>
+              </div>
+              <ul className="text-xs text-[var(--text-muted)] space-y-1 pl-1">
+                <li className="flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-[var(--color-income)]" />
+                  <span>Sensor sidik jari in-display Samsung</span>
+                </li>
+                <li className="flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-[var(--color-income)]" />
+                  <span>Koneksi terkunci ke profil Bendahara Istri</span>
+                </li>
+                <li className="flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-[var(--color-income)]" />
+                  <span>Otomatis masuk daftar aplikasi tidak pernah tidur</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="p-3.5 rounded-2xl bg-[var(--surface-2)] border border-[var(--border-color)] flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
+            <div className="flex items-center gap-2 text-xs text-[var(--text-main)]">
+              <Fingerprint className="w-5 h-5 text-[var(--accent-color)] shrink-0" />
+              <span>
+                Cukup pasang <strong>1 berkas APK yang sama</strong>. Saat pertama kali dibuka di HP, pilih siapa pemilik ponsel dan ikuti panduan terpandu di layar.
+              </span>
+            </div>
+
+            <a
+              href="https://github.com/ajianndaru99/keuangan-ajian/actions"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="py-2.5 px-4 rounded-xl bg-[var(--accent-color)] hover:opacity-90 active:scale-95 text-white dark:text-[#121218] text-xs font-bold inline-flex items-center gap-2 shrink-0 transition-all cursor-pointer shadow-xs"
+            >
+              <Download className="w-4 h-4" />
+              <span>Unduh Berkas APK (.apk)</span>
+            </a>
+          </div>
+        </div>
+
+        {/* 3. PANDUAN LENGKAP STEP-BY-STEP MACRODROID DI HP ANDROID */}
         <div className="rounded-3xl p-5 sm:p-6 bg-[var(--bg-card)] border border-[var(--border-color)] shadow-xs space-y-5">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-2xl bg-[var(--bg-main)] text-[#007a33] border border-[var(--border-color)]">
