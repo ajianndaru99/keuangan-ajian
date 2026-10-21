@@ -7,12 +7,13 @@ android {
     namespace = "com.keluarga.keuangan"
     compileSdk = 34
 
+    val buildNum = System.getenv("BUILD_NUMBER")?.toIntOrNull() ?: 2
     defaultConfig {
         applicationId = "com.keluarga.keuangan"
         minSdk = 24
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = buildNum
+        versionName = "1.0.$buildNum"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

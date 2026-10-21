@@ -38,6 +38,8 @@ jobs:
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
 
       - name: Build Android APK
+        env:
+          BUILD_NUMBER: ${{ github.run_number }}
         run: |
           cd android
           gradle assembleDebug assembleRelease --stacktrace --no-daemon > build.log 2>&1 || {
@@ -68,12 +70,14 @@ jobs:
             cp dist-apk/app-debug.apk dist-apk/KeuanganKeluarga-Debug.apk
             cp dist-apk/app-debug.apk dist-apk/KeuanganKeluarga-Release.apk
           fi
+          # Buat file version.json otomatis untuk In-App Updater
+          echo "{\"versionCode\": ${{ github.run_number }}, \"versionName\": \"1.0.${{ github.run_number }}\", \"apkUrl\": \"https://github.com/ajianndaru99/keuangan-ajian/releases/latest/download/KeuanganKeluarga-Release.apk\"}" > dist-apk/version.json
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: KeuanganKeluarga-APK
-          path: dist-apk/*.apk
+          path: dist-apk/*
           retention-days: 30
 
       - name: Publish Direct Download to GitHub Releases
@@ -87,5 +91,6 @@ jobs:
             Siap dipasang langsung di Infinix Note 30 Pro dan perangkat keluarga lainnya.
           files: |
             dist-apk/*.apk
+            dist-apk/version.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

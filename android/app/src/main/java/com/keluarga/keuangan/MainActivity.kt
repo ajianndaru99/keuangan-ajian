@@ -18,6 +18,7 @@ import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
 import com.keluarga.keuangan.data.ProfileManager
 import com.keluarga.keuangan.databinding.ActivityMainBinding
+import com.keluarga.keuangan.service.AppUpdateManager
 import com.keluarga.keuangan.service.KeuanganNotificationListener
 import java.util.concurrent.Executor
 
@@ -54,6 +55,11 @@ class MainActivity : AppCompatActivity() {
         setupBiometrics()
         setupWebView()
         setupBackNavigation()
+        checkForUpdatesSilently()
+    }
+
+    private fun checkForUpdatesSilently() {
+        AppUpdateManager.checkAndPromptUpdate(this, profileManager.webUrl, isManual = false)
     }
 
     override fun onResume() {
@@ -220,6 +226,13 @@ class MainActivity : AppCompatActivity() {
         fun openSetup() {
             val intent = Intent(activity, OnboardingActivity::class.java)
             activity.startActivity(intent)
+        }
+
+        @JavascriptInterface
+        fun checkForUpdate() {
+            activity.runOnUiThread {
+                AppUpdateManager.checkAndPromptUpdate(activity, activity.profileManager.webUrl, isManual = true)
+            }
         }
     }
 }
