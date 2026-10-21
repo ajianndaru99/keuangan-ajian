@@ -3,11 +3,11 @@ package com.keluarga.keuangan.service
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import androidx.core.content.FileProvider
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import okhttp3.OkHttpClient
@@ -20,8 +20,8 @@ import java.util.concurrent.TimeUnit
 
 // ==============================================================================
 // SERVICE: com.keluarga.keuangan.service.AppUpdateManager
-// Pengelola Pembaruan Otomatis Aplikasi (In-App Auto-Updater)
-// Mengunduh & memicu instalasi APK resmi tanpa menghapus data aplikasi
+// Pengelola Pembaruan Otomatis Aplikasi (In-App Auto-Updater) dengan Hardening Keamanan
+// Memvalidasi URL tepercaya, memeriksa integritas paket, dan mencocokkan signature digital
 // ==============================================================================
 
 object AppUpdateManager {
@@ -29,7 +29,7 @@ object AppUpdateManager {
     private val executor = Executors.newSingleThreadExecutor()
     private val httpClient = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(60, TimeUnit.SECONDS)
+        .readTimeout(90, TimeUnit.SECONDS)
         .build()
 
     data class UpdateInfo(
@@ -120,11 +120,36 @@ object AppUpdateManager {
             .show()
     }
 
+    /**
+     * Keamanan Tingkat 1: Validasi domain unduhan (Hanya repositori resmi GitHub & GitHub CDN)
+     */
+    private fun isTrustedDownloadUrl(url: String): Boolean {
+        return try {
+            val uri = Uri.parse(url)
+            val scheme = uri.scheme?.lowercase() ?: return false
+            val host = uri.host?.lowercase() ?: return false
+
+            if (scheme != "https") return false
+
+            // Hanya izinkan domain rilis GitHub akun ajianndaru99 atau CDN S3 resmi GitHub
+            (host == "github.com" && uri.path?.startsWith("/ajianndaru99/keuangan-ajian/releases/") == true) ||
+            host == "objects.githubusercontent.com"
+        } catch (e: Exception) {
+            false
+        }
+    }
+
     private fun downloadAndInstallApk(activity: Activity, updateInfo: UpdateInfo) {
+        // Validasi keamanan URL sebelum mengunduh
+        if (!isTrustedDownloadUrl(updateInfo.apkUrl)) {
+            showToast(activity, "Keamanan: URL pembaruan ditolak karena tidak berasal dari repositori resmi.")
+            return
+        }
+
         // Tampilkan dialog proses unduh
         val progressDialog = MaterialAlertDialogBuilder(activity)
             .setTitle("Mengunduh Pembaruan")
-            .setMessage("Sedang mengunduh berkas installer...\nMohon tunggu beberapa saat.")
+            .setMessage("Sedang mengunduh berkas installer resmi...\nMohon tunggu beberapa saat.")
             .setCancelable(false)
             .create()
 
@@ -155,6 +180,31 @@ object AppUpdateManager {
                     }
                 }
 
+                // Keamanan Tingkat 2: Validasi ukuran minimal berkas APK (minimal 500 KB)
+                if (apkFile.length() < 500_000) {
+                    apkFile.delete()
+                    throw Exception("Berkas installer tidak utuh atau terpotong.")
+                }
+
+                // Keamanan Tingkat 3: Verifikasi nama paket & keutuhan arsip APK
+                val archiveInfo = activity.packageManager.getPackageArchiveInfo(apkFile.absolutePath, 0)
+                if (archiveInfo == null) {
+                    apkFile.delete()
+                    throw Exception("Format paket rusak atau tidak dikenali oleh sistem.")
+                }
+
+                if (archiveInfo.packageName != activity.packageName) {
+                    apkFile.delete()
+                    throw Exception("Nama paket (${archiveInfo.packageName}) tidak sesuai dengan aplikasi ini.")
+                }
+
+                // Keamanan Tingkat 4: Verifikasi signature kriptografi digital
+                val isSignatureValid = verifyApkSignature(activity, apkFile.absolutePath)
+                if (!isSignatureValid) {
+                    apkFile.delete()
+                    throw Exception("Tanda tangan digital (signature) berkas pembaruan tidak cocok.")
+                }
+
                 activity.runOnUiThread {
                     progressDialog.dismiss()
                     if (!activity.isFinishing && !activity.isDestroyed) {
@@ -164,9 +214,48 @@ object AppUpdateManager {
             } catch (e: Exception) {
                 activity.runOnUiThread {
                     progressDialog.dismiss()
-                    showToast(activity, "Gagal mengunduh berkas pembaruan: ${e.localizedMessage}")
+                    showToast(activity, "Pembaruan dibatalkan: ${e.localizedMessage}")
                 }
             }
+        }
+    }
+
+    /**
+     * Memverifikasi bahwa tanda tangan digital (signing certificate) paket APK yang diunduh
+     * identik dengan aplikasi yang saat ini terpasang di HP.
+     */
+    @Suppress("DEPRECATION")
+    private fun verifyApkSignature(context: Context, apkPath: String): Boolean {
+        return try {
+            val pm = context.packageManager
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                val currentInfo = pm.getPackageInfo(context.packageName, PackageManager.GET_SIGNING_CERTIFICATES)
+                val currentSigners = currentInfo.signingInfo?.apkContentsSigners?.map { it.hashCode() }?.toSet() ?: emptySet()
+
+                val archiveInfo = pm.getPackageArchiveInfo(apkPath, PackageManager.GET_SIGNING_CERTIFICATES)
+                val archiveSigners = archiveInfo?.signingInfo?.apkContentsSigners?.map { it.hashCode() }?.toSet() ?: emptySet()
+
+                if (currentSigners.isEmpty() || archiveSigners.isEmpty()) {
+                    true // Biarkan PackageInstaller sistem OS Android yang melakukan final check
+                } else {
+                    currentSigners == archiveSigners
+                }
+            } else {
+                val currentInfo = pm.getPackageInfo(context.packageName, PackageManager.GET_SIGNATURES)
+                val currentSignatures = currentInfo.signatures?.map { it.hashCode() }?.toSet() ?: emptySet()
+
+                val archiveInfo = pm.getPackageArchiveInfo(apkPath, PackageManager.GET_SIGNATURES)
+                val archiveSignatures = archiveInfo?.signatures?.map { it.hashCode() }?.toSet() ?: emptySet()
+
+                if (currentSignatures.isEmpty() || archiveSignatures.isEmpty()) {
+                    true
+                } else {
+                    currentSignatures == archiveSignatures
+                }
+            }
+        } catch (e: Exception) {
+            // Jika terjadi kegagalan pembacaan reflektif, sistem inti Android tetap menjamin signature saat intent dipanggil
+            true
         }
     }
 

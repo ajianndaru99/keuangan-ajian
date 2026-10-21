@@ -37,12 +37,35 @@ jobs:
         run: |
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
 
+      - name: Ensure Permanent Release Keystore
+        run: |
+          if [ ! -f android/keystore.jks ]; then
+            echo "Membuat keystore rilis permanen untuk keluarga..."
+            keytool -genkeypair -v -keystore android/keystore.jks \
+              -alias keuangan \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -storepass keluargaKeuangan2024 \
+              -keypass keluargaKeuangan2024 \
+              -dname "CN=KeuanganKeluarga, OU=Family, O=Keluarga, L=Jakarta, ST=DKI, C=ID"
+            
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add android/keystore.jks
+            git commit -m "ci: commit permanent release keystore [skip ci]" || true
+            git push origin main || true
+          fi
+
       - name: Build Android APK
         env:
           BUILD_NUMBER: ${{ github.run_number }}
+          KEYSTORE_PASSWORD: keluargaKeuangan2024
+          KEY_ALIAS: keuangan
+          KEY_PASSWORD: keluargaKeuangan2024
         run: |
           cd android
-          gradle assembleDebug assembleRelease --stacktrace --no-daemon > build.log 2>&1 || {
+          gradle assembleRelease assembleDebug --stacktrace --no-daemon > build.log 2>&1 || {
             STATUS=$?
             echo "Build failed with code $STATUS"
             cat build.log
@@ -65,10 +88,14 @@ jobs:
           mkdir -p dist-apk
           find android/app/build/outputs/apk -name "*.apk" -exec cp {} dist-apk/ \; || true
           ls -la dist-apk/
-          # Pastikan file ada dengan nama standar
+          # Prioritaskan APK rilis bertanda tangan resmi
+          if [ -f dist-apk/app-release.apk ]; then
+            cp dist-apk/app-release.apk dist-apk/KeuanganKeluarga-Release.apk
+          elif [ -f dist-apk/app-debug.apk ]; then
+            cp dist-apk/app-debug.apk dist-apk/KeuanganKeluarga-Release.apk
+          fi
           if [ -f dist-apk/app-debug.apk ]; then
             cp dist-apk/app-debug.apk dist-apk/KeuanganKeluarga-Debug.apk
-            cp dist-apk/app-debug.apk dist-apk/KeuanganKeluarga-Release.apk
           fi
           # Buat file version.json otomatis untuk In-App Updater
           echo "{\"versionCode\": ${{ github.run_number }}, \"versionName\": \"1.0.${{ github.run_number }}\", \"apkUrl\": \"https://github.com/ajianndaru99/keuangan-ajian/releases/latest/download/KeuanganKeluarga-Release.apk\"}" > dist-apk/version.json
