@@ -141,8 +141,8 @@ export async function POST(req: NextRequest) {
       householdId = defaultHousehold?.id || null;
     }
 
-    // Fallback aman untuk dev lingkungan lokal
-    if (!householdId && serviceClient) {
+    // Fallback aman HANYA untuk dev lingkungan lokal (bukan production)
+    if (!householdId && serviceClient && process.env.NODE_ENV !== 'production') {
       const { data: defaultHousehold } = await serviceClient
         .from('households')
         .select('id')
@@ -236,9 +236,11 @@ export async function POST(req: NextRequest) {
       (c: any) => c.name.toLowerCase().includes('transfer')
     ) || availableCategories[0];
 
+    const validPendingIds = new Set(pendingTxs.map((t) => t.id));
+
     // A. Terapkan Pasangan Transfer Internal
     for (const pair of aiResult.internalTransfers) {
-      if (pair.outTxId && pair.inTxId) {
+      if (pair.outTxId && pair.inTxId && validPendingIds.has(pair.outTxId) && validPendingIds.has(pair.inTxId)) {
         await clientToUse
           .from('transactions')
           .update({
@@ -246,6 +248,7 @@ export async function POST(req: NextRequest) {
             category_id: transferCategory?.id || null,
             needs_review: false,
           })
+          .eq('household_id', householdId)
           .in('id', [pair.outTxId, pair.inTxId]);
         pairedCount++;
       }
@@ -253,13 +256,14 @@ export async function POST(req: NextRequest) {
 
     // B. Terapkan Duplikat Konfirmasi
     for (const dup of aiResult.duplicates) {
-      if (dup.ignoreTxId) {
+      if (dup.ignoreTxId && validPendingIds.has(dup.ignoreTxId)) {
         await clientToUse
           .from('transactions')
           .update({
             status: 'ignored',
             needs_review: false,
           })
+          .eq('household_id', householdId)
           .eq('id', dup.ignoreTxId);
         duplicateCount++;
       }
@@ -267,6 +271,7 @@ export async function POST(req: NextRequest) {
 
     // C. Terapkan Reconciled Belanja/Pemasukan Sah
     for (const item of aiResult.reconciled) {
+      if (!validPendingIds.has(item.txId)) continue;
       const matchedCat = availableCategories.find(
         (c: any) => c.name.toLowerCase() === item.categoryName.toLowerCase()
       );
@@ -278,18 +283,21 @@ export async function POST(req: NextRequest) {
           category_id: matchedCat?.id || availableCategories[0]?.id || null,
           needs_review: false,
         })
+        .eq('household_id', householdId)
         .eq('id', item.txId);
       reconciledCount++;
     }
 
     // D. Terapkan Ignored (Transaksi semu / Rp 0)
     for (const item of aiResult.ignored) {
+      if (!validPendingIds.has(item.txId)) continue;
       await clientToUse
         .from('transactions')
         .update({
           status: 'ignored',
           needs_review: false,
         })
+        .eq('household_id', householdId)
         .eq('id', item.txId);
       ignoredCount++;
     }

@@ -59,13 +59,17 @@ export function extractPromoKeywordsFromText(
   const combined = `${title} ${text} ${reason || ''}`;
   const keywords: Set<string> = new Set();
 
-  // 1. Ekstrak dari judul jika judul spesifik promo
-  const cleanedTitle = cleanRuleKeyword(title)
-    .replace(/\b(?:cuma|hanya|mulai)\s*(?:rp\s*)?\d+.*$/i, '')
-    .trim();
+  // 1. Ekstrak dari judul HANYA jika notifikasi terindikasi kuat promo / iklan / gamifikasi
+  const hasPromoSign = /\b(promo|diskon|cashback|voucher|kupon|hadiah|gratis|asuransi|penipuan|perlindungan|spin|tebak|game|games|deals|kado|undian|poin|coins|bonus|paket\s+data|nonton\s+anime|iklan|marketing)\b/i.test(combined);
 
-  if (isSafePromoKeyword(cleanedTitle)) {
-    keywords.add(cleanedTitle);
+  if (hasPromoSign) {
+    const cleanedTitle = cleanRuleKeyword(title)
+      .replace(/\b(?:cuma|hanya|mulai)\s*(?:rp\s*)?\d+.*$/i, '')
+      .trim();
+
+    if (isSafePromoKeyword(cleanedTitle)) {
+      keywords.add(cleanedTitle);
+    }
   }
 
   // 2. Ekstrak frasa khusus yang sering muncul dalam marketing fintech

@@ -22,8 +22,15 @@ async function handleCron(req: NextRequest) {
   const authHeader = req.headers.get('authorization');
   const token = authHeader ? authHeader.replace(/^Bearer\s+/i, '') : null;
 
-  // Jika CRON_SECRET dikonfigurasi, lakukan verifikasi
-  if (cronSecret && token !== cronSecret) {
+  // Verifikasi CRON_SECRET wajib di lingkungan production
+  if (process.env.NODE_ENV === 'production') {
+    if (!cronSecret || token !== cronSecret) {
+      return NextResponse.json(
+        { error: 'Unauthorized: CRON_SECRET tidak valid atau belum dikonfigurasi di server production.' },
+        { status: 401 }
+      );
+    }
+  } else if (cronSecret && token !== cronSecret) {
     return NextResponse.json(
       { error: 'Unauthorized: CRON_SECRET tidak valid.' },
       { status: 401 }

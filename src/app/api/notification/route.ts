@@ -24,9 +24,12 @@ export async function OPTIONS() {
 
 function isValidApiKey(clientKey: string | null, configuredKey: string | undefined): boolean {
   if (!clientKey) return false;
-  // Kunci default dev yang selalu diterima untuk kemudahan testing lokal
-  const allowedDevKeys = ['mock_dev_key_suami', 'mock_dev_key_istri'];
-  if (allowedDevKeys.includes(clientKey)) return true;
+
+  // Kunci default dev hanya diterima di luar production (testing lokal)
+  if (process.env.NODE_ENV !== 'production') {
+    const allowedDevKeys = ['mock_dev_key_suami', 'mock_dev_key_istri'];
+    if (allowedDevKeys.includes(clientKey)) return true;
+  }
 
   if (!configuredKey) return false;
   const validKeys = configuredKey.split(',').map(k => k.trim()).filter(Boolean);
@@ -200,8 +203,9 @@ export async function POST(req: NextRequest) {
 
     const householdId = defaultProfile?.household_id;
 
-    // Hitung Dedupe Hash unik
-    const rawDedupeSeed = `notif:${sourceDevice}:${app_name}:${received_at_raw || Date.now()}:${amount}:${merchant}`;
+    // Hitung Dedupe Hash unik (tahan terhadap retry jaringan per-menit)
+    const timeSeed = received_at_raw || Math.floor(Date.now() / 60000);
+    const rawDedupeSeed = `notif:${sourceDevice}:${app_name}:${timeSeed}:${amount}:${merchant}`;
     const dedupeHash = crypto.createHash('sha256').update(rawDedupeSeed).digest('hex');
 
 interface TransactionRecord {
