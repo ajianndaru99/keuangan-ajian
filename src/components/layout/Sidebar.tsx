@@ -13,6 +13,9 @@ import {
   Wallet,
   LogOut,
   X,
+  PiggyBank,
+  PieChart,
+  Smartphone,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -42,6 +45,27 @@ export default function Sidebar({
       href: '/inbox',
       icon: ReceiptText,
       badge: pendingCount > 0 ? pendingCount : undefined,
+    },
+    {
+      name: 'Dompet & Akun',
+      href: '/accounts',
+      icon: Wallet,
+    },
+    {
+      name: 'Anggaran Belanja',
+      href: '/budget',
+      icon: PiggyBank,
+    },
+    {
+      name: 'Rekap & Analisis',
+      href: '/rekap',
+      icon: PieChart,
+    },
+    {
+      name: 'Aplikasi Android & APK',
+      href: '/supports',
+      icon: Smartphone,
+      badge: 'APK',
     },
   ];
 
