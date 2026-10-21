@@ -377,23 +377,36 @@ export default function SupportsPage() {
             </div>
           </div>
 
-          <div className="p-3.5 rounded-2xl bg-[var(--surface-2)] border border-[var(--border-color)] flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
+          <div className="p-3.5 rounded-2xl bg-[var(--surface-2)] border border-[var(--border-color)] flex flex-col md:flex-row items-center justify-between gap-3 pt-2">
             <div className="flex items-center gap-2 text-xs text-[var(--text-main)]">
               <Fingerprint className="w-5 h-5 text-[var(--accent-color)] shrink-0" />
               <span>
-                Cukup pasang <strong>1 berkas APK yang sama</strong>. Saat pertama kali dibuka di HP, pilih siapa pemilik ponsel dan ikuti panduan terpandu di layar.
+                Cukup pasang <strong>1 berkas APK yang sama</strong>. Saat pertama kali dibuka di HP, pilih siapa pemilik ponsel (Suami/Istri) dan ikuti panduan terpandu di layar.
               </span>
             </div>
 
-            <a
-              href="https://github.com/ajianndaru99/keuangan-ajian/actions"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="py-2.5 px-4 rounded-xl bg-[var(--accent-color)] hover:opacity-90 active:scale-95 text-white dark:text-[#121218] text-xs font-bold inline-flex items-center gap-2 shrink-0 transition-all cursor-pointer shadow-xs"
-            >
-              <Download className="w-4 h-4" />
-              <span>Unduh Berkas APK (.apk)</span>
-            </a>
+            <div className="flex flex-wrap items-center gap-2 shrink-0 w-full md:w-auto">
+              <a
+                href="https://github.com/ajianndaru99/keuangan-ajian/releases/latest/download/KeuanganKeluarga-Release.apk"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 md:flex-none py-2.5 px-4 rounded-xl bg-[var(--accent-color)] hover:opacity-90 active:scale-95 text-white dark:text-[#121218] text-xs font-bold inline-flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs"
+                title="Unduh installer rilis siap pasang di HP Android"
+              >
+                <Download className="w-4 h-4" />
+                <span>Unduh APK Rilis (.apk)</span>
+              </a>
+
+              <a
+                href="https://github.com/ajianndaru99/keuangan-ajian/releases/latest/download/KeuanganKeluarga-Debug.apk"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="py-2.5 px-3 rounded-xl border border-[var(--border-color)] bg-[var(--surface-1)] hover:bg-[var(--surface-2)] text-[var(--text-muted)] hover:text-[var(--text-main)] text-xs font-bold inline-flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs"
+                title="Paket pengujian alternatif jika paket rilis terkendala sertifikat"
+              >
+                <span>Versi Debug</span>
+              </a>
+            </div>
           </div>
         </div>
 

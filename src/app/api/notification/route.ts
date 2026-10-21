@@ -79,6 +79,23 @@ async function getLearnedPromoRules(supabaseUrl: string, supabaseKey: string): P
   }
 }
 
+interface TransactionRecord {
+  id: string;
+  household_id: string;
+  account_id: string | null;
+  category_id: string | null;
+  amount: number;
+  direction: 'in' | 'out';
+  merchant: string;
+  raw_notification: string;
+  source_device: 'suami' | 'istri';
+  transaction_date: string;
+  status: string;
+  dedupe_hash: string;
+  needs_review: boolean;
+  parse_method?: string;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const configuredApiKey = process.env.WEBHOOK_API_KEY;
@@ -207,23 +224,6 @@ export async function POST(req: NextRequest) {
     const timeSeed = received_at_raw || Math.floor(Date.now() / 60000);
     const rawDedupeSeed = `notif:${sourceDevice}:${app_name}:${timeSeed}:${amount}:${merchant}`;
     const dedupeHash = crypto.createHash('sha256').update(rawDedupeSeed).digest('hex');
-
-interface TransactionRecord {
-  id: string;
-  household_id: string;
-  account_id: string | null;
-  category_id: string | null;
-  amount: number;
-  direction: 'in' | 'out';
-  merchant: string;
-  raw_notification: string;
-  source_device: 'suami' | 'istri';
-  transaction_date: string;
-  status: string;
-  dedupe_hash: string;
-  needs_review: boolean;
-  parse_method?: string;
-}
 
     // 1. Simpan ke raw_notifications SELALU (Fase 0: simpan log mentah apa adanya)
     if (householdId) {

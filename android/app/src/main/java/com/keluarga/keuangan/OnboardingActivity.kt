@@ -1,5 +1,6 @@
 package com.keluarga.keuangan
 
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -55,12 +56,23 @@ class OnboardingActivity : AppCompatActivity() {
             binding.rbSuami.isChecked = true
         }
 
+        binding.etApiKey.setText(profileManager.getCurrentCustomApiKey())
+
+        binding.etApiKey.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun afterTextChanged(s: android.text.Editable?) {
+                profileManager.setCurrentCustomApiKey(s?.toString() ?: "")
+            }
+        })
+
         binding.rgProfile.setOnCheckedChangeListener { _, checkedId ->
             if (checkedId == binding.rbIstri.id) {
                 profileManager.selectedProfile = "istri"
             } else {
                 profileManager.selectedProfile = "suami"
             }
+            binding.etApiKey.setText(profileManager.getCurrentCustomApiKey())
             runDatabaseHandshake()
         }
     }
@@ -97,8 +109,21 @@ class OnboardingActivity : AppCompatActivity() {
             }
         }
 
+        // Tombol Auto-Start (Infinix XOS Phone Master & Custom ROM)
+        binding.btnOpenAutoStart.setOnClickListener {
+            openAutoStartSettings()
+        }
+
         // Tombol Selesai
         binding.btnFinishOnboarding.setOnClickListener {
+            if (!isHandshakeOk) {
+                Toast.makeText(
+                    this,
+                    "Koneksi ke database belum berhasil diverifikasi. Silakan klik 'Uji Ulang Koneksi' terlebih dahulu.",
+                    Toast.LENGTH_LONG
+                ).show()
+                return@setOnClickListener
+            }
             profileManager.isSetupCompleted = true
             val intent = Intent(this, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
@@ -182,21 +207,56 @@ class OnboardingActivity : AppCompatActivity() {
             }
 
             override fun onResponse(call: Call, response: Response) {
-                runOnUiThread {
-                    binding.btnRetryHandshake.isEnabled = true
-                    if (response.isSuccessful || response.code == 200 || response.code == 201) {
-                        isHandshakeOk = true
-                        binding.tvHandshakeStatus.text = "Terhubung 🟢"
-                        binding.tvHandshakeStatus.setTextColor(getColor(R.color.income_green))
-                        binding.tvHandshakeDesc.text = "Database berhasil memverifikasi kunci profil ${profileManager.getProfileDisplayName()}."
-                    } else {
-                        isHandshakeOk = false
-                        binding.tvHandshakeStatus.text = "HTTP ${response.code} 🔴"
-                        binding.tvHandshakeStatus.setTextColor(getColor(R.color.expense_red))
-                        binding.tvHandshakeDesc.text = "Respon server: ${response.message}. Periksa konfigurasi API Key."
+                response.use { resp ->
+                    val isSuccess = resp.isSuccessful
+                    val code = resp.code
+                    val message = resp.message
+                    runOnUiThread {
+                        binding.btnRetryHandshake.isEnabled = true
+                        if (isSuccess) {
+                            isHandshakeOk = true
+                            binding.tvHandshakeStatus.text = "Terhubung 🟢"
+                            binding.tvHandshakeStatus.setTextColor(getColor(R.color.income_green))
+                            binding.tvHandshakeDesc.text = "Database berhasil memverifikasi kunci profil ${profileManager.getProfileDisplayName()}."
+                        } else {
+                            isHandshakeOk = false
+                            binding.tvHandshakeStatus.text = "HTTP $code 🔴"
+                            binding.tvHandshakeStatus.setTextColor(getColor(R.color.expense_red))
+                            binding.tvHandshakeDesc.text = "Respon server: $message. Periksa konfigurasi API Key."
+                        }
                     }
                 }
             }
         })
+    }
+
+    private fun openAutoStartSettings() {
+        val intents = listOf(
+            // Transsion XOS (Infinix Note 30 Pro / TECNO / itel) Phone Master
+            Intent().setComponent(ComponentName("com.transsion.phonemaster", "com.transsion.phonemaster.autostart.AutoStartManagementActivity")),
+            Intent().setComponent(ComponentName("com.transsion.phonemaster", "com.transsion.phonemaster.MainActivity")),
+            // Xiaomi / MIUI / HyperOS
+            Intent().setComponent(ComponentName("com.miui.securitycenter", "com.miui.permcenter.autostart.AutoStartManagementActivity")),
+            // Samsung Device Care
+            Intent().setComponent(ComponentName("com.samsung.android.lool", "com.samsung.android.sm.ui.battery.BatteryActivity")),
+            // Oppo / Realme
+            Intent().setComponent(ComponentName("com.coloros.safecenter", "com.coloros.safecenter.permission.startup.StartupAppListActivity")),
+            // Fallback Pengaturan Aplikasi Umum
+            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                data = Uri.parse("package:$packageName")
+            }
+        )
+
+        for (intent in intents) {
+            try {
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                startActivity(intent)
+                return
+            } catch (_: Exception) {
+                // Lanjut ke intent berikutnya jika komponen tidak tersedia
+            }
+        }
+
+        Toast.makeText(this, "Silakan buka pengaturan aplikasi secara manual", Toast.LENGTH_SHORT).show()
     }
 }

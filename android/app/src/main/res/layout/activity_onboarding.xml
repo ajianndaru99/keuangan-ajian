@@ -89,6 +89,60 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
+        <!-- KARTU KONFIGURASI KUNCI API (OPSIONAL RUNTIME / PRODUKSI) -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            app:cardBackgroundColor="@color/surface_dark"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="0dp"
+            app:strokeColor="@color/border_dark"
+            app:strokeWidth="1dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Kunci API Webhook (Opsional Produksi)"
+                    android:textColor="@color/text_main_dark"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="Kosongkan jika menggunakan server lokal/dev. Masukkan WEBHOOK_API_KEY bila server Vercel Anda memerlukan kunci khusus."
+                    android:textColor="@color/text_muted_dark"
+                    android:textSize="12sp" />
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/tilApiKey"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:hint="Kunci API Webhook"
+                    app:boxBackgroundColor="@color/surface_2_dark"
+                    app:boxStrokeColor="@color/primary"
+                    app:hintTextColor="@color/accent">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/etApiKey"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="textPassword"
+                        android:textColor="@color/text_main_dark"
+                        android:textSize="13sp" />
+                </com.google.android.material.textfield.TextInputLayout>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
         <!-- 2. KARTU LIVE HANDSHAKE DATABASE -->
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
@@ -268,6 +322,51 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
                     android:text="Izinkan Tanpa Batas Baterai"
+                    android:textSize="12sp"
+                    app:cornerRadius="10dp" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- 5. KARTU OPTIMASI KHUSUS INFINIX / TRANSSION XOS -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cardAutoStart"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            app:cardBackgroundColor="@color/surface_dark"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="0dp"
+            app:strokeColor="@color/border_dark"
+            app:strokeWidth="1dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="5. Auto-Start &amp; Kunci Aplikasi (Infinix XOS)"
+                    android:textColor="@color/text_main_dark"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="Khusus Infinix Note 30 Pro (XOS): Aktifkan Auto-Start di Phone Master dan kunci aplikasi dengan ikon gembok di Recent Apps agar penangkap notifikasi tidak dibekukan."
+                    android:textColor="@color/text_muted_dark"
+                    android:textSize="12sp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnOpenAutoStart"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="Buka Phone Master / Auto-Start"
                     android:textSize="12sp"
                     app:cornerRadius="10dp" />
             </LinearLayout>

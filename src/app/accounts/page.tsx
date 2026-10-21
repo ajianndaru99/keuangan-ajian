@@ -22,6 +22,27 @@ import {
   Sparkles,
 } from 'lucide-react';
 
+interface AccountBalanceRpcRow {
+  account_id?: string;
+  id?: string;
+  name: string;
+  type: 'bank' | 'ewallet';
+  owner: 'suami' | 'istri';
+  initial_balance?: number | string | null;
+  current_balance?: number | string | null;
+  is_active: boolean;
+}
+
+interface AccountTableRow {
+  id: string;
+  name: string;
+  type: 'bank' | 'ewallet';
+  owner: 'suami' | 'istri';
+  initial_balance?: number | string | null;
+  balance?: number | string | null;
+  is_active: boolean;
+}
+
 export default function AccountsPage() {
   const { isHideBalance, togglePrivacy } = usePrivacy();
   const [accounts, setAccounts] = useState<AccountBalanceItem[]>([]);
@@ -61,8 +82,8 @@ export default function AccountsPage() {
 
           if (!balanceError && balanceData && balanceData.length > 0) {
             setAccounts(
-              balanceData.map((a: any) => ({
-                id: a.account_id || a.id,
+              (balanceData as AccountBalanceRpcRow[]).map((a: AccountBalanceRpcRow) => ({
+                id: a.account_id || a.id || '',
                 name: a.name,
                 type: a.type,
                 owner: a.owner,
@@ -81,9 +102,14 @@ export default function AccountsPage() {
 
             if (rawAccounts && rawAccounts.length > 0) {
               setAccounts(
-                rawAccounts.map((a: any) => ({
-                  ...a,
+                (rawAccounts as AccountTableRow[]).map((a: AccountTableRow) => ({
+                  id: a.id,
+                  name: a.name,
+                  type: a.type,
+                  owner: a.owner,
+                  initial_balance: Number(a.initial_balance || 0),
                   current_balance: Number(a.balance ?? a.initial_balance ?? 0),
+                  is_active: a.is_active,
                 }))
               );
             } else {
@@ -309,9 +335,10 @@ export default function AccountsPage() {
       }
 
       await fetchAccounts();
-    } catch (e: any) {
+    } catch (e: unknown) {
+      const errorMsg = e instanceof Error ? e.message : String(e);
       console.error('Gagal menyederhanakan akun:', e);
-      alert('Gagal menyederhanakan akun: ' + (e?.message || e));
+      alert('Gagal menyederhanakan akun: ' + errorMsg);
     } finally {
       setIsSimplifying(false);
     }

@@ -7,6 +7,9 @@ on:
       - '.github/workflows/build-apk.yml'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build Keuangan Keluarga APK
@@ -30,14 +33,44 @@ jobs:
           cd android
           chmod +x gradlew || true
 
-      - name: Build Android APK (Debug / Test Release)
+      - name: Build Android Release & Debug APK
         run: |
           cd android
-          ./gradlew assembleDebug --stacktrace
+          ./gradlew assembleRelease assembleDebug --stacktrace
+
+      - name: Organize Installer Packages
+        run: |
+          mkdir -p dist-apk
+          if [ -f android/app/build/outputs/apk/release/app-release.apk ]; then
+            cp android/app/build/outputs/apk/release/app-release.apk dist-apk/KeuanganKeluarga-Release.apk
+          elif [ -f android/app/build/outputs/apk/release/app-release-unsigned.apk ]; then
+            cp android/app/build/outputs/apk/release/app-release-unsigned.apk dist-apk/KeuanganKeluarga-Release.apk
+          fi
+          if [ -f android/app/build/outputs/apk/debug/app-debug.apk ]; then
+            cp android/app/build/outputs/apk/debug/app-debug.apk dist-apk/KeuanganKeluarga-Debug.apk
+          fi
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: KeuanganKeluarga-APK
-          path: android/app/build/outputs/apk/debug/*.apk
-          retention-days: 14
+          path: dist-apk/*.apk
+          retention-days: 30
+
+      - name: Publish Direct Download to GitHub Releases
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: "Keuangan Keluarga APK (Terbaru)"
+          body: |
+            Paket installer aplikasi Android Keuangan Keluarga resmi.
+            Siap dipasang langsung di Infinix Note 30 Pro dan perangkat keluarga lainnya.
+            
+            - **KeuanganKeluarga-Release.apk**: Paket rilis teroptimasi dengan verifikasi signature.
+            - **KeuanganKeluarga-Debug.apk**: Paket pengujian alternatif.
+          files: |
+            dist-apk/KeuanganKeluarga-Release.apk
+            dist-apk/KeuanganKeluarga-Debug.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

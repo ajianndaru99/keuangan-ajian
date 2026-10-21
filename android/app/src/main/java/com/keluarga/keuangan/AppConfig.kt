@@ -6,11 +6,11 @@ package com.keluarga.keuangan
 // ==============================================================================
 
 object AppConfig {
-    // Alamat Server Dasbor Vercel (Dapat disesuaikan)
+    // Alamat Server Dasbor Vercel (Dapat disesuaikan lewat ProfileManager/UI)
     const val DEFAULT_WEB_URL = "https://keuangan-ajian.vercel.app"
     const val NOTIFICATION_ENDPOINT = "$DEFAULT_WEB_URL/api/notification"
 
-    // Kunci API Default
+    // Kunci API Default (dapat ditimpa dinamis di layar Onboarding via ProfileManager tanpa recompile APK)
     const val API_KEY_SUAMI = "mock_dev_key_suami"
     const val API_KEY_ISTRI = "mock_dev_key_istri"
 
@@ -20,6 +20,9 @@ object AppConfig {
         "id.bmri.livin",             // Mandiri Livin'
         "com.bca",                   // BCA Mobile
         "id.co.bankbca.mybca",       // myBCA
+        "com.bri.brimobile",         // BRImo (BRI)
+        "com.bsm.activity",          // BSI Mobile / BYOND
+        "com.bankbke",               // SeaBank
         "com.btpn.jenius",           // Jenius BTPN
         "com.gojek.app",             // GoPay
         "id.dana",                   // DANA

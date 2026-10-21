@@ -17,6 +17,8 @@ class ProfileManager(context: Context) {
         private const val KEY_PROFILE = "selected_profile"
         private const val KEY_SETUP_COMPLETED = "is_setup_completed"
         private const val KEY_CUSTOM_URL = "custom_web_url"
+        private const val KEY_CUSTOM_API_KEY_SUAMI = "custom_api_key_suami"
+        private const val KEY_CUSTOM_API_KEY_ISTRI = "custom_api_key_istri"
     }
 
     var selectedProfile: String
@@ -34,11 +36,35 @@ class ProfileManager(context: Context) {
     val notificationEndpoint: String
         get() = "$webUrl/api/notification"
 
+    var customApiKeySuami: String
+        get() = prefs.getString(KEY_CUSTOM_API_KEY_SUAMI, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_CUSTOM_API_KEY_SUAMI, value.trim()).apply()
+
+    var customApiKeyIstri: String
+        get() = prefs.getString(KEY_CUSTOM_API_KEY_ISTRI, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_CUSTOM_API_KEY_ISTRI, value.trim()).apply()
+
     fun getApiKey(): String {
+        val customKey = if (selectedProfile == "istri") customApiKeyIstri else customApiKeySuami
+        if (customKey.isNotBlank()) {
+            return customKey
+        }
         return if (selectedProfile == "istri") {
             AppConfig.API_KEY_ISTRI
         } else {
             AppConfig.API_KEY_SUAMI
+        }
+    }
+
+    fun getCurrentCustomApiKey(): String {
+        return if (selectedProfile == "istri") customApiKeyIstri else customApiKeySuami
+    }
+
+    fun setCurrentCustomApiKey(key: String) {
+        if (selectedProfile == "istri") {
+            customApiKeyIstri = key
+        } else {
+            customApiKeySuami = key
         }
     }
 

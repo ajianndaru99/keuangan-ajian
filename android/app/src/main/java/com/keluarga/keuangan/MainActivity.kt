@@ -1,11 +1,15 @@
 package com.keluarga.keuangan
 
 import android.annotation.SuppressLint
+import android.content.ComponentName
 import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.service.notification.NotificationListenerService
 import android.view.View
+import android.view.WindowManager
 import android.webkit.*
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
@@ -14,6 +18,7 @@ import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
 import com.keluarga.keuangan.data.ProfileManager
 import com.keluarga.keuangan.databinding.ActivityMainBinding
+import com.keluarga.keuangan.service.KeuanganNotificationListener
 import java.util.concurrent.Executor
 
 // ==============================================================================
@@ -32,6 +37,13 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // Standar Finansial OWASP Mobile: Cegah perekaman layar / snapshot latar belakang
+        window.setFlags(
+            WindowManager.LayoutParams.FLAG_SECURE,
+            WindowManager.LayoutParams.FLAG_SECURE
+        )
+
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
@@ -48,6 +60,22 @@ class MainActivity : AppCompatActivity() {
         setupBiometrics()
         setupWebView()
         setupBackNavigation()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        ensureNotificationServiceRunning()
+    }
+
+    private fun ensureNotificationServiceRunning() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            try {
+                val componentName = ComponentName(this, KeuanganNotificationListener::class.java)
+                NotificationListenerService.requestRebind(componentName)
+            } catch (_: Exception) {
+                // Ignore jika belum diizinkan atau sudah aktif
+            }
+        }
     }
 
     private fun setupBiometrics() {
