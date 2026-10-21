@@ -113,6 +113,7 @@ export async function POST(req: NextRequest) {
     let app_name = '';
     let title = '';
     let content = '';
+    let device_id = '';
     let received_at_raw: string | number = '';
 
     if (contentType.includes('application/json')) {
@@ -121,6 +122,7 @@ export async function POST(req: NextRequest) {
         app_name = String(json.app_name || json.packageName || '').trim();
         title = String(json.title || '').trim();
         content = String(json.content || json.text || '').trim();
+        device_id = String(json.device_id || '').trim();
         received_at_raw = json.received_at !== undefined ? json.received_at : '';
       } catch {
         return NextResponse.json(
@@ -133,6 +135,7 @@ export async function POST(req: NextRequest) {
       app_name = String(formData.get('app_name') || '');
       title = String(formData.get('title') || '');
       content = String(formData.get('content') || formData.get('text') || '');
+      device_id = String(formData.get('device_id') || '');
       received_at_raw = String(formData.get('received_at') || '');
     } else {
       return NextResponse.json(
@@ -154,7 +157,7 @@ export async function POST(req: NextRequest) {
     const safeContent = isSensitive ? '[REDACTED]' : content;
 
     // Identifikasi device / role pengirim
-    const sourceDevice = clientApiKey?.includes('istri') ? 'istri' : 'suami';
+    const sourceDevice = device_id.includes('istri') || clientApiKey?.includes('istri') ? 'istri' : 'suami';
 
     // Inisialisasi Supabase Client Env
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';

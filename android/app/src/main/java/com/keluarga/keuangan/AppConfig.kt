@@ -11,8 +11,8 @@ object AppConfig {
     const val NOTIFICATION_ENDPOINT = "$DEFAULT_WEB_URL/api/notification"
 
     // Kunci API Default (dapat ditimpa dinamis di layar Onboarding via ProfileManager tanpa recompile APK)
-    const val API_KEY_SUAMI = "mock_dev_key_suami"
-    const val API_KEY_ISTRI = "mock_dev_key_istri"
+    const val API_KEY_SUAMI = "kunci_rahasia_keluarga_123"
+    const val API_KEY_ISTRI = "kunci_rahasia_keluarga_123"
 
     // Daftar Aplikasi Bank & E-Wallet Terdaftar
     val BANK_PACKAGES = setOf(
