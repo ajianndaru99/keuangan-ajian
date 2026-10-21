@@ -72,7 +72,7 @@ class MainActivity : AppCompatActivity() {
             try {
                 val componentName = ComponentName(this, KeuanganNotificationListener::class.java)
                 NotificationListenerService.requestRebind(componentName)
-            } catch (_: Exception) {
+            } catch (ignored: Exception) {
                 // Ignore jika belum diizinkan atau sudah aktif
             }
         }

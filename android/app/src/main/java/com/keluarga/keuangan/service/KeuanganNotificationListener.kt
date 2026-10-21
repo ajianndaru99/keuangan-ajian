@@ -140,7 +140,7 @@ class KeuanganNotificationListener : NotificationListenerService() {
             val currentRaw = prefs.getString(KEY_PENDING_ITEMS, "[]") ?: "[]"
             val jsonArray = try {
                 JsonParser.parseString(currentRaw).asJsonArray
-            } catch (_: Exception) {
+            } catch (ignored: Exception) {
                 JsonArray()
             }
 
@@ -164,7 +164,7 @@ class KeuanganNotificationListener : NotificationListenerService() {
             val currentRaw = prefs.getString(KEY_PENDING_ITEMS, "[]") ?: "[]"
             val jsonArray = try {
                 JsonParser.parseString(currentRaw).asJsonArray
-            } catch (_: Exception) {
+            } catch (ignored: Exception) {
                 return
             }
 

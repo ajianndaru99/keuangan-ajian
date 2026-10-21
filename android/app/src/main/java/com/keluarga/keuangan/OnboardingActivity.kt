@@ -252,7 +252,7 @@ class OnboardingActivity : AppCompatActivity() {
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 startActivity(intent)
                 return
-            } catch (_: Exception) {
+            } catch (ignored: Exception) {
                 // Lanjut ke intent berikutnya jika komponen tidak tersedia
             }
         }
