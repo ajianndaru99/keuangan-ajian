@@ -40,7 +40,9 @@ jobs:
       - name: Build Android Release & Debug APK
         run: |
           cd android
-          gradle assembleRelease assembleDebug --stacktrace
+          gradle wrapper
+          chmod +x gradlew
+          ./gradlew assembleRelease assembleDebug --stacktrace --no-daemon
 
       - name: Organize Installer Packages
         run: |
