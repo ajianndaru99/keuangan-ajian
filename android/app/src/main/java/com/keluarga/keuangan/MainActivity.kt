@@ -16,6 +16,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.keluarga.keuangan.data.ProfileManager
 import com.keluarga.keuangan.databinding.ActivityMainBinding
 import com.keluarga.keuangan.service.AppUpdateManager
@@ -177,6 +178,30 @@ class MainActivity : AppCompatActivity() {
                 } catch (e: Exception) {
                     return false
                 }
+            }
+        }
+
+        // WebChromeClient untuk menangani dialog JavaScript (alert & confirm)
+        webView.webChromeClient = object : WebChromeClient() {
+            override fun onJsAlert(view: WebView?, url: String?, message: String?, result: JsResult?): Boolean {
+                MaterialAlertDialogBuilder(this@MainActivity)
+                    .setTitle("Pemberitahuan")
+                    .setMessage(message ?: "")
+                    .setPositiveButton("OK") { _, _ -> result?.confirm() }
+                    .setOnCancelListener { result?.cancel() }
+                    .show()
+                return true
+            }
+
+            override fun onJsConfirm(view: WebView?, url: String?, message: String?, result: JsResult?): Boolean {
+                MaterialAlertDialogBuilder(this@MainActivity)
+                    .setTitle("Konfirmasi")
+                    .setMessage(message ?: "")
+                    .setPositiveButton("Ya") { _, _ -> result?.confirm() }
+                    .setNegativeButton("Batal") { _, _ -> result?.cancel() }
+                    .setOnCancelListener { result?.cancel() }
+                    .show()
+                return true
             }
         }
 

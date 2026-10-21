@@ -95,6 +95,7 @@ export default function InboxTransactionsPage() {
   const [aiRemainingQuota, setAiRemainingQuota] = useState<number>(2);
   const [aiCanRun, setAiCanRun] = useState<boolean>(true);
   const [isAiReconciling, setIsAiReconciling] = useState<boolean>(false);
+  const [confirmingCleanPromo, setConfirmingCleanPromo] = useState<boolean>(false);
 
   // Ambil Data dari Supabase (Transaksi Terurai & Raw Notifications)
   const fetchData = useCallback(async () => {
@@ -359,41 +360,69 @@ export default function InboxTransactionsPage() {
   }, [transactions]);
 
   const handleCleanPromoTransactions = async () => {
-    if (!confirm(`Hapus ${promoTransactions.length} catatan transaksi promo / chat / non-finansial sekaligus dari riwayat?`)) return;
-    if (isSupabaseConfigured() && currentHouseholdId) {
+    // Tahap 1: Minta konfirmasi visual tanpa memblokir WebView browser
+    if (!confirmingCleanPromo) {
+      setConfirmingCleanPromo(true);
+      setTimeout(() => setConfirmingCleanPromo(false), 5000);
+      return;
+    }
+
+    setConfirmingCleanPromo(false);
+    const idsToDelete = promoTransactions.map((p) => p.id);
+    if (idsToDelete.length === 0) return;
+
+    // Optimistic UI: langsung hapus dari daftar tampilan agar responsif seketika
+    setTransactions((prev) => prev.filter((t) => !idsToDelete.includes(t.id)));
+
+    if (isSupabaseConfigured()) {
       setLoading(true);
       const supabase = createClient();
-      const idsToDelete = promoTransactions.map((p) => p.id);
 
-      // Simpan pembelajaran adaptif dari promo yang dibersihkan
       try {
-        const learnedEntries: Array<{ household_id: string; keyword: string; source: 'user_manual'; sample_text: string }> = [];
-        for (const p of promoTransactions) {
-          const rawText = p.raw_notification || '';
-          const keywords = extractPromoKeywordsFromText(p.merchant || '', rawText);
-          for (const kw of keywords) {
-            learnedEntries.push({
-              household_id: currentHouseholdId,
-              keyword: kw,
-              source: 'user_manual',
-              sample_text: rawText.slice(0, 200),
-            });
+        let householdId = currentHouseholdId;
+        if (!householdId) {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            const { data: p } = await supabase
+              .from('profiles')
+              .select('household_id')
+              .eq('id', user.id)
+              .maybeSingle();
+            householdId = p?.household_id;
           }
         }
-        if (learnedEntries.length > 0) {
-          await supabase
-            .from('learned_promo_rules')
-            .upsert(learnedEntries, { onConflict: 'household_id,keyword', ignoreDuplicates: true });
-        }
-      } catch {
-        // Abaikan jika tabel belum siap
-      }
 
-      await supabase
-        .from('transactions')
-        .delete()
-        .in('id', idsToDelete);
-      fetchData();
+        // Simpan pembelajaran adaptif dari promo yang dibersihkan
+        if (householdId) {
+          const learnedEntries: Array<{ household_id: string; keyword: string; source: 'user_manual'; sample_text: string }> = [];
+          for (const p of promoTransactions) {
+            const rawText = p.raw_notification || '';
+            const keywords = extractPromoKeywordsFromText(p.merchant || '', rawText);
+            for (const kw of keywords) {
+              learnedEntries.push({
+                household_id: householdId,
+                keyword: kw,
+                source: 'user_manual',
+                sample_text: rawText.slice(0, 200),
+              });
+            }
+          }
+          if (learnedEntries.length > 0) {
+            await supabase
+              .from('learned_promo_rules')
+              .upsert(learnedEntries, { onConflict: 'household_id,keyword', ignoreDuplicates: true });
+          }
+        }
+
+        await supabase
+          .from('transactions')
+          .delete()
+          .in('id', idsToDelete);
+      } catch (err) {
+        console.error('Gagal menghapus data promo:', err);
+      } finally {
+        fetchData();
+      }
     }
   };
 
@@ -655,10 +684,18 @@ export default function InboxTransactionsPage() {
               </div>
               <button
                 onClick={handleCleanPromoTransactions}
-                className="px-3.5 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition-colors shrink-0 shadow-xs flex items-center justify-center gap-2"
+                className={`px-3.5 py-2 rounded-xl text-white text-xs font-bold transition-all shrink-0 shadow-xs flex items-center justify-center gap-2 ${
+                  confirmingCleanPromo
+                    ? 'bg-red-700 ring-2 ring-red-400 animate-pulse'
+                    : 'bg-red-600 hover:bg-red-700'
+                }`}
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                <span>Bersihkan Data Promo ({promoTransactions.length})</span>
+                <span>
+                  {confirmingCleanPromo
+                    ? `Yakin Hapus ${promoTransactions.length} Data Promo? (Klik Sekali Lagi)`
+                    : `Bersihkan Data Promo (${promoTransactions.length})`}
+                </span>
               </button>
             </div>
           )}
