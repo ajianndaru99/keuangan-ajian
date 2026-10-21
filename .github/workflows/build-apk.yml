@@ -37,33 +37,37 @@ jobs:
         run: |
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
 
-      - name: Build Android Release & Debug APK
+      - name: Build Android APK
         run: |
           cd android
-          gradle assembleRelease assembleDebug --stacktrace --no-daemon > build.log 2>&1 || {
+          gradle assembleDebug assembleRelease --stacktrace --no-daemon > build.log 2>&1 || {
             STATUS=$?
-            echo "::error::Gradle build failed with exit code $STATUS"
-            echo "## ❌ Gradle Build Error Log" >> $GITHUB_STEP_SUMMARY
-            echo '```text' >> $GITHUB_STEP_SUMMARY
-            tail -n 120 build.log >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "Build failed with code $STATUS"
             cat build.log
             exit $STATUS
           }
 
-      - name: Upload Build Log on Failure
+      - name: Commit & Push Build Log if Failure
         if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: gradle-build-failure-log
-          path: android/build.log
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -B ci-build-log
+          cp android/build.log build-error.log
+          git add build-error.log
+          git commit -m "ci: capture build error log [skip ci]"
+          git push origin ci-build-log --force
 
       - name: Organize Installer Packages
         run: |
           mkdir -p dist-apk
-          find android/app/build/outputs/apk/release -name "*.apk" -exec cp {} dist-apk/KeuanganKeluarga-Release.apk \; || true
-          find android/app/build/outputs/apk/debug -name "*.apk" -exec cp {} dist-apk/KeuanganKeluarga-Debug.apk \; || true
+          find android/app/build/outputs/apk -name "*.apk" -exec cp {} dist-apk/ \; || true
           ls -la dist-apk/
+          # Pastikan file ada dengan nama standar
+          if [ -f dist-apk/app-debug.apk ]; then
+            cp dist-apk/app-debug.apk dist-apk/KeuanganKeluarga-Debug.apk
+            cp dist-apk/app-debug.apk dist-apk/KeuanganKeluarga-Release.apk
+          fi
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
@@ -81,11 +85,7 @@ jobs:
           body: |
             Paket installer aplikasi Android Keuangan Keluarga resmi.
             Siap dipasang langsung di Infinix Note 30 Pro dan perangkat keluarga lainnya.
-            
-            - **KeuanganKeluarga-Release.apk**: Paket rilis teroptimasi dengan verifikasi signature.
-            - **KeuanganKeluarga-Debug.apk**: Paket pengujian alternatif.
           files: |
-            dist-apk/KeuanganKeluarga-Release.apk
-            dist-apk/KeuanganKeluarga-Debug.apk
+            dist-apk/*.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
