@@ -193,10 +193,22 @@ export default function TopBar({
             {isHideBalance ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
           </button>
 
-          {/* Tombol Muat Ulang Halaman (Reload) */}
+          {/* Tombol Muat Ulang Halaman & Periksa Pembaruan APK */}
           <button
-            onClick={() => window.location.reload()}
-            title="Muat ulang aplikasi"
+            onClick={() => {
+              if (
+                typeof window !== 'undefined' &&
+                (window as unknown as { AndroidBridge?: { checkForUpdate?: () => void } }).AndroidBridge?.checkForUpdate
+              ) {
+                try {
+                  (window as unknown as { AndroidBridge: { checkForUpdate: () => void } }).AndroidBridge.checkForUpdate();
+                } catch (e) {
+                  console.warn('Gagal memanggil checkForUpdate:', e);
+                }
+              }
+              window.location.reload();
+            }}
+            title="Muat ulang aplikasi & periksa pembaruan"
             aria-label="Muat Ulang Aplikasi"
             className="p-2 rounded-xl text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--surface-2)] transition-colors active:rotate-180 duration-300"
           >
