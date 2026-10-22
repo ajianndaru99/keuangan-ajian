@@ -182,12 +182,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 2. Ambil Transaksi yang Perlu Direkonsiliasi (Status 'pending')
+    // 2. Ambil Transaksi yang Perlu Direkonsiliasi (Status 'pending' KHUSUS HARI INI / 24 JAM DATA BERJALAN)
+    const startOfTodayIso = `${todayWib}T00:00:00+07:00`;
+    const endOfTodayIso = `${todayWib}T23:59:59.999+07:00`;
+
     const { data: pendingTxs } = await clientToUse
       .from('transactions')
       .select('id, amount, direction, merchant, transaction_date, source_device, raw_notification, accounts(name, type)')
       .eq('household_id', householdId)
       .eq('status', 'pending')
+      .gte('transaction_date', startOfTodayIso)
+      .lte('transaction_date', endOfTodayIso)
       .order('transaction_date', { ascending: true })
       .limit(100);
 
@@ -204,14 +209,14 @@ export async function POST(req: NextRequest) {
     if (!pendingTxs || pendingTxs.length === 0) {
       return NextResponse.json({
         success: true,
-        message: 'Tidak ada transaksi berstatus pending untuk direkonsiliasi.',
+        message: 'Tidak ada transaksi berstatus pending untuk direkonsiliasi pada hari ini.',
         processedCount: 0,
         pairedTransfersCount: 0,
         duplicatesCount: 0,
         reconciledCount: 0,
         ignoredCount: 0,
         remainingQuota: MAX_DAILY_RECONCILIATION_RUNS - runsToday,
-        summaryNotes: 'Semua transaksi sudah berstatus reconciled atau bersih.',
+        summaryNotes: 'Semua transaksi hari ini sudah berstatus reconciled atau bersih.',
         details: null,
       });
     }
