@@ -9,6 +9,8 @@ import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import crypto from 'node:crypto';
 import { suggestCategoryForMerchant } from '@/lib/vision/gemini';
 import { parseNotificationPayload } from '@/lib/ai/notification-parser';
+import { evaluateBudgetAlert, type BudgetAlert, type ReviewAlert } from '@/lib/budget/budget-guard';
+import { formatRupiah } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -262,10 +264,26 @@ export async function POST(req: NextRequest) {
     // 2. Filter: Abaikan jika terkonfirmasi bukan transaksi finansial (misal obrolan chat penjual / promo iklan / nominal 0)
     // Transaksi resmi HANYA boleh masuk ke tabel transactions jika isTransaction = true, amount > 0, dan bukan ignored
     if (!isTransaction || amount <= 0 || parsed.outcome === 'ignored') {
+      let unparsedReviewAlert: ReviewAlert | null = null;
+      const isBankApp = /jago|mandiri|livin|bmri|bca|mybca|bri|brimo|bni|wondr|bsi|bsm|byond|seabank|bankbke|saqu|bjj|blu|shopeepay|gopay|dana|ovo|linkaja/i.test(`${app_name} ${safeTitle}`);
+      const isChatOrPromo = parsed.reasons.some(r => r.includes('promo') || r.includes('chat') || r.includes('obrolan'));
+      if (isBankApp && !isChatOrPromo) {
+        unparsedReviewAlert = {
+          amount: 0,
+          merchant: safeTitle || app_name,
+          accountName: app_name,
+          title: '⚠️ Format Mutasi Baru Terdeteksi',
+          message: `${app_name}: Notifikasi masuk tapi nominal belum terbaca otomatis. Ketuk untuk periksa.`,
+          reason: parsed.reasons.join(', ') || 'Format belum dikenali Regex',
+        };
+      }
+
       return NextResponse.json(
         {
           status: 'success',
           is_transaction: false,
+          review_alert: unparsedReviewAlert,
+          budget_alert: null,
           message: 'Notifikasi dicatat di raw stream, diabaikan dari riwayat transaksi karena bukan transaksi finansial valid.',
           data: {
             app_name,
@@ -282,6 +300,8 @@ export async function POST(req: NextRequest) {
 
     // 3. Masukkan ke tabel transactions jika sah bernilai > 0
     let newTransaction: TransactionRecord | null = null;
+    let budgetAlert: BudgetAlert | null = null;
+
     if (householdId) {
       // Cari akun yang paling cocok
       const { data: accounts } = await supabase
@@ -364,6 +384,8 @@ export async function POST(req: NextRequest) {
             {
               status: 'success',
               duplicate: true,
+              review_alert: null,
+              budget_alert: null,
               message: 'Notifikasi transaksi sudah pernah dicatat sebelumnya.',
               dedupe_hash: dedupeHash,
             },
@@ -373,7 +395,36 @@ export async function POST(req: NextRequest) {
         console.error('[Notification Insert Error]:', txError.message);
       } else {
         newTransaction = tx as TransactionRecord;
+
+        // Evaluasi ambang batas anggaran jika pengeluaran riil
+        if (direction === 'out' && amount > 0) {
+          try {
+            const catName = categories?.find(c => c.id === suggestedCategoryId)?.name || merchant || 'Lainnya';
+            budgetAlert = await evaluateBudgetAlert(supabase, householdId, catName, transactionDate);
+          } catch (bErr) {
+            console.warn('Gagal evaluasi budget alert:', bErr);
+          }
+        }
       }
+    }
+
+    // Evaluasi apakah butuh validasi langsung dari pengguna (needs_review)
+    let reviewAlert: ReviewAlert | null = null;
+    if (isSensitive || amount === 0 || parsed.parseMethod === 'ai_gemini') {
+      const reason = isSensitive
+        ? 'Terdeteksi data sensitif dalam notifikasi'
+        : amount === 0
+        ? 'Nominal transaksi belum terdeteksi otomatis'
+        : 'Kategori dianalisis otomatis oleh AI Gemini, mohon konfirmasi';
+      reviewAlert = {
+        transactionId: newTransaction?.id,
+        amount,
+        merchant,
+        accountName: accountName || app_name,
+        title: '⚠️ Verifikasi Transaksi Baru',
+        message: `${accountName || app_name}: ${merchant || 'Mutasi'} ${amount > 0 ? formatRupiah(amount) : ''} perlu Anda periksa.`.trim(),
+        reason,
+      };
     }
 
     return NextResponse.json(
@@ -381,6 +432,8 @@ export async function POST(req: NextRequest) {
         status: 'success',
         is_transaction: true,
         message: 'Notifikasi berhasil dicatat ke sistem.',
+        review_alert: reviewAlert,
+        budget_alert: budgetAlert,
         data: newTransaction || {
           app_name,
           title: safeTitle,

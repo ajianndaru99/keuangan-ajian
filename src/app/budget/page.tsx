@@ -97,10 +97,28 @@ export default function BudgetPage() {
         .gte('transaction_date', startOfMonth)
         .lte('transaction_date', endOfMonth);
 
+      // Ambil budget limit dari Supabase jika ada
+      const periodMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      const { data: dbBudgets } = await supabase
+        .from('category_budgets')
+        .select('category_id, limit_amount')
+        .eq('household_id', profile.household_id)
+        .eq('period_month', periodMonthKey);
+
+      if (dbBudgets && dbBudgets.length > 0) {
+        dbBudgets.forEach((b: { category_id: string; limit_amount: number }) => {
+          savedLimits[b.category_id] = Number(b.limit_amount);
+        });
+      }
+
       // Hitung pengeluaran per kategori berdasarkan pencocokan nama
       const spentByNameMap: Record<string, number> = {};
       if (txList) {
-        txList.forEach((tx: any) => {
+        interface TxBudgetRow {
+          categories: { name: string } | null;
+          amount: number;
+        }
+        (txList as unknown as TxBudgetRow[]).forEach((tx) => {
           const catName = tx.categories?.name || '';
           if (catName) {
             // Cocokkan ke salah satu dari 8 kategori
@@ -164,7 +182,10 @@ export default function BudgetPage() {
     }));
   }, [budgets]);
 
-  const handleSaveBudget = (id: string, newLimit: number) => {
+  const handleSaveBudget = async (id: string, newLimit: number) => {
+    const targetItem = budgets.find((b) => b.id === id);
+    const catName = targetItem?.name || id;
+
     setBudgets((prev) => {
       const updated = prev.map((item) => (item.id === id ? { ...item, budgetLimit: newLimit } : item));
       try {
@@ -178,6 +199,37 @@ export default function BudgetPage() {
       }
       return updated;
     });
+
+    if (isSupabaseConfigured()) {
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('household_id')
+            .eq('id', user.id)
+            .maybeSingle();
+
+          if (profile?.household_id) {
+            const now = new Date();
+            const periodMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+            await supabase.from('category_budgets').upsert({
+              household_id: profile.household_id,
+              category_id: id,
+              category_name: catName,
+              limit_amount: newLimit,
+              period_month: periodMonthKey,
+              updated_at: new Date().toISOString(),
+            }, {
+              onConflict: 'household_id,category_id,period_month',
+            });
+          }
+        }
+      } catch (err) {
+        console.warn('Gagal sinkron budget ke database:', err);
+      }
+    }
   };
 
   const currentMonthPeriod = useMemo(() => {

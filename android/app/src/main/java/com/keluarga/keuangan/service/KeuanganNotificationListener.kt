@@ -10,6 +10,14 @@ import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.keluarga.keuangan.AppConfig
 import com.keluarga.keuangan.data.ProfileManager
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.Intent
+import android.os.Build
+import androidx.core.app.NotificationCompat
+import com.keluarga.keuangan.MainActivity
+import com.keluarga.keuangan.R
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.MediaType.Companion.toMediaType
@@ -120,8 +128,11 @@ class KeuanganNotificationListener : NotificationListenerService() {
                 response.use {
                     if (response.isSuccessful) {
                         Log.i(tag, "Notifikasi berhasil dicatat di server (HTTP ${response.code})")
+                        val responseBody = try { response.body?.string() ?: "" } catch (_: Exception) { "" }
                         // Kosongkan antrean tertunda jika ada koneksi
                         flushOfflineQueue()
+                        // Tangani peringatan dari server jika ada
+                        handleServerAlerts(responseBody)
                     } else if (response.code >= 500) {
                         Log.w(tag, "Server error (${response.code}), menyimpan ke buffer antrean offline...")
                         enqueueOfflinePayload(payloadString)
@@ -131,6 +142,94 @@ class KeuanganNotificationListener : NotificationListenerService() {
                 }
             }
         })
+    }
+
+    private fun handleServerAlerts(responseBody: String) {
+        if (responseBody.isEmpty()) return
+        try {
+            val root = JsonParser.parseString(responseBody).asJsonObject
+
+            // 1. Peringatan Validasi Transaksi (Review Alert)
+            if (root.has("review_alert") && !root.get("review_alert").isJsonNull) {
+                val review = root.getAsJsonObject("review_alert")
+                val title = review.get("title")?.asString ?: "⚠️ Verifikasi Transaksi Baru"
+                val message = review.get("message")?.asString ?: "Ada transaksi yang memerlukan pemeriksaan Anda."
+                showLocalNotification(
+                    notificationId = 1001,
+                    title = title,
+                    message = message,
+                    targetPath = "/inbox"
+                )
+            }
+
+            // 2. Peringatan Batas Anggaran (Budget Alert: 80% atau 100%)
+            if (root.has("budget_alert") && !root.get("budget_alert").isJsonNull) {
+                val budget = root.getAsJsonObject("budget_alert")
+                val title = budget.get("title")?.asString ?: "⚠️ Peringatan Batas Anggaran"
+                val message = budget.get("message")?.asString ?: "Pengeluaran kategori hampir melebihi batas anggaran."
+                val level = budget.get("level")?.asString ?: "80"
+                val notifId = if (level == "100") 2002 else 2001
+                showLocalNotification(
+                    notificationId = notifId,
+                    title = title,
+                    message = message,
+                    targetPath = "/budget"
+                )
+            }
+        } catch (e: Exception) {
+            Log.w(tag, "Gagal memproses alert respon server: ${e.message}")
+        }
+    }
+
+    private fun showLocalNotification(
+        notificationId: Int,
+        title: String,
+        message: String,
+        targetPath: String
+    ) {
+        try {
+            val channelId = "keuangan_family_alerts"
+            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val channel = NotificationChannel(
+                    channelId,
+                    "Peringatan Anggaran & Transaksi",
+                    NotificationManager.IMPORTANCE_HIGH
+                ).apply {
+                    description = "Notifikasi peringatan batas belanja dan verifikasi mutasi bank"
+                    enableVibration(true)
+                }
+                notificationManager.createNotificationChannel(channel)
+            }
+
+            val intent = Intent(this, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                putExtra("target_path", targetPath)
+            }
+
+            val pendingIntentFlags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            } else {
+                PendingIntent.FLAG_UPDATE_CURRENT
+            }
+
+            val pendingIntent = PendingIntent.getActivity(this, notificationId, intent, pendingIntentFlags)
+
+            val builder = NotificationCompat.Builder(this, channelId)
+                .setSmallIcon(R.drawable.ic_launcher)
+                .setContentTitle(title)
+                .setContentText(message)
+                .setStyle(NotificationCompat.BigTextStyle().bigText(message))
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setAutoCancel(true)
+                .setContentIntent(pendingIntent)
+
+            notificationManager.notify(notificationId, builder.build())
+            Log.i(tag, "Notifikasi lokal ditampilkan: $title")
+        } catch (e: Exception) {
+            Log.e(tag, "Gagal menampilkan notifikasi lokal: ${e.message}")
+        }
     }
 
     @Synchronized

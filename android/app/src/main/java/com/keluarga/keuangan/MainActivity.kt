@@ -1,8 +1,10 @@
 package com.keluarga.keuangan
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.content.ComponentName
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
@@ -55,6 +57,7 @@ class MainActivity : AppCompatActivity() {
         setupWebView()
         setupBackNavigation()
         checkForUpdatesSilently()
+        requestNotificationPermissionIfNeeded()
     }
 
     private fun checkForUpdatesSilently() {
@@ -203,8 +206,35 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // Muat Alamat Dasbor
-        webView.loadUrl(profileManager.webUrl)
+        // Muat Alamat Dasbor (Dukung target_path deep link dari notifikasi)
+        val targetPath = intent.getStringExtra("target_path") ?: ""
+        val initialUrl = if (targetPath.isNotEmpty()) {
+            val base = profileManager.webUrl.trimEnd('/')
+            val cleanPath = if (targetPath.startsWith("/")) targetPath else "/$targetPath"
+            "$base$cleanPath"
+        } else {
+            profileManager.webUrl
+        }
+        webView.loadUrl(initialUrl)
+    }
+
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        val targetPath = intent?.getStringExtra("target_path") ?: return
+        if (targetPath.isNotEmpty()) {
+            val base = profileManager.webUrl.trimEnd('/')
+            val cleanPath = if (targetPath.startsWith("/")) targetPath else "/$targetPath"
+            binding.webView.loadUrl("$base$cleanPath")
+        }
+    }
+
+    private fun requestNotificationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 101)
+            }
+        }
     }
 
     private fun setupBackNavigation() {

@@ -16,6 +16,9 @@
     <!-- Izin Pembaruan Aplikasi Otomatis (In-App Updater) -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
+    <!-- Izin Menampilkan Notifikasi Lokal (Android 13+) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <application
         android:allowBackup="false"
         android:icon="@drawable/ic_launcher"
