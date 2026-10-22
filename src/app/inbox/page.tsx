@@ -96,7 +96,6 @@ export default function InboxTransactionsPage() {
   // State Rekonsiliasi AI Gemini (Maksimal 2x per hari)
   const [aiRemainingQuota, setAiRemainingQuota] = useState<number>(2);
   const [aiCanRun, setAiCanRun] = useState<boolean>(true);
-  const [isAiReconciling, setIsAiReconciling] = useState<boolean>(false);
   const [isAiModalOpen, setIsAiModalOpen] = useState<boolean>(false);
   const [confirmingCleanPromo, setConfirmingCleanPromo] = useState<boolean>(false);
 
@@ -771,9 +770,7 @@ export default function InboxTransactionsPage() {
               setIsAddModalOpen(true);
             }}
             onRunAiReconcile={handleRunAiReconcile}
-            isAiReconciling={isAiReconciling}
             aiRemainingQuota={aiRemainingQuota}
-            aiCanRun={aiCanRun}
             totalCount={filteredTransactions.length}
             pendingCount={globalPendingCount}
           />

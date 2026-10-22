@@ -28,7 +28,6 @@ interface TableToolbarProps {
   onRunAiReconcile?: () => void;
   isAiReconciling?: boolean;
   aiRemainingQuota?: number;
-  aiCanRun?: boolean;
   totalCount?: number;
   pendingCount?: number;
 }
@@ -43,7 +42,6 @@ export default function TableToolbar({
   onRunAiReconcile,
   isAiReconciling = false,
   aiRemainingQuota = 2,
-  aiCanRun = true,
   totalCount = 0,
   pendingCount = 0,
 }: TableToolbarProps) {
