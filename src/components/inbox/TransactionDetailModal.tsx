@@ -21,6 +21,7 @@ import {
   Copy,
   CheckCheck,
   Tag,
+  ShieldAlert,
 } from 'lucide-react';
 import { formatRupiah, formatFullWIB } from '@/lib/utils';
 import { TransactionItem } from './TransactionCard';
@@ -34,6 +35,7 @@ interface TransactionDetailModalProps {
   onCategorize: (transactionId: string, categoryId: string) => Promise<void>;
   onIgnore: (transactionId: string) => Promise<void>;
   onEdit: (transaction: TransactionItem) => void;
+  onMarkAsPromoSpam?: (transaction: TransactionItem) => Promise<void> | void;
 }
 
 export default function TransactionDetailModal({
@@ -44,6 +46,7 @@ export default function TransactionDetailModal({
   onCategorize,
   onIgnore,
   onEdit,
+  onMarkAsPromoSpam,
 }: TransactionDetailModalProps) {
   const [selectedCatId, setSelectedCatId] = useState<string | null>(
     transaction?.category_id || null
@@ -299,6 +302,23 @@ export default function TransactionDetailModal({
               <Trash2 className="w-3.5 h-3.5" />
               <span>Abaikan</span>
             </button>
+            {onMarkAsPromoSpam && (
+              <button
+                type="button"
+                disabled={isSubmitting}
+                onClick={async () => {
+                  setIsSubmitting(true);
+                  await onMarkAsPromoSpam(transaction);
+                  setIsSubmitting(false);
+                  onClose();
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20 text-xs font-bold transition-colors"
+                title="Tandai transaksi ini sebagai promo/iklan/spam yang lolos dari Regex"
+              >
+                <ShieldAlert className="w-3.5 h-3.5" />
+                <span>Promo/Spam</span>
+              </button>
+            )}
           </div>
 
           <button

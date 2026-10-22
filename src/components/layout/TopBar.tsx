@@ -16,6 +16,7 @@ import {
   Eye,
   EyeOff,
   Menu,
+  RotateCw,
 } from 'lucide-react';
 
 interface TopBarProps {
@@ -192,6 +193,15 @@ export default function TopBar({
             {isHideBalance ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
           </button>
 
+          {/* Tombol Muat Ulang Halaman (Reload) */}
+          <button
+            onClick={() => window.location.reload()}
+            title="Muat ulang aplikasi"
+            aria-label="Muat Ulang Aplikasi"
+            className="p-2 rounded-xl text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--surface-2)] transition-colors active:rotate-180 duration-300"
+          >
+            <RotateCw className="w-4 h-4" />
+          </button>
 
           {/* 3-Way Toggle Theme (Terang / Gelap / Sistem) */}
           <button

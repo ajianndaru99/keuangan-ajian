@@ -87,17 +87,17 @@ export default function TableToolbar({
           {onRunAiReconcile && (
             <button
               onClick={onRunAiReconcile}
-              disabled={!aiCanRun || isAiReconciling}
+              disabled={isAiReconciling}
               className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-semibold transition-all shadow-2xs ${
-                !aiCanRun
-                  ? 'border-[var(--border-color)] bg-[var(--surface-1)] text-[var(--text-muted)] cursor-not-allowed opacity-60'
-                  : isAiReconciling
-                  ? 'border-purple-500/40 bg-purple-500/10 text-purple-600 dark:text-purple-300 animate-pulse'
+                isAiReconciling
+                  ? 'border-purple-500/40 bg-purple-500/10 text-purple-600 dark:text-purple-300 animate-pulse cursor-wait'
+                  : aiRemainingQuota === 0
+                  ? 'border-[var(--border-color)] bg-[var(--surface-1)] text-[var(--text-muted)] hover:bg-[var(--surface-2)] active:scale-95'
                   : 'border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-purple-700 dark:text-purple-300 hover:border-purple-500/50 active:scale-95'
               }`}
               title={
-                !aiCanRun
-                  ? 'Kuota rekonsiliasi hari ini sudah habis (maksimal 2x per hari). Reset pukul 00:00 WIB.'
+                aiRemainingQuota === 0
+                  ? 'Lihat status kuota rekonsiliasi AI (Batas 2x per hari tercapai).'
                   : `Jalankan rekonsiliasi AI Gemini (Sisa kuota: ${aiRemainingQuota}x)`
               }
             >

@@ -97,4 +97,20 @@ describe('Sistem Pembelajaran Regex Adaptif (Closed-Loop Learning)', () => {
     assert.equal(res.direction, 'out');
     assert.equal(res.accountName, 'Jago');
   });
+
+  test('extractPromoKeywordsFromText dengan isExplicitManualPromo mengekstrak kata kunci meski teks tanpa kata promo umum', () => {
+    const kws = extractPromoKeywordsFromText(
+      'Kredivo Paylater',
+      'Limit kredit Anda telah dinaikkan menjadi Rp 5.000.000',
+      undefined,
+      true
+    );
+
+    assert.ok(kws.length > 0, 'Harus menghasilkan kata kunci saat ditandai secara manual');
+    assert.ok(
+      kws.some((k) => k.includes('kredivo') || k.includes('paylater')),
+      'Kata kunci harus memuat unsur kredivo/paylater'
+    );
+  });
 });
+

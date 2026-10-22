@@ -21,12 +21,14 @@ import TransactionDetailModal from '@/components/inbox/TransactionDetailModal';
 import QuickEditModal from '@/components/inbox/QuickEditModal';
 import RealtimeToast, { ToastTransactionData } from '@/components/inbox/RealtimeToast';
 import RawNotificationTable, { RawNotificationItem } from '@/components/inbox/RawNotificationTable';
+import AiReconciliationModal from '@/components/inbox/AiReconciliationModal';
+import PromoSpamConfirmModal from '@/components/inbox/PromoSpamConfirmModal';
 import { TransactionItem } from '@/components/inbox/TransactionCard';
 import { Category } from '@/components/inbox/CategoryChipList';
 import { exportTransactionsToCsv } from '@/lib/export-excel';
 import { extractNominal, extractMerchant, detectAccountInfo, extractNotificationDate } from '@/lib/ai/notification-parser';
 import { extractPromoKeywordsFromText } from '@/lib/ai/adaptive-rules';
-import { CheckCircle2, Smartphone, RefreshCw, AlertTriangle, Trash2, Clock } from 'lucide-react';
+import { CheckCircle2, Smartphone, RefreshCw, AlertTriangle, Trash2, Clock, X } from 'lucide-react';
 
 const defaultCategories: Category[] = [
   { id: 'cat-1', name: 'Belanja Dapur', type: 'expense', sort_order: 1 },
@@ -95,7 +97,20 @@ export default function InboxTransactionsPage() {
   const [aiRemainingQuota, setAiRemainingQuota] = useState<number>(2);
   const [aiCanRun, setAiCanRun] = useState<boolean>(true);
   const [isAiReconciling, setIsAiReconciling] = useState<boolean>(false);
+  const [isAiModalOpen, setIsAiModalOpen] = useState<boolean>(false);
   const [confirmingCleanPromo, setConfirmingCleanPromo] = useState<boolean>(false);
+
+  // State Promo / Spam (Closed-Loop Learning)
+  const [promoSpamTarget, setPromoSpamTarget] = useState<MonexaTransactionRow | TransactionItem | null>(null);
+  const [isPromoSpamModalOpen, setIsPromoSpamModalOpen] = useState<boolean>(false);
+  const [feedbackToast, setFeedbackToast] = useState<{ title: string; message: string } | null>(null);
+
+  // Auto-dismiss feedback toast setelah 4 detik
+  useEffect(() => {
+    if (!feedbackToast) return;
+    const timer = setTimeout(() => setFeedbackToast(null), 4000);
+    return () => clearTimeout(timer);
+  }, [feedbackToast]);
 
   // Ambil Data dari Supabase (Transaksi Terurai & Raw Notifications)
   const fetchData = useCallback(async () => {
@@ -503,40 +518,57 @@ export default function InboxTransactionsPage() {
     fetchData();
   };
 
-  // Handler Eksekusi Rekonsiliasi AI Gemini Harian
-  const handleRunAiReconcile = async () => {
-    if (!aiCanRun) {
-      alert('Batas kuota rekonsiliasi AI hari ini sudah tercapai (maksimal 2x per hari). Kuota akan direset kembali besok pukul 00:00 WIB.');
-      return;
-    }
+  // Handler Eksekusi Rekonsiliasi AI Gemini Harian (Buka Modal Dialog Elegan)
+  const handleRunAiReconcile = () => {
+    setIsAiModalOpen(true);
+  };
 
-    const confirmMsg = `Jalankan Rekonsiliasi AI Gemini untuk seluruh transaksi harian?\n\n• Mendeteksi transfer sesama rekening keluarga (internal transfer)\n• Menghapus konfirmasi ganda dari bank digital / SMS\n• Menyetujui transaksi belanja riil secara otomatis\n\nSisa kuota harian: ${aiRemainingQuota}x. Lanjutkan?`;
-    if (!confirm(confirmMsg)) return;
+  // Handler Aksi Promo / Spam (Closed-Loop Learning)
+  const handleTriggerPromoSpam = (tx: MonexaTransactionRow | TransactionItem) => {
+    setPromoSpamTarget(tx);
+    setIsPromoSpamModalOpen(true);
+  };
 
-    setIsAiReconciling(true);
-    try {
-      const res = await fetch('/api/ai/daily-reconcile', {
-        method: 'POST',
-      });
-      const data = await res.json();
+  const handleConfirmPromoSpam = async (target: MonexaTransactionRow | TransactionItem) => {
+    if (!target) return;
 
-      if (!res.ok) {
-        alert(data.error || 'Gagal menjalankan rekonsiliasi AI.');
-        return;
+    if (isSupabaseConfigured() && currentHouseholdId) {
+      const supabase = createClient();
+      const rawNotif = ('raw_notification' in target ? target.raw_notification : null) || '';
+      const merchant = target.merchant || '';
+
+      // 1. Ekstrak kata kunci promo (dengan prioritas penandaan eksplisit manual dari user)
+      const keywords = extractPromoKeywordsFromText(merchant, rawNotif, undefined, true);
+
+      if (keywords.length > 0) {
+        try {
+          const entries = keywords.map((kw) => ({
+            household_id: currentHouseholdId,
+            keyword: kw,
+            source: 'user_manual' as const,
+            sample_text: rawNotif.slice(0, 200),
+          }));
+          await supabase
+            .from('learned_promo_rules')
+            .upsert(entries, { onConflict: 'household_id,keyword', ignoreDuplicates: true });
+        } catch (err) {
+          console.warn('[learned_promo_rules upsert warn]:', err);
+        }
       }
 
-      setAiRemainingQuota(data.remainingQuota ?? 0);
-      setAiCanRun((data.remainingQuota ?? 0) > 0);
-
-      const summary = `✨ Rekonsiliasi AI Selesai!\n\n${data.summaryNotes}\n\nSisa kuota hari ini: ${data.remainingQuota}x`;
-      alert(summary);
-      await fetchData();
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      alert(`Terjadi kesalahan: ${msg}`);
-    } finally {
-      setIsAiReconciling(false);
+      // 2. Ubah status transaksi menjadi 'ignored' & needs_review: false
+      await supabase
+        .from('transactions')
+        .update({ status: 'ignored', needs_review: false })
+        .eq('id', target.id);
     }
+
+    setFeedbackToast({
+      title: 'Promo/Spam Berhasil Ditandai',
+      message: 'Transaksi telah diabaikan dan aturan baru dipelajari agar notifikasi serupa ditolak otomatis.',
+    });
+
+    await fetchData();
   };
 
   // --------------------------------------------------------------------------
@@ -760,6 +792,7 @@ export default function InboxTransactionsPage() {
               if (found) setEditingTransaction(found);
             }}
             onDeleteTransaction={handleDelete}
+            onMarkAsPromoSpam={handleTriggerPromoSpam}
           />
         </>
       )}
@@ -811,6 +844,7 @@ export default function InboxTransactionsPage() {
         onCategorize={handleCategorize}
         onIgnore={handleIgnore}
         onEdit={(tx) => setEditingTransaction(tx)}
+        onMarkAsPromoSpam={handleConfirmPromoSpam}
       />
 
       {/* Modal Koreksi Cepat Transaksi */}
@@ -827,6 +861,50 @@ export default function InboxTransactionsPage() {
           initialDirection={editingTransaction.direction}
           rawNotification={editingTransaction.raw_notification}
         />
+      )}
+
+      {/* Modal Dialog Rekonsiliasi AI Gemini */}
+      <AiReconciliationModal
+        isOpen={isAiModalOpen}
+        onClose={() => setIsAiModalOpen(false)}
+        remainingQuota={aiRemainingQuota}
+        canRun={aiCanRun}
+        pendingCount={globalPendingCount}
+        onReconcileSuccess={async (newQuota) => {
+          setAiRemainingQuota(newQuota);
+          setAiCanRun(newQuota > 0);
+          await fetchData();
+        }}
+      />
+
+      {/* Modal Konfirmasi Tandai Promo / Spam */}
+      <PromoSpamConfirmModal
+        transaction={promoSpamTarget}
+        isOpen={isPromoSpamModalOpen}
+        onClose={() => {
+          setIsPromoSpamModalOpen(false);
+          setPromoSpamTarget(null);
+        }}
+        onConfirm={handleConfirmPromoSpam}
+      />
+
+      {/* Pop-up Toast Feedback Ringkas */}
+      {feedbackToast && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 p-4 rounded-2xl bg-[var(--surface-4)] border border-[var(--border-color)] shadow-xl text-xs animate-in slide-in-from-bottom-3 duration-200">
+          <div className="p-2 rounded-xl bg-income/20 text-income shrink-0">
+            <CheckCircle2 className="w-4 h-4" />
+          </div>
+          <div>
+            <h4 className="font-bold text-[var(--text-main)]">{feedbackToast.title}</h4>
+            <p className="text-[11px] text-[var(--text-muted)] mt-0.5">{feedbackToast.message}</p>
+          </div>
+          <button
+            onClick={() => setFeedbackToast(null)}
+            className="p-1 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-main)] ml-2"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
       )}
 
       {/* Pop-up Toast Realtime Saat Notifikasi / Transaksi Masuk */}

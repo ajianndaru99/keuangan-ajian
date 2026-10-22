@@ -54,13 +54,18 @@ export function isSafePromoKeyword(keyword: string): boolean {
 export function extractPromoKeywordsFromText(
   title: string,
   text: string,
-  reason?: string
+  reason?: string,
+  isExplicitManualPromo: boolean = false
 ): string[] {
   const combined = `${title} ${text} ${reason || ''}`;
   const keywords: Set<string> = new Set();
 
-  // 1. Ekstrak dari judul HANYA jika notifikasi terindikasi kuat promo / iklan / gamifikasi
-  const hasPromoSign = /\b(promo|diskon|cashback|voucher|kupon|hadiah|gratis|asuransi|penipuan|perlindungan|spin|tebak|game|games|deals|kado|undian|poin|coins|bonus|paket\s+data|nonton\s+anime|iklan|marketing)\b/i.test(combined);
+  // 1. Ekstrak dari judul HANYA jika notifikasi terindikasi kuat promo / iklan / gamifikasi atau ditandai manual
+  const hasPromoSign =
+    isExplicitManualPromo ||
+    /\b(promo|diskon|cashback|voucher|kupon|hadiah|gratis|asuransi|penipuan|perlindungan|spin|tebak|game|games|deals|kado|undian|poin|coins|bonus|paket\s+data|nonton\s+anime|iklan|marketing|paylater|pinjaman|investasi|reward)\b/i.test(
+      combined
+    );
 
   if (hasPromoSign) {
     const cleanedTitle = cleanRuleKeyword(title)
@@ -87,6 +92,9 @@ export function extractPromoKeywordsFromText(
     /\b(flash\s+coffee)\b/i,
     /\b(ngopi\s+hemat)\b/i,
     /\b(diskon\s+bayar\s+tagihan)\b/i,
+    /\b(penawaran\s+khusus)\b/i,
+    /\b(ajak\s+teman)\b/i,
+    /\b(cashback\s+spesial)\b/i,
   ];
 
   for (const pattern of MARKETING_TARGETS) {
@@ -95,6 +103,25 @@ export function extractPromoKeywordsFromText(
       const clean = cleanRuleKeyword(match[1]);
       if (isSafePromoKeyword(clean)) {
         keywords.add(clean);
+      }
+    }
+  }
+
+  // 3. Fallback jika ditandai manual oleh pengguna tapi belum ada kata kunci terambil
+  if (isExplicitManualPromo && keywords.size === 0) {
+    const cleanCandidate = cleanRuleKeyword(title);
+    if (isSafePromoKeyword(cleanCandidate)) {
+      keywords.add(cleanCandidate);
+    } else {
+      const words = cleanRuleKeyword(text).split(' ').filter(Boolean);
+      for (let len = 3; len >= 2; len--) {
+        if (words.length >= len) {
+          const phrase = words.slice(0, len).join(' ');
+          if (isSafePromoKeyword(phrase)) {
+            keywords.add(phrase);
+            break;
+          }
+        }
       }
     }
   }

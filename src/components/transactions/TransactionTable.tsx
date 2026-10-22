@@ -26,6 +26,7 @@ import {
   ChevronUp,
   Sparkles,
   Camera,
+  ShieldAlert,
 } from 'lucide-react';
 
 export interface MonexaTransactionRow {
@@ -49,6 +50,7 @@ interface TransactionTableProps {
   onSelectTransaction: (item: MonexaTransactionRow) => void;
   onEditTransaction: (item: MonexaTransactionRow) => void;
   onDeleteTransaction?: (id: string) => void;
+  onMarkAsPromoSpam?: (item: MonexaTransactionRow) => void;
 }
 
 export default function TransactionTable({
@@ -56,6 +58,7 @@ export default function TransactionTable({
   onSelectTransaction,
   onEditTransaction,
   onDeleteTransaction,
+  onMarkAsPromoSpam,
 }: TransactionTableProps) {
   const { isHideBalance } = usePrivacy();
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
@@ -238,12 +241,28 @@ export default function TransactionTable({
 
                     {/* 4. Status Badge & Parse Method */}
                     <td className="py-3.5 px-4 whitespace-nowrap align-top">
-                      <div className="flex flex-col gap-1 items-start">
+                      <div className="flex flex-col gap-1.5 items-start">
                         {isPending ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-500 dark:text-amber-400 border border-amber-500/30 animate-pulse">
-                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                            Pending Review
-                          </span>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-500 dark:text-amber-400 border border-amber-500/30 animate-pulse">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                              Pending Review
+                            </span>
+                            {onMarkAsPromoSpam && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onMarkAsPromoSpam(tx);
+                                }}
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/20 transition-colors shadow-2xs"
+                                title="Tandai transaksi ini sebagai promo/iklan/spam yang lolos dari Regex"
+                              >
+                                <ShieldAlert className="w-2.5 h-2.5" />
+                                <span>Promo/Spam</span>
+                              </button>
+                            )}
+                          </div>
                         ) : isIncome ? (
                           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-income/15 text-income border border-income/30">
                             Income
@@ -379,6 +398,19 @@ export default function TransactionTable({
                             <Edit3 className="w-3.5 h-3.5 text-[var(--accent-color)]" />
                             <span>Koreksi Data</span>
                           </button>
+
+                          {onMarkAsPromoSpam && isPending && (
+                            <button
+                              onClick={() => {
+                                setActiveMenuId(null);
+                                onMarkAsPromoSpam(tx);
+                              }}
+                              className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                            >
+                              <ShieldAlert className="w-3.5 h-3.5" />
+                              <span>Tandai Promo / Spam</span>
+                            </button>
+                          )}
 
                           {onDeleteTransaction && (
                             <button
@@ -548,6 +580,18 @@ export default function TransactionTable({
                   <Edit3 className="w-3.5 h-3.5 text-[var(--accent-color)]" />
                   <span>Koreksi</span>
                 </button>
+
+                {isPending && onMarkAsPromoSpam && (
+                  <button
+                    type="button"
+                    onClick={() => onMarkAsPromoSpam(tx)}
+                    className="py-2 px-3 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-xs font-bold text-rose-600 dark:text-rose-400 border border-rose-500/20 flex items-center justify-center gap-1.5 transition-colors"
+                    title="Tandai notifikasi promo atau spam yang lolos dari regex"
+                  >
+                    <ShieldAlert className="w-3.5 h-3.5" />
+                    <span>Promo/Spam</span>
+                  </button>
+                )}
 
                 {onDeleteTransaction && (
                   <button
