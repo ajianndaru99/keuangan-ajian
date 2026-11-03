@@ -404,9 +404,8 @@ export default function AccountsPage() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-5">
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-[11px] font-bold uppercase tracking-wider block">
-                  <span className="font-extrabold text-[var(--text-main)]">Total</span>{' '}
-                  <span className="font-semibold italic text-[var(--text-accent-italic)]">Saldo Kas Keluarga</span>
+                <span className="text-[11px] font-semibold text-[var(--text-muted)] block">
+                  Total Saldo Kas Keluarga
                 </span>
                 <button
                   onClick={togglePrivacy}

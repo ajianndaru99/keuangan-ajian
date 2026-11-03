@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 // ==============================================================================
 // TRANSACTIONS / INBOX PAGE: src/app/inbox/page.tsx

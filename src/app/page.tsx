@@ -23,12 +23,8 @@ import { Category } from '@/components/inbox/CategoryChipList';
 import { usePrivacy, formatMaskedRupiah } from '@/lib/privacy';
 import { formatFullWIB, formatRelativeWIB } from '@/lib/utils';
 import {
-  Wallet,
   ArrowUpRight,
   ArrowDownLeft,
-  Inbox,
-  BarChart3,
-  Target,
   Building2,
   Smartphone,
   Eye,
@@ -36,7 +32,6 @@ import {
   Clock,
   ChevronRight,
   RefreshCw,
-  CheckCircle2,
   TrendingUp,
 } from 'lucide-react';
 
@@ -313,17 +308,13 @@ export default function DashboardPage() {
       pendingCount={pendingCount}
     >
       <div className="space-y-6">
-        {/* Header Ringkasan & Salam */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+        {/* Header Ringkasan & Tanggal */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)] block">
-              Ringkasan Keuangan Keluarga
-            </span>
-            <h1 className="text-xl sm:text-2xl font-black text-[var(--text-main)] tracking-tight mt-0.5">
-              <span className="font-extrabold text-[var(--text-main)]">Dasbor</span>{' '}
-              <span className="font-semibold italic text-[var(--text-accent-italic)]">Keluarga Ajian</span>
+            <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-main)] tracking-tight">
+              Ringkasan Finansial
             </h1>
-            <p className="text-xs text-[var(--text-muted)] mt-0.5 font-medium">
+            <p className="text-xs text-[var(--text-muted)] mt-0.5">
               {formatFullWIB(new Date())}
             </p>
           </div>
@@ -331,18 +322,18 @@ export default function DashboardPage() {
           <div className="flex items-center gap-2">
             <button
               onClick={togglePrivacy}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[var(--border-color)] bg-[var(--surface-1)] text-[var(--text-main)] hover:bg-[var(--surface-2)] text-xs font-semibold transition-colors shadow-xs"
-              title="Sembunyikan atau tampilkan nominal saldo sensitif"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--border-color)] bg-[var(--surface-1)] text-[var(--text-main)] hover:bg-[var(--surface-2)] text-xs font-medium transition-colors"
+              title="Sembunyikan atau tampilkan nominal saldo"
             >
               {isHideBalance ? (
                 <>
                   <EyeOff className="w-3.5 h-3.5 text-[var(--accent-color)]" />
-                  <span>Saldo Disembunyikan</span>
+                  <span>Saldo Disensor</span>
                 </>
               ) : (
                 <>
                   <Eye className="w-3.5 h-3.5 text-[var(--text-muted)]" />
-                  <span>Sembunyikan Saldo</span>
+                  <span>Sensor Saldo</span>
                 </>
               )}
             </button>
@@ -350,161 +341,130 @@ export default function DashboardPage() {
             <button
               onClick={fetchData}
               title="Muat ulang data"
-              className="p-2 rounded-xl bg-[var(--surface-1)] border border-[var(--border-color)] text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--surface-2)] transition-colors shadow-xs"
+              className="p-2 rounded-lg bg-[var(--surface-1)] border border-[var(--border-color)] text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--surface-2)] transition-colors"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
             </button>
           </div>
         </div>
 
-        {/* =========================================================================
-            ROW 1: KARTU SALDO TOTAL & ARUS KAS BULAN INI
-            ========================================================================= */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          {/* Kartu Saldo Kas Gabungan */}
-          <div className="md:col-span-2 rounded-3xl p-6 bg-[var(--surface-1)] border border-[var(--border-color)] shadow-xs relative overflow-hidden">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <span className="text-xs font-bold uppercase tracking-wider">
-                  <span className="font-extrabold text-[var(--text-main)]">Total</span>{' '}
-                  <span className="font-semibold italic text-[var(--text-accent-italic)]">Kas Keluarga</span>
-                </span>
-                <p className="text-2xl sm:text-3xl font-extrabold text-[var(--text-main)] tracking-tight mt-1 angka-keuangan">
-                  {formatMaskedRupiah(balanceSummary.totalAll, isHideBalance)}
-                </p>
-                <p className="text-[11px] text-[var(--text-muted)] font-medium mt-1">
-                  Akumulasi seluruh rekening bank & dompet digital aktif
-                </p>
-              </div>
-
-              <div className="p-3 rounded-2xl bg-[var(--surface-2)] text-[var(--accent-color)] border border-[var(--border-color)] shadow-xs">
-                <Wallet className="w-6 h-6" />
-              </div>
+        {/* Notifikasi Pending Minimalis (Hanya Muncul Jika Ada Transaksi Pending) */}
+        {pendingCount > 0 && (
+          <div className="flex items-center justify-between p-3.5 px-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-300">
+            <div className="flex items-center gap-2.5 text-xs font-medium">
+              <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
+              <span>
+                Ada <strong className="font-semibold">{pendingCount} transaksi</strong> di Inbox menunggu verifikasi kategori.
+              </span>
             </div>
-
-            {/* Perincian Kas Suami vs Istri */}
-            <div className="grid grid-cols-2 gap-3 pt-4 mt-5 border-t border-[var(--border-color)]">
-              <div className="p-3.5 rounded-2xl bg-[var(--surface-2)] border border-[var(--border-color)] shadow-xs">
-                <span className="text-[11px] font-bold text-[var(--text-muted)] block mb-0.5">
-                  Kas Suami (Kepala Keluarga)
-                </span>
-                <p className="text-sm sm:text-base font-extrabold text-[var(--text-main)] angka-keuangan">
-                  {formatMaskedRupiah(balanceSummary.totalSuami, isHideBalance)}
-                </p>
-              </div>
-
-              <div className="p-3.5 rounded-2xl bg-[var(--surface-2)] border border-[var(--border-color)] shadow-xs">
-                <span className="text-[11px] font-bold text-[var(--text-muted)] block mb-0.5">
-                  Kas Istri (Bendahara)
-                </span>
-                <p className="text-sm sm:text-base font-extrabold text-[var(--text-main)] angka-keuangan">
-                  {formatMaskedRupiah(balanceSummary.totalIstri, isHideBalance)}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Kartu Status Inbox Pending */}
-          <div className={`rounded-3xl p-6 shadow-xs flex flex-col justify-between border ${
-            pendingCount > 0
-              ? 'bg-amber-500/10 border-amber-500/30'
-              : 'bg-[var(--surface-1)] border-[var(--border-color)]'
-          }`}>
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <span className={`text-xs font-bold uppercase tracking-wider ${
-                  pendingCount > 0 ? 'text-amber-500 dark:text-amber-300' : 'text-[var(--text-muted)]'
-                }`}>
-                  Status Inbox
-                </span>
-                <span className={`w-2.5 h-2.5 rounded-full ${
-                  pendingCount > 0 ? 'bg-amber-500 animate-pulse' : 'bg-[var(--color-income)]'
-                }`} />
-              </div>
-
-              {pendingCount > 0 ? (
-                <>
-                  <h3 className="text-2xl font-extrabold text-amber-600 dark:text-amber-200 tracking-tight angka-keuangan">
-                    {pendingCount} Transaksi
-                  </h3>
-                  <p className="text-xs text-amber-700 dark:text-amber-300/90 mt-1 font-semibold leading-relaxed">
-                    Menunggu verifikasi kategori di tab Transactions.
-                  </p>
-                </>
-              ) : (
-                <>
-                  <div className="flex items-center gap-2 text-[var(--color-income)] mt-1">
-                    <CheckCircle2 className="w-5 h-5 text-[var(--color-income)]" />
-                    <span className="font-extrabold text-base text-[var(--text-main)]">Inbox Bersih</span>
-                  </div>
-                  <p className="text-xs text-[var(--text-muted)] mt-1 font-medium leading-relaxed">
-                    Semua transaksi telah tervalidasi dan tercatat rapi.
-                  </p>
-                </>
-              )}
-            </div>
-
             <Link
               href="/inbox"
-              className={`mt-5 w-full py-2.5 px-4 rounded-xl font-bold text-xs transition-colors flex items-center justify-center gap-1.5 shadow-xs ${
-                pendingCount > 0
-                  ? 'bg-amber-600 hover:bg-amber-700 text-white shadow-amber-600/20'
-                  : 'bg-[var(--accent-color)] text-white dark:text-[#121218] hover:opacity-90'
-              }`}
+              className="text-xs font-semibold text-amber-800 dark:text-amber-200 hover:underline flex items-center gap-1 shrink-0 ml-3"
             >
-              <Inbox className="w-3.5 h-3.5" />
-              <span>Buka Inbox Transaksi</span>
+              <span>Verifikasi</span>
+              <ChevronRight className="w-3.5 h-3.5" />
             </Link>
           </div>
-        </div>
+        )}
 
-        {/* Quick Cashflow Summary Bar */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
-          <div className="p-4 rounded-2xl bg-[var(--surface-1)] border border-[var(--border-color)] shadow-xs">
-            <div className="flex items-center justify-between text-[var(--text-muted)] mb-1">
-              <span className="text-xs font-bold">Pemasukan Terverifikasi</span>
-              <ArrowDownLeft className="w-4 h-4 text-[var(--color-income)]" />
+        {/* =========================================================================
+            KARTU UTAMA: SALDO TOTAL KAS KELUARGA & ARUS KAS BULAN INI
+            ========================================================================= */}
+        <div className="rounded-2xl p-6 bg-[var(--surface-1)] border border-[var(--border-color)] shadow-xs">
+          {/* Baris Atas: Total Saldo Kas & Pembagian Suami / Istri */}
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div>
+              <span className="text-xs font-medium text-[var(--text-muted)] block">
+                Total Kas Keluarga
+              </span>
+              <div className="flex items-baseline gap-3 mt-1">
+                <span className="text-3xl sm:text-4xl font-extrabold text-[var(--text-main)] tracking-tight angka-keuangan">
+                  {formatMaskedRupiah(balanceSummary.totalAll, isHideBalance)}
+                </span>
+              </div>
+              <p className="text-[11px] text-[var(--text-muted)] mt-1">
+                Akumulasi seluruh rekening bank & dompet digital aktif
+              </p>
             </div>
-            <p className="text-base sm:text-lg font-extrabold text-[var(--color-income)] angka-keuangan">
-              +{formatMaskedRupiah(cashflowSummary.monthlyIn, isHideBalance)}
-            </p>
+
+            {/* Sub-alokasi Kas Suami & Istri */}
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 pt-2 lg:pt-0">
+              <div className="px-3.5 py-2 rounded-xl bg-[var(--surface-2)] flex items-center gap-2.5">
+                <span className="w-2 h-2 rounded-full bg-[var(--accent-color)] shrink-0" />
+                <div>
+                  <span className="text-[10px] text-[var(--text-muted)] block font-medium">
+                    Kas Suami
+                  </span>
+                  <span className="text-xs sm:text-sm font-bold text-[var(--text-main)] angka-keuangan">
+                    {formatMaskedRupiah(balanceSummary.totalSuami, isHideBalance)}
+                  </span>
+                </div>
+              </div>
+
+              <div className="px-3.5 py-2 rounded-xl bg-[var(--surface-2)] flex items-center gap-2.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                <div>
+                  <span className="text-[10px] text-[var(--text-muted)] block font-medium">
+                    Kas Istri
+                  </span>
+                  <span className="text-xs sm:text-sm font-bold text-[var(--text-main)] angka-keuangan">
+                    {formatMaskedRupiah(balanceSummary.totalIstri, isHideBalance)}
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div className="p-4 rounded-2xl bg-[var(--surface-1)] border border-[var(--border-color)] shadow-xs">
-            <div className="flex items-center justify-between text-[var(--text-muted)] mb-1">
-              <span className="text-xs font-bold">Pengeluaran Terverifikasi</span>
-              <ArrowUpRight className="w-4 h-4 text-[var(--color-expense)]" />
-            </div>
-            <p className="text-base sm:text-lg font-extrabold text-[var(--color-expense)] angka-keuangan">
-              -{formatMaskedRupiah(cashflowSummary.monthlyOut, isHideBalance)}
-            </p>
-          </div>
+          {/* Garis Pemisah Halus */}
+          <div className="my-5 border-t border-[var(--border-color)]" />
 
-          <div className="p-4 rounded-2xl bg-[var(--surface-1)] border border-[var(--border-color)] shadow-xs">
-            <div className="flex items-center justify-between text-[var(--text-muted)] mb-1">
-              <span className="text-xs font-bold">Arus Kas Bersih (Net)</span>
-              <TrendingUp className="w-4 h-4 text-[var(--accent-color)]" />
+          {/* Arus Kas Bulan Ini (Inline 3 Kolom Bersih) */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+            <div className="p-3.5 rounded-xl bg-[var(--surface-2)]">
+              <span className="text-xs text-[var(--text-muted)] flex items-center gap-1.5 font-medium">
+                <ArrowDownLeft className="w-3.5 h-3.5 text-[var(--color-income)]" />
+                <span>Pemasukan Bulan Ini</span>
+              </span>
+              <p className="text-base sm:text-lg font-bold text-[var(--color-income)] mt-1 angka-keuangan">
+                +{formatMaskedRupiah(cashflowSummary.monthlyIn, isHideBalance)}
+              </p>
             </div>
-            <p className={`text-base sm:text-lg font-extrabold angka-keuangan ${
-              cashflowSummary.net >= 0 ? 'text-[var(--color-income)]' : 'text-[var(--color-expense)]'
-            }`}>
-              {cashflowSummary.net >= 0 ? '+' : ''}{formatMaskedRupiah(cashflowSummary.net, isHideBalance)}
-            </p>
+
+            <div className="p-3.5 rounded-xl bg-[var(--surface-2)]">
+              <span className="text-xs text-[var(--text-muted)] flex items-center gap-1.5 font-medium">
+                <ArrowUpRight className="w-3.5 h-3.5 text-[var(--color-expense)]" />
+                <span>Pengeluaran Bulan Ini</span>
+              </span>
+              <p className="text-base sm:text-lg font-bold text-[var(--color-expense)] mt-1 angka-keuangan">
+                -{formatMaskedRupiah(cashflowSummary.monthlyOut, isHideBalance)}
+              </p>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-[var(--surface-2)]">
+              <span className="text-xs text-[var(--text-muted)] flex items-center gap-1.5 font-medium">
+                <TrendingUp className="w-3.5 h-3.5 text-[var(--accent-color)]" />
+                <span>Arus Kas Bersih (Net)</span>
+              </span>
+              <p className={`text-base sm:text-lg font-bold mt-1 angka-keuangan ${
+                cashflowSummary.net >= 0 ? 'text-[var(--color-income)]' : 'text-[var(--color-expense)]'
+              }`}>
+                {cashflowSummary.net >= 0 ? '+' : ''}{formatMaskedRupiah(cashflowSummary.net, isHideBalance)}
+              </p>
+            </div>
           </div>
         </div>
 
         {/* =========================================================================
-            ROW 2: RINGKASAN SALDO AKUN PERBANKAN & E-WALLET
+            BAGIAN: REKENING & DOMPET DIGITAL
             ========================================================================= */}
-        <div className="mb-6">
+        <div>
           <div className="flex items-center justify-between mb-3">
             <div>
-              <h2 className="text-sm font-bold uppercase tracking-wider">
-                <span className="font-extrabold text-[var(--text-main)]">Rekening</span>{' '}
-                <span className="font-semibold italic text-[var(--text-accent-italic)]">& Dompet Digital</span>
+              <h2 className="text-sm font-bold text-[var(--text-main)]">
+                Rekening & Dompet Digital
               </h2>
               <p className="text-xs text-[var(--text-muted)]">
-                Saldo tersimpan di masing-masing bank dan e-wallet
+                Saldo aktif di perbankan dan e-wallet
               </p>
             </div>
             <Link
@@ -523,25 +483,25 @@ export default function DashboardPage() {
               return (
                 <div
                   key={acc.id}
-                  className="p-3.5 rounded-2xl bg-[var(--surface-1)] border border-[var(--border-color)] shadow-xs transition-transform hover:scale-[1.01]"
+                  className="p-3.5 rounded-xl bg-[var(--surface-1)] border border-[var(--border-color)] hover:border-slate-300 dark:hover:border-slate-700 transition-colors"
                 >
-                  <div className="flex items-center justify-between gap-2 mb-2">
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
                     <div className="flex items-center gap-1.5 min-w-0">
                       {isBank ? (
                         <Building2 className="w-3.5 h-3.5 shrink-0 text-[var(--text-muted)]" />
                       ) : (
                         <Smartphone className="w-3.5 h-3.5 shrink-0 text-[var(--text-muted)]" />
                       )}
-                      <h4 className="text-xs font-bold text-[var(--text-main)] truncate">
+                      <span className="text-xs font-semibold text-[var(--text-main)] truncate">
                         {acc.name}
-                      </h4>
+                      </span>
                     </div>
-                    <span className="text-[10px] px-1.5 py-0.5 rounded font-bold bg-[var(--surface-2)] text-[var(--text-muted)] border border-[var(--border-color)]">
+                    <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-[var(--surface-2)] text-[var(--text-muted)]">
                       {acc.owner === 'suami' ? 'Suami' : 'Istri'}
                     </span>
                   </div>
 
-                  <p className="text-sm font-extrabold text-[var(--text-main)] tracking-tight angka-keuangan">
+                  <p className="text-sm font-bold text-[var(--text-main)] tracking-tight angka-keuangan">
                     {formatMaskedRupiah(acc.current_balance, isHideBalance)}
                   </p>
                 </div>
@@ -551,17 +511,16 @@ export default function DashboardPage() {
         </div>
 
         {/* =========================================================================
-            ROW 3: RIWAYAT AKTIVITAS TERKINI (RECENT HISTORY)
+            BAGIAN: RIWAYAT TRANSAKSI TERKINI
             ========================================================================= */}
-        <div className="rounded-3xl p-5 md:p-6 bg-[var(--surface-1)] border border-[var(--border-color)] shadow-sm mb-6">
+        <div className="rounded-2xl p-5 sm:p-6 bg-[var(--surface-1)] border border-[var(--border-color)] shadow-xs">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-base font-bold">
-                <span className="font-extrabold text-[var(--text-main)]">Riwayat</span>{' '}
-                <span className="font-semibold italic text-[var(--text-accent-italic)]">Transaksi Terkini</span>
+              <h2 className="text-sm font-bold text-[var(--text-main)]">
+                Riwayat Transaksi Terkini
               </h2>
               <p className="text-xs text-[var(--text-muted)]">
-                Aktivitas transaksi terbaru yang tercatat oleh sistem
+                Catatan aktivitas finansial terbaru
               </p>
             </div>
 
@@ -569,19 +528,19 @@ export default function DashboardPage() {
               href="/inbox"
               className="text-xs font-semibold text-[var(--accent-color)] hover:opacity-80 flex items-center gap-0.5"
             >
-              <span>Lihat Semua di Inbox</span>
+              <span>Lihat Semua</span>
               <ChevronRight className="w-3.5 h-3.5" />
             </Link>
           </div>
 
           {recentTransactions.length === 0 ? (
-            <div className="text-center py-12 px-4 rounded-2xl bg-[var(--surface-2)] border border-[var(--border-color)]">
-              <Clock className="w-8 h-8 text-[var(--text-muted)] mx-auto mb-2" />
-              <h4 className="text-sm font-bold text-[var(--text-main)]">
+            <div className="text-center py-10 px-4 rounded-xl bg-[var(--surface-2)]">
+              <Clock className="w-7 h-7 text-[var(--text-muted)] mx-auto mb-2 opacity-60" />
+              <h4 className="text-xs font-semibold text-[var(--text-main)]">
                 Belum Ada Riwayat Transaksi
               </h4>
               <p className="text-xs text-[var(--text-muted)] mt-1 max-w-sm mx-auto leading-relaxed">
-                Data telah dibersihkan dan siap dimulai dari nol. Saat Anda atau Istri melakukan transfer di HP, transaksi akan otomatis tercatat di sini.
+                Saat transaksi tercatat dari HP, aktivitas terbaru akan otomatis tampil di sini.
               </p>
             </div>
           ) : (
@@ -598,14 +557,14 @@ export default function DashboardPage() {
                       setDetailTransaction(tx);
                       setIsDetailModalOpen(true);
                     }}
-                    className="py-3 px-2 flex items-center justify-between gap-3 hover:bg-[var(--surface-2)] rounded-xl transition-colors cursor-pointer group"
+                    className="py-3 px-2 flex items-center justify-between gap-3 hover:bg-[var(--surface-2)] rounded-lg transition-colors cursor-pointer"
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <div
-                        className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${
+                        className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
                           isIncome
-                            ? 'bg-[var(--color-income)]/10 text-[var(--color-income)] border-[var(--color-income)]/30'
-                            : 'bg-[var(--color-expense)]/10 text-[var(--color-expense)] border-[var(--color-expense)]/30'
+                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                            : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
                         }`}
                       >
                         {isIncome ? (
@@ -616,7 +575,7 @@ export default function DashboardPage() {
                       </div>
 
                       <div className="min-w-0">
-                        <h4 className="text-xs sm:text-sm font-bold text-[var(--text-main)] truncate">
+                        <h4 className="text-xs sm:text-sm font-semibold text-[var(--text-main)] truncate">
                           {tx.merchant || 'Transaksi Digital'}
                         </h4>
                         <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-[var(--text-muted)]">
@@ -638,10 +597,10 @@ export default function DashboardPage() {
                         {isIncome ? '+' : '-'}{formatMaskedRupiah(tx.amount, isHideBalance)}
                       </p>
                       <span
-                        className={`inline-block text-[10px] font-medium px-2 py-0.2 rounded-full mt-0.5 ${
+                        className={`inline-block text-[10px] font-medium px-2 py-0.5 rounded-full mt-0.5 ${
                           tx.status === 'pending'
                             ? 'bg-amber-500/15 text-amber-600 dark:text-amber-300'
-                            : 'bg-[var(--surface-2)] text-[var(--text-muted)] border border-[var(--border-color)]'
+                            : 'bg-[var(--surface-2)] text-[var(--text-muted)]'
                         }`}
                       >
                         {tx.status === 'pending' ? 'Pending' : 'Tervalidasi'}
@@ -652,71 +611,6 @@ export default function DashboardPage() {
               })}
             </div>
           )}
-        </div>
-
-        {/* =========================================================================
-            ROW 4: PINTASAN PANDUAN MODUL LAINNYA
-            ========================================================================= */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <Link
-            href="/inbox"
-            className="p-4 rounded-2xl bg-[var(--surface-1)] border border-[var(--border-color)] hover:border-[var(--accent-color)] transition-all shadow-xs group"
-          >
-            <div className="p-2 rounded-xl bg-[var(--surface-2)] text-[var(--accent-color)] border border-[var(--border-color)] w-fit mb-2">
-              <Inbox className="w-4 h-4" />
-            </div>
-            <h4 className="text-xs font-bold text-[var(--text-main)]">
-              Inbox Transaksi
-            </h4>
-            <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
-              Verifikasi & kategorisasi notifikasi bank masuk.
-            </p>
-          </Link>
-
-          <Link
-            href="/budget"
-            className="p-4 rounded-2xl bg-[var(--surface-1)] border border-[var(--border-color)] hover:border-[var(--accent-color)] transition-all shadow-xs group"
-          >
-            <div className="p-2 rounded-xl bg-[var(--surface-2)] text-[var(--accent-color)] border border-[var(--border-color)] w-fit mb-2">
-              <Target className="w-4 h-4" />
-            </div>
-            <h4 className="text-xs font-bold text-[var(--text-main)]">
-              Atur Budget
-            </h4>
-            <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
-              Alokasi batas belanja per kategori & pantau sisa.
-            </p>
-          </Link>
-
-          <Link
-            href="/rekap"
-            className="p-4 rounded-2xl bg-[var(--surface-1)] border border-[var(--border-color)] hover:border-[var(--accent-color)] transition-all shadow-xs group"
-          >
-            <div className="p-2 rounded-xl bg-[var(--surface-2)] text-[var(--accent-color)] border border-[var(--border-color)] w-fit mb-2">
-              <BarChart3 className="w-4 h-4" />
-            </div>
-            <h4 className="text-xs font-bold text-[var(--text-main)]">
-              Rekapitulasi
-            </h4>
-            <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
-              Grafik tren bulanan & titik transaksi puncak.
-            </p>
-          </Link>
-
-          <Link
-            href="/accounts"
-            className="p-4 rounded-2xl bg-[var(--surface-1)] border border-[var(--border-color)] hover:border-[var(--accent-color)] transition-all shadow-xs group"
-          >
-            <div className="p-2 rounded-xl bg-[var(--surface-2)] text-[var(--accent-color)] border border-[var(--border-color)] w-fit mb-2">
-              <Building2 className="w-4 h-4" />
-            </div>
-            <h4 className="text-xs font-bold text-[var(--text-main)]">
-              Kelola Akun
-            </h4>
-            <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
-              Penyesuaian saldo awal & dompet digital.
-            </p>
-          </Link>
         </div>
       </div>
 

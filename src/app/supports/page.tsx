@@ -205,9 +205,8 @@ export default function SupportsPage() {
       <div className="space-y-6 max-w-4xl pb-12">
         {/* Header Supports */}
         <div>
-          <h2 className="text-xl sm:text-2xl font-bold tracking-tight font-heading">
-            <span className="font-extrabold text-[var(--text-main)]">Pusat</span>{' '}
-            <span className="font-semibold italic text-[var(--text-accent-italic)]">Bantuan & Monitoring</span>
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-[var(--text-main)] font-heading">
+            Pusat Bantuan & Monitoring
           </h2>
           <p className="text-xs sm:text-sm text-[var(--text-muted)] mt-0.5">
             Panduan lengkap MacroDroid Android, status sinyal HP Suami & Istri, serta simulator webhook

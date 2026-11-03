@@ -84,59 +84,24 @@ export default function TopBar({
 
   const getPageTitle = () => {
     if (pathname === '/') {
-      return (
-        <>
-          <span className="font-extrabold text-[var(--text-main)]">Dasbor</span>{' '}
-          <span className="font-semibold italic text-[var(--text-accent-italic)]">Utama</span>
-        </>
-      );
+      return <span className="font-bold text-[var(--text-main)]">Dasbor Finansial</span>;
     }
     if (pathname.startsWith('/inbox')) {
-      return (
-        <>
-          <span className="font-extrabold text-[var(--text-main)]">Daftar</span>{' '}
-          <span className="font-semibold italic text-[var(--text-accent-italic)]">Transaksi</span>
-        </>
-      );
+      return <span className="font-bold text-[var(--text-main)]">Daftar Transaksi</span>;
     }
     if (pathname.startsWith('/accounts')) {
-      return (
-        <>
-          <span className="font-extrabold text-[var(--text-main)]">Dompet</span>{' '}
-          <span className="font-semibold italic text-[var(--text-accent-italic)]">Keluarga</span>
-        </>
-      );
+      return <span className="font-bold text-[var(--text-main)]">Dompet & Rekening</span>;
     }
     if (pathname.startsWith('/budget')) {
-      return (
-        <>
-          <span className="font-extrabold text-[var(--text-main)]">Tabungan</span>{' '}
-          <span className="font-semibold italic text-[var(--text-accent-italic)]">& Anggaran</span>
-        </>
-      );
+      return <span className="font-bold text-[var(--text-main)]">Anggaran Belanja</span>;
     }
     if (pathname.startsWith('/rekap')) {
-      return (
-        <>
-          <span className="font-extrabold text-[var(--text-main)]">Analisis</span>{' '}
-          <span className="font-semibold italic text-[var(--text-accent-italic)]">Keuangan</span>
-        </>
-      );
+      return <span className="font-bold text-[var(--text-main)]">Rekap & Analisis</span>;
     }
     if (pathname.startsWith('/supports')) {
-      return (
-        <>
-          <span className="font-extrabold text-[var(--text-main)]">Bantuan</span>{' '}
-          <span className="font-semibold italic text-[var(--text-accent-italic)]">MacroDroid</span>
-        </>
-      );
+      return <span className="font-bold text-[var(--text-main)]">Bantuan & APK</span>;
     }
-    return (
-      <>
-        <span className="font-extrabold text-[var(--text-main)]">Keluarga</span>{' '}
-        <span className="font-semibold italic text-[var(--text-accent-italic)]">Ajian</span>
-      </>
-    );
+    return <span className="font-bold text-[var(--text-main)]">Keluarga Ajian</span>;
   };
 
   return (

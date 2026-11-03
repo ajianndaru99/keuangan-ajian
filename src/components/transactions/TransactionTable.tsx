@@ -217,7 +217,7 @@ export default function TransactionTable({
                             {tx.category_name && (
                               <>
                                 <span>•</span>
-                                <span className="text-[var(--text-accent-italic)] font-medium">
+                                <span className="text-[var(--accent-color)] font-medium">
                                   {tx.category_name}
                                 </span>
                               </>
@@ -499,7 +499,7 @@ export default function TransactionTable({
                 </span>
 
                 {tx.category_name && (
-                  <span className="px-2 py-0.5 rounded-md bg-[var(--surface-2)] text-[var(--text-accent-italic)] border border-[var(--border-color)] font-bold">
+                  <span className="px-2 py-0.5 rounded-md bg-[var(--surface-2)] text-[var(--accent-color)] border border-[var(--border-color)] font-medium">
                     {tx.category_name}
                   </span>
                 )}

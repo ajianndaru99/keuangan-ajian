@@ -16,75 +16,75 @@
    ======================================================= */
 
 /* =======================================================
-   PALET TEMA WCAG 2.1 AA & UXCEL SURFACE ELEVATION
+   PALET TEMA MODERN: MINIMALIS, SEGAR, DAN FOKUS
    ======================================================= */
 
 /* DEFAULT: MODE TERANG (LIGHT MODE) */
 :root {
-  --bg-base: #F8F2F7;        /* Kanvas pastel lilac lembut */
-  --bg-main: #F8F2F7;
-  --bg-card: #FFFFFF;        /* Surface Elevation 1 */
+  --bg-base: #F8FAFC;        /* Slate 50: Kanvas netral, segar, dan terang */
+  --bg-main: #F8FAFC;
+  --bg-card: #FFFFFF;        /* Surface Elevation 1: Putih bersih */
   --surface-1: #FFFFFF;
-  --surface-2: #F3ECF6;      /* Surface Elevation 2 (Input & sub-card) */
-  --surface-3: #EAE0F0;      /* Surface Elevation 3 (Modal & Sheet) */
-  --surface-4: #E0D4E8;      /* Surface Elevation 4 (Dropdown & Popover) */
-  --text-main: #111827;      /* Deep Slate Black */
-  --text-muted: #4B5563;     /* Muted Grey */
-  --text-accent-italic: #0284C7; /* Cyan / Ocean Teal untuk kata miring */
-  --accent-color: #0284C7;   /* Cyan Button Primary */
-  --border-color: #E5D9EB;   /* Border lembut */
-  --background: #F8F2F7;
-  --foreground: #111827;
+  --surface-2: #F1F5F9;      /* Surface Elevation 2: Slate 100 untuk input & chip */
+  --surface-3: #E2E8F0;      /* Surface Elevation 3: Slate 200 */
+  --surface-4: #CBD5E1;      /* Surface Elevation 4 */
+  --text-main: #0F172A;      /* Slate 900: Kontras tajam dan terbaca */
+  --text-muted: #64748B;     /* Slate 500: Sekunder seimbang */
+  --text-accent-italic: #0284C7; /* Sky 600 */
+  --accent-color: #0284C7;   /* Sky 600 */
+  --border-color: #E2E8F0;   /* Border slate halus */
+  --background: #F8FAFC;
+  --foreground: #0F172A;
 
-  /* STATUS FINANSIAL & FEEDBACK */
-  --color-expense: #DC3545;  /* Merah bata */
-  --color-income: #198754;   /* Hijau teduh */
-  --color-gridline: #E2E8F0; /* Kisi tipis */
+  /* STATUS FINANSIAL SEGAR */
+  --color-expense: #DC2626;  /* Red 600 */
+  --color-income: #16A34A;   /* Green 600 */
+  --color-gridline: #F1F5F9; /* Garis kisi tipis */
 }
 
 /* KELAS MODE TERANG EKSPLISIT */
 html.light {
-  --bg-base: #F8F2F7;
-  --bg-main: #F8F2F7;
+  --bg-base: #F8FAFC;
+  --bg-main: #F8FAFC;
   --bg-card: #FFFFFF;
   --surface-1: #FFFFFF;
-  --surface-2: #F3ECF6;
-  --surface-3: #EAE0F0;
-  --surface-4: #E0D4E8;
-  --text-main: #111827;
-  --text-muted: #4B5563;
+  --surface-2: #F1F5F9;
+  --surface-3: #E2E8F0;
+  --surface-4: #CBD5E1;
+  --text-main: #0F172A;
+  --text-muted: #64748B;
   --text-accent-italic: #0284C7;
   --accent-color: #0284C7;
-  --border-color: #E5D9EB;
-  --background: #F8F2F7;
-  --foreground: #111827;
-  --color-expense: #DC3545;
-  --color-income: #198754;
-  --color-gridline: #E2E8F0;
+  --border-color: #E2E8F0;
+  --background: #F8FAFC;
+  --foreground: #0F172A;
+  --color-expense: #DC2626;
+  --color-income: #16A34A;
+  --color-gridline: #F1F5F9;
 }
 
-/* KELAS MODE GELAP EKSPLISIT (UXCEL SURFACE ELEVATION & WCAG AA) */
+/* KELAS MODE GELAP EKSPLISIT */
 html.dark,
 .dark {
-  --bg-base: #121218;        /* Dark Charcoal Slate-Violet (Bukan Pure Black) */
-  --bg-main: #121218;
-  --bg-card: #1A1924;        /* Surface Elevation 1 */
-  --surface-1: #1A1924;
-  --surface-2: #242332;      /* Surface Elevation 2 (Input & sub-card) */
-  --surface-3: #2E2D3E;      /* Surface Elevation 3 (Modal & Sheet) */
-  --surface-4: #39384E;      /* Surface Elevation 4 (Dropdown & Tooltip) */
-  --text-main: #F1F0F7;      /* Text Primary (Kontras 15.2:1 vs Surface-1) */
-  --text-muted: #9B99AE;     /* Text Secondary (Kontras 5.4:1 vs Surface-1) */
-  --text-accent-italic: #C4B5FD; /* Desaturated Lavender (Kontras 9.1:1) */
-  --accent-color: #38BDF8;   /* Sky Cyan Desaturated (Kontras 8.6:1) */
+  --bg-base: #0B0F17;        /* Midnight Slate: Gelap pekat dan bersih */
+  --bg-main: #0B0F17;
+  --bg-card: #111827;        /* Surface Elevation 1: Gray 900 */
+  --surface-1: #111827;
+  --surface-2: #1F2937;      /* Surface Elevation 2: Gray 800 */
+  --surface-3: #374151;      /* Surface Elevation 3 */
+  --surface-4: #4B5563;      /* Surface Elevation 4 */
+  --text-main: #F8FAFC;      /* Slate 50 */
+  --text-muted: #94A3B8;     /* Slate 400 */
+  --text-accent-italic: #38BDF8; /* Sky 400 */
+  --accent-color: #38BDF8;   /* Sky 400 */
   --border-color: rgba(255, 255, 255, 0.08);
-  --background: #121218;
-  --foreground: #F1F0F7;
+  --background: #0B0F17;
+  --foreground: #F8FAFC;
 
-  /* STATUS FINANSIAL DESATURASI WCAG AA */
-  --color-expense: #CF6679;  /* Desaturated Red WCAG AA (Kontras 6.8:1) */
-  --color-income: #81C784;   /* Desaturated Mint Green WCAG AA (Kontras 8.2:1) */
-  --color-gridline: rgba(255, 255, 255, 0.08);
+  /* STATUS FINANSIAL GELAP */
+  --color-expense: #F87171;  /* Red 400 */
+  --color-income: #4ADE80;   /* Green 400 */
+  --color-gridline: rgba(255, 255, 255, 0.05);
 }
 
 body {

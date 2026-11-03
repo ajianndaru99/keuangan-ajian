@@ -246,9 +246,8 @@ export default function AnalyticsPage() {
         {/* Header Navigasi Periode 1 Bulan */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h2 className="text-xl font-extrabold tracking-tight">
-              <span className="font-extrabold text-[var(--text-main)]">Analisis</span>{' '}
-              <span className="font-semibold italic text-[var(--text-accent-italic)]">Finansial Bulanan</span>
+            <h2 className="text-xl font-bold text-[var(--text-main)] tracking-tight">
+              Analisis Finansial Bulanan
             </h2>
             <p className="text-xs text-[var(--text-muted)] mt-0.5">
               Evaluasi mendalam pergerakan pengeluaran keluarga selama 1 bulan penuh

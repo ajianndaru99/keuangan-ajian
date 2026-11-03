@@ -347,7 +347,7 @@ export default function MonthlyPeakSpendingChart({
             <div className="p-4 rounded-2xl bg-[var(--surface-2)] border border-[var(--border-color)]/80 shadow-2xs space-y-2">
               <p className="text-xs text-[var(--text-main)] leading-relaxed">
                 Puncak pengeluaran keluarga pada bulan ini jatuh pada{' '}
-                <strong className="text-[var(--text-accent-italic)] font-extrabold underline">
+                <strong className="text-[var(--accent-color)] font-bold">
                   {peakInsight.formattedDate}
                 </strong>{' '}
                 dengan total pengeluaran mencapai{' '}
@@ -494,7 +494,7 @@ export default function MonthlyPeakSpendingChart({
               {/* Header Badge */}
               <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-[var(--border-color)]/70">
                 <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-[var(--surface-1)] text-[var(--text-accent-italic)] border border-[var(--border-color)]">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-[var(--surface-1)] text-[var(--accent-color)] border border-[var(--border-color)]">
                     <Sparkles className="w-3 h-3 text-amber-500" />
                     <span>Dianalisis oleh {analysisResult.modelUsed}</span>
                   </span>

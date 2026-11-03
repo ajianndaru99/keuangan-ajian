@@ -248,9 +248,8 @@ export default function BudgetPage() {
         {/* Header Title & Segment Switcher */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-extrabold tracking-tight">
-              <span className="font-extrabold text-[var(--text-main)]">Batas</span>{' '}
-              <span className="font-semibold italic text-[var(--text-accent-italic)]">Anggaran & Tabungan</span>
+            <h1 className="text-xl font-bold text-[var(--text-main)] tracking-tight">
+              Batas Anggaran & Tabungan
             </h1>
             <p className="text-xs text-[var(--text-muted)]">
               Pengawasan batas kuota pengeluaran untuk 8 kategori utama keluarga

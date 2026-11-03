@@ -156,9 +156,8 @@ export default function LoginPage() {
               <span>Keluarga Ajian</span>
             </div>
           </div>
-          <h1 className="text-xl sm:text-2xl font-heading tracking-tight">
-            <span className="font-extrabold text-[var(--text-main)]">Selamat</span>{' '}
-            <span className="font-semibold italic text-[var(--text-accent-italic)]">Datang</span>
+          <h1 className="text-xl sm:text-2xl font-heading font-bold text-[var(--text-main)] tracking-tight">
+            Selamat Datang
           </h1>
           <p className="text-xs text-[var(--text-muted)] font-medium mt-0.5">
             Pilih profil Anda untuk masuk ke sistem dasbor

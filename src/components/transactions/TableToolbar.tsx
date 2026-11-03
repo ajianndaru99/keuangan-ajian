@@ -50,9 +50,8 @@ export default function TableToolbar({
       {/* Baris Atas: Judul Subseksi & Info */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h2 className="text-xl tracking-tight">
-            <span className="font-extrabold text-[var(--text-main)]">Riwayat</span>{' '}
-            <span className="font-serif italic text-[var(--text-accent-italic)]">Transaksi</span>
+          <h2 className="text-xl font-bold text-[var(--text-main)] tracking-tight">
+            Riwayat Transaksi
           </h2>
           <p className="text-xs text-[var(--text-muted)] mt-0.5">
             Kelola dan pantau seluruh arus kas digital keluarga ({totalCount} transaksi)
