@@ -436,9 +436,9 @@ export default function TransactionTable({
       </div>
 
       {/* =========================================================================
-          2. TAMPILAN HP ANDROID (Mobile Transaction Cards Khusus Ponsel)
+          2. TAMPILAN HP ANDROID (Mobile Transaction Cards: Sangat Ringkas & Rapi)
           ========================================================================= */}
-      <div className="block md:hidden space-y-3">
+      <div className="block md:hidden space-y-2.5">
         {transactions.map((tx) => {
           const isIncome = tx.direction === 'in';
           const isPending = tx.status === 'pending';
@@ -447,16 +447,16 @@ export default function TransactionTable({
             <div
               key={`mobile-${tx.id}`}
               onClick={() => onSelectTransaction(tx)}
-              className="p-4 rounded-2xl bg-[var(--surface-1)] border border-[var(--border-color)] shadow-2xs space-y-3 active:scale-[0.99] transition-transform cursor-pointer"
+              className="p-3.5 rounded-xl bg-[var(--surface-1)] border border-[var(--border-color)] shadow-2xs space-y-2 active:scale-[0.99] transition-all cursor-pointer"
             >
-              {/* Baris 1: Ikon + Merchant & Waktu + Nominal Besar */}
+              {/* Baris 1: Ikon + Merchant & Waktu + Nominal */}
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-2.5 min-w-0">
                   <div
-                    className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
                       isIncome
-                        ? 'bg-income/15 text-income border-income/30'
-                        : 'bg-expense/15 text-expense border-expense/30'
+                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                        : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
                     }`}
                   >
                     {isIncome ? (
@@ -466,10 +466,10 @@ export default function TransactionTable({
                     )}
                   </div>
                   <div className="min-w-0">
-                    <h4 className="text-xs sm:text-sm font-bold text-[var(--text-main)] truncate">
+                    <h4 className="text-xs sm:text-sm font-semibold text-[var(--text-main)] truncate">
                       {tx.merchant || 'Transaksi Digital'}
                     </h4>
-                    <span className="text-[10px] text-[var(--text-muted)] block font-medium">
+                    <span className="text-[10px] text-[var(--text-muted)] block">
                       {formatTableDate(tx.transaction_date)}
                     </span>
                   </div>
@@ -477,8 +477,8 @@ export default function TransactionTable({
 
                 <div className="text-right shrink-0">
                   <span
-                    className={`angka-keuangan text-sm font-extrabold tracking-tight ${
-                      isIncome ? 'text-income' : 'text-expense'
+                    className={`angka-keuangan text-xs sm:text-sm font-bold tracking-tight ${
+                      isIncome ? 'text-[var(--color-income)]' : 'text-[var(--color-expense)]'
                     }`}
                   >
                     {isIncome ? '+' : '-'}
@@ -487,19 +487,17 @@ export default function TransactionTable({
                 </div>
               </div>
 
-              {/* Baris 2: Chips Metadata (Akun, Pemilik, Kategori, Status) */}
+              {/* Baris 2: Chips Metadata Ringkas (Akun, Kategori, Status) */}
               <div className="flex items-center gap-1.5 flex-wrap text-[10px]">
-                <span className="px-2 py-0.5 rounded-md bg-[var(--surface-2)] text-[var(--text-muted)] border border-[var(--border-color)] font-semibold flex items-center gap-1">
+                <span className="px-2 py-0.5 rounded-md bg-[var(--surface-2)] text-[var(--text-muted)] font-medium flex items-center gap-1">
                   <Building2 className="w-2.5 h-2.5 text-[var(--accent-color)]" />
                   <span>{tx.account_name || 'Rekening'}</span>
-                </span>
-
-                <span className="px-2 py-0.5 rounded-md bg-[var(--surface-2)] text-[var(--text-muted)] border border-[var(--border-color)] font-semibold capitalize">
-                  {tx.source_device || 'Suami'}
+                  <span className="text-[var(--text-muted)]/60">•</span>
+                  <span className="capitalize">{tx.source_device || 'Suami'}</span>
                 </span>
 
                 {tx.category_name && (
-                  <span className="px-2 py-0.5 rounded-md bg-[var(--surface-2)] text-[var(--accent-color)] border border-[var(--border-color)] font-medium">
+                  <span className="px-2 py-0.5 rounded-md bg-[var(--surface-2)] text-[var(--accent-color)] font-medium">
                     {tx.category_name}
                   </span>
                 )}
@@ -507,15 +505,15 @@ export default function TransactionTable({
                 {renderParseMethodBadge(tx.parse_method)}
 
                 {isPending ? (
-                  <span className="px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-500 dark:text-amber-400 border border-amber-500/30 font-bold ml-auto">
+                  <span className="px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-600 dark:text-amber-300 font-bold ml-auto">
                     Pending
                   </span>
                 ) : (
                   <span
-                    className={`px-2 py-0.5 rounded-md font-bold ml-auto ${
+                    className={`px-2 py-0.5 rounded-md font-medium ml-auto ${
                       isIncome
-                        ? 'bg-income/15 text-income border border-income/30'
-                        : 'bg-expense/15 text-expense border border-expense/30'
+                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                        : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
                     }`}
                   >
                     {isIncome ? 'Pemasukan' : 'Pengeluaran'}
@@ -523,86 +521,46 @@ export default function TransactionTable({
                 )}
               </div>
 
-              {/* Baris 3: Teks Notifikasi Lengkap Utuh (Full Box Khusus HP) */}
-              {tx.raw_notification && (
-                <div
-                  className="rounded-2xl border border-[var(--border-color)] bg-[var(--surface-2)] overflow-hidden text-xs shadow-2xs"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className="flex items-center justify-between px-3 py-1.5 bg-[var(--surface-3)] border-b border-[var(--border-color)] text-[10px] text-[var(--text-muted)]">
-                    <span className="font-semibold text-[var(--accent-color)] flex items-center gap-1.5">
-                      <FileText className="w-3.5 h-3.5" />
-                      <span>Notifikasi Bank Asli ({tx.raw_notification.length} kar.)</span>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={(e) => handleCopyNotif(e, tx.id, tx.raw_notification!)}
-                      className="font-semibold text-[var(--text-muted)] hover:text-[var(--text-main)] inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[var(--surface-2)] transition-colors"
-                    >
-                      {copiedId === tx.id ? (
-                        <>
-                          <CheckCheck className="w-3 h-3 text-income" />
-                          <span className="text-income">Tersalin</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-3 h-3" />
-                          <span>Salin</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                  <p className="p-3 font-mono text-xs text-[var(--text-main)] leading-relaxed whitespace-pre-wrap break-words select-text">
-                    {tx.raw_notification}
-                  </p>
-                </div>
-              )}
-
-              {/* Baris 4: Aksi Cepat Ramah Jempol */}
+              {/* Baris 3: Aksi Cepat Ramah Jempol */}
               <div
-                className="flex items-center gap-2 pt-1 border-t border-[var(--border-color)]/60"
+                className="flex items-center justify-between gap-1.5 pt-1.5 border-t border-[var(--border-color)]/50 text-[11px]"
                 onClick={(e) => e.stopPropagation()}
               >
-                <button
-                  type="button"
-                  onClick={() => onSelectTransaction(tx)}
-                  className="flex-1 py-2 px-3 rounded-xl bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-xs font-bold text-[var(--text-main)] border border-[var(--border-color)] flex items-center justify-center gap-1.5 transition-colors"
-                >
-                  <CheckCircle2 className="w-3.5 h-3.5 text-income" />
-                  <span>Detail Lengkap</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => onEditTransaction(tx)}
-                  className="py-2 px-3 rounded-xl bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-xs font-bold text-[var(--text-main)] border border-[var(--border-color)] flex items-center justify-center gap-1.5 transition-colors"
-                >
-                  <Edit3 className="w-3.5 h-3.5 text-[var(--accent-color)]" />
-                  <span>Koreksi</span>
-                </button>
-
-                {isPending && onMarkAsPromoSpam && (
+                <div className="flex items-center gap-1.5">
                   <button
                     type="button"
-                    onClick={() => onMarkAsPromoSpam(tx)}
-                    className="py-2 px-3 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-xs font-bold text-rose-600 dark:text-rose-400 border border-rose-500/20 flex items-center justify-center gap-1.5 transition-colors"
-                    title="Tandai notifikasi promo atau spam yang lolos dari regex"
+                    onClick={() => onEditTransaction(tx)}
+                    className="py-1 px-2.5 rounded-lg bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-[11px] font-semibold text-[var(--text-main)] flex items-center gap-1 transition-colors"
                   >
-                    <ShieldAlert className="w-3.5 h-3.5" />
-                    <span>Promo/Spam</span>
+                    <Edit3 className="w-3 h-3 text-[var(--accent-color)]" />
+                    <span>{isPending ? 'Verifikasi' : 'Ubah'}</span>
                   </button>
-                )}
 
-                {onDeleteTransaction && (
-                  <button
-                    type="button"
-                    onClick={() => onDeleteTransaction(tx.id)}
-                    className="p-2 rounded-xl text-[var(--text-muted)] hover:text-rose-500 hover:bg-rose-500/10 transition-colors"
-                    title="Hapus Transaksi"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                )}
+                  {isPending && onMarkAsPromoSpam && (
+                    <button
+                      type="button"
+                      onClick={() => onMarkAsPromoSpam(tx)}
+                      className="py-1 px-2.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-[11px] font-semibold text-rose-600 dark:text-rose-400 flex items-center gap-1 transition-colors"
+                      title="Tandai notifikasi promo atau spam"
+                    >
+                      <ShieldAlert className="w-3 h-3" />
+                      <span>Promo/Spam</span>
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-1">
+                  {onDeleteTransaction && (
+                    <button
+                      type="button"
+                      onClick={() => onDeleteTransaction(tx.id)}
+                      className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-rose-500 hover:bg-rose-500/10 transition-colors"
+                      title="Hapus Transaksi"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           );

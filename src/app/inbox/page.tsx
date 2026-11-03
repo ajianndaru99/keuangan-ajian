@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 // ==============================================================================
 // TRANSACTIONS / INBOX PAGE: src/app/inbox/page.tsx
@@ -25,10 +25,9 @@ import AiReconciliationModal from '@/components/inbox/AiReconciliationModal';
 import PromoSpamConfirmModal from '@/components/inbox/PromoSpamConfirmModal';
 import { TransactionItem } from '@/components/inbox/TransactionCard';
 import { Category } from '@/components/inbox/CategoryChipList';
-import { exportTransactionsToCsv } from '@/lib/export-excel';
 import { extractNominal, extractMerchant, detectAccountInfo, extractNotificationDate } from '@/lib/ai/notification-parser';
 import { extractPromoKeywordsFromText } from '@/lib/ai/adaptive-rules';
-import { CheckCircle2, Smartphone, RefreshCw, AlertTriangle, Trash2, Clock, X } from 'lucide-react';
+import { CheckCircle2, Smartphone, AlertTriangle, Trash2, Clock, X } from 'lucide-react';
 
 const defaultCategories: Category[] = [
   { id: 'cat-1', name: 'Belanja Dapur', type: 'expense', sort_order: 1 },
@@ -441,10 +440,6 @@ export default function InboxTransactionsPage() {
   };
 
   // Handler Aksi Tabel Monexa
-  const handleExportCsv = () => {
-    exportTransactionsToCsv(filteredTransactions, 'Transaksi_Keluarga_Ajian');
-  };
-
   const handleCategorize = async (transactionId: string, categoryId: string) => {
     if (isSupabaseConfigured()) {
       const supabase = createClient();
@@ -647,51 +642,43 @@ export default function InboxTransactionsPage() {
       searchQuery={searchQuery}
       onSearchChange={setSearchQuery}
     >
-      {/* Switcher Tab Utama: Transaksi Terurai vs Log Notifikasi Mentah */}
-      <div className="flex items-center justify-between border-b border-[var(--border-color)]/70 pb-3 mb-5 gap-3 flex-wrap">
-        <div className="flex items-center gap-2">
+      {/* Switcher Tab Segmented: Ringkas, Segar, dan Rapi di Mode HP */}
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <div className="p-1 rounded-xl bg-[var(--surface-2)] flex items-center gap-1 w-full sm:w-auto">
           {/* Tab 1: Transaksi Terurai */}
           <button
             onClick={() => setInboxTab('parsed')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+            className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
               inboxTab === 'parsed'
-                ? 'bg-[#007a33] text-white shadow-xs'
-                : 'text-slate-600 dark:text-slate-300 hover:bg-[var(--bg-card)] border border-transparent'
+                ? 'bg-[var(--surface-1)] text-[var(--text-main)] shadow-xs font-bold'
+                : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
             }`}
           >
-            <CheckCircle2 className="w-4 h-4" />
-            <span>Transaksi Terurai</span>
+            <CheckCircle2 className={`w-3.5 h-3.5 ${inboxTab === 'parsed' ? 'text-emerald-600 dark:text-emerald-400' : ''}`} />
+            <span>Transaksi</span>
             {globalPendingCount > 0 && (
-              <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-amber-400 text-slate-900 font-extrabold">
-                {globalPendingCount} Pending
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-amber-500 text-white font-bold">
+                {globalPendingCount}
               </span>
             )}
           </button>
 
-          {/* Tab 2: Seluruh Notifikasi Masuk (Raw Stream) */}
+          {/* Tab 2: Seluruh Notifikasi HP */}
           <button
             onClick={() => setInboxTab('raw')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+            className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
               inboxTab === 'raw'
-                ? 'bg-[#007a33] text-white shadow-xs'
-                : 'text-slate-600 dark:text-slate-300 hover:bg-[var(--bg-card)] border border-transparent'
+                ? 'bg-[var(--surface-1)] text-[var(--text-main)] shadow-xs font-bold'
+                : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
             }`}
           >
-            <Smartphone className="w-4 h-4" />
-            <span>Semua Notifikasi HP</span>
-            <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold">
+            <Smartphone className="w-3.5 h-3.5" />
+            <span>Notifikasi HP</span>
+            <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-[var(--surface-3)] text-[var(--text-muted)] font-semibold">
               {rawNotifications.length}
             </span>
           </button>
         </div>
-
-        <button
-          onClick={fetchData}
-          title="Muat ulang data"
-          className="p-2 rounded-xl bg-[var(--bg-card)] border border-[var(--border-color)] text-[#007a33] hover:text-[#004d00] transition-colors shadow-2xs"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-        </button>
       </div>
 
       {/* KONTEN TAB 1: Transaksi Terurai (Tampilan Monexa Asli) */}
@@ -764,7 +751,6 @@ export default function InboxTransactionsPage() {
             onFlowChange={setFlowFilter}
             dateRange={dateRange}
             onOpenDateModal={() => setIsDateModalOpen(true)}
-            onExport={handleExportCsv}
             onAddTransaction={() => {
               setPreloadedData(null);
               setIsAddModalOpen(true);

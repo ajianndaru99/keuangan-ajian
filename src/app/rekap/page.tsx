@@ -15,6 +15,7 @@ import MonthlyPeakSpendingChart, {
 } from '@/components/rekap/MonthlyPeakSpendingChart';
 import CategoryExpensesChart, { CategoryExpenseItem } from '@/components/rekap/CategoryExpensesChart';
 import { formatRupiah } from '@/lib/utils';
+import { exportTransactionsToCsv, type ExportableTransaction } from '@/lib/export-excel';
 import {
   ChevronLeft,
   ChevronRight,
@@ -24,6 +25,7 @@ import {
   Calendar,
   RefreshCw,
   Wallet,
+  Download,
 } from 'lucide-react';
 
 export default function AnalyticsPage() {
@@ -240,6 +242,28 @@ export default function AnalyticsPage() {
       .sort((a, b) => b.total_amount - a.total_amount);
   }, [monthTransactions]);
 
+  const handleExportCsv = () => {
+    if (!monthTransactions || monthTransactions.length === 0) {
+      alert('Tidak ada transaksi pada bulan ini untuk diekspor.');
+      return;
+    }
+
+    const exportData: ExportableTransaction[] = monthTransactions.map((tx) => ({
+      id: tx.id,
+      transaction_date: tx.transaction_date,
+      merchant: tx.merchant,
+      direction: tx.direction,
+      amount: tx.amount,
+      status: tx.status,
+      account_name: (tx.accounts as any)?.name || 'Rekening',
+      owner: (tx.accounts as any)?.owner || 'suami',
+      category_name: (tx.categories as any)?.name || 'Lain-lain',
+      raw_notification: tx.raw_notification,
+    }));
+
+    exportTransactionsToCsv(exportData, `Rekap_Transaksi_${activeDateInfo.monthName.replace(/\s+/g, '_')}`);
+  };
+
   return (
     <AppShell userRole={userRole} displayName={displayName} pendingCount={0}>
       <div className="space-y-6">
@@ -254,7 +278,7 @@ export default function AnalyticsPage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <div className="flex items-center gap-1 p-1 rounded-2xl bg-[var(--surface-1)] border border-[var(--border-color)] shadow-xs">
               <button
                 onClick={() => setMonthOffset((prev) => prev - 1)}
@@ -278,6 +302,16 @@ export default function AnalyticsPage() {
                 <ChevronRight className="w-4 h-4" />
               </button>
             </div>
+
+            {/* Tombol Ekspor CSV Khusus Halaman Rekap */}
+            <button
+              onClick={handleExportCsv}
+              title="Ekspor Seluruh Transaksi Bulan Ini ke CSV / Excel"
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[var(--border-color)] bg-[var(--surface-1)] text-xs font-semibold text-[var(--text-main)] hover:bg-[var(--surface-2)] transition-colors shadow-2xs"
+            >
+              <Download className="w-3.5 h-3.5 text-[var(--accent-color)]" />
+              <span>Export CSV</span>
+            </button>
 
             <button
               onClick={fetchAnalyticsData}
