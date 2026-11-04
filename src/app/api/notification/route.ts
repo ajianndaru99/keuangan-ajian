@@ -11,6 +11,8 @@ import { suggestCategoryForMerchant } from '@/lib/vision/gemini';
 import { parseNotificationPayload } from '@/lib/ai/notification-parser';
 import { evaluateBudgetAlert, type BudgetAlert, type ReviewAlert } from '@/lib/budget/budget-guard';
 import { formatRupiah } from '@/lib/utils';
+import { isTelegramConfigured, broadcastToAllowedChats } from '@/lib/telegram/bot';
+import { formatOverbudgetAlert } from '@/lib/telegram/formatters';
 
 export const dynamic = 'force-dynamic';
 
@@ -445,6 +447,20 @@ export async function POST(req: NextRequest) {
           try {
             const catName = categories?.find(c => c.id === suggestedCategoryId)?.name || merchant || 'Lainnya';
             budgetAlert = await evaluateBudgetAlert(supabase, householdId, catName, transactionDate);
+
+            // Memicu notifikasi darurat ke Telegram jika batas anggaran mencapai 100%
+            if (budgetAlert && budgetAlert.level === '100' && isTelegramConfigured()) {
+              const overspent = Math.max(0, budgetAlert.totalSpent - budgetAlert.limitAmount);
+              const telegramMsg = formatOverbudgetAlert(
+                budgetAlert.categoryName,
+                budgetAlert.totalSpent,
+                budgetAlert.limitAmount,
+                overspent
+              );
+              broadcastToAllowedChats(telegramMsg).catch((tErr) => {
+                console.warn('[Telegram Broadcast Overbudget Alert Warn]:', tErr);
+              });
+            }
           } catch (bErr) {
             console.warn('Gagal evaluasi budget alert:', bErr);
           }
