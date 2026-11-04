@@ -255,14 +255,18 @@ export function extractNominal(text: string): number {
   return 0;
 }
 
+// Pola sumber dana / kantong e-wallet yang BUKAN merupakan nama merchant
+const WALLET_POCKET_PATTERNS = /^(?:your\s+daily\s+pocket|daily\s+pocket|pocket|kantong|kantong\s+harian|kantong\s+utama|saldo|saldo\s+utama|rekening\s+utama|dana|gopay|ovo|shopeepay|linkaja|seabank)$/i;
+
 /**
  * Ekstraksi nama merchant / tujuan transaksi
  */
 export function extractMerchant(title: string, text: string, defaultAccount: string): string {
   const combined = `${title} ${text}`;
 
-  // Pola: "ke <Merchant>" / "di <Merchant>" / "to <Merchant>" / "at <Merchant>" / "dari <Pengirim>" / "from <Pengirim>"
-  const matchTarget = combined.match(/\b(?:ke|di|kepada|pembayaran\s+ke|payment\s+to|transferred\s+to|paid\s+to|transfer\s+ke|kirim\s+ke|to|at|dari|from)\b\s+([A-Za-z0-9\s&'._,-]{3,50})/i);
+  // 1. Pola: "ke <Merchant>" / "di <Merchant>" / "to <Merchant>" / "at <Merchant>" / "dari <Pengirim>" / "from <Pengirim>"
+  // Termasuk: "paid Rp 37.000 to <Merchant>" atau "You have paid Rp ... to <Merchant>"
+  const matchTarget = combined.match(/\b(?:ke|di|kepada|pembayaran\s+ke|payment\s+to|transferred\s+to|paid\s+to|paid\s+(?:rp|idr)?\.?\s*[\d.,]+\s+to|transfer\s+ke|kirim\s+ke|to|at|dari|from)\b\s+([A-Za-z0-9\s&'._,-]{3,50})/i);
   if (matchTarget && matchTarget[1]) {
     // Potong jika ada titik penutup kalimat sebelum kalimat bantuan (misal ". Need help?")
     const firstSentence = matchTarget[1].split(/[.!?](?:\s|$)/)[0];
@@ -271,16 +275,21 @@ export function extractMerchant(title: string, text: string, defaultAccount: str
       .replace(/\s+(berhasil|sukses|pada|tanggal|tgl|sebesar|senilai|rp|idr|successful|was\s+successful|is\s+successful|completed|need\s+help|butuh\s+bantuan|hubungi|contact|tanya\s+jago).*$/i, '')
       .replace(/[,.-]+$/, '')
       .trim();
-    if (cleanMerchant.length >= 2 && !/^(?:notifikasi|informasi|status|rp|idr)$/i.test(cleanMerchant)) {
+    if (
+      cleanMerchant.length >= 2 &&
+      !/^(?:notifikasi|informasi|status|rp|idr)$/i.test(cleanMerchant) &&
+      !WALLET_POCKET_PATTERNS.test(cleanMerchant)
+    ) {
       return cleanMerchant;
     }
   }
 
-  // Fallback: jika judul bukan username chat dan tidak generik
+  // 2. Fallback: jika judul bukan username chat, bukan nama kantong e-wallet, dan tidak generik
   if (
     title &&
     title.length > 2 &&
     !/notif|transaksi|bank|promo|deals|pembayaran/i.test(title) &&
+    !WALLET_POCKET_PATTERNS.test(title.trim()) &&
     !title.includes('.id') &&
     !title.includes('_')
   ) {

@@ -331,5 +331,28 @@ describe('Notification Smart Parser & Chat/Promo Filter', () => {
     assert.equal(txQris.accountName, 'Jago');
     assert.equal(txQris.merchant, 'Kopi Kenangan');
     assert.equal(txQris.parseMethod, 'regex');
+
+    // 5. DANA Daily Pocket & Merchant Extraction
+    const danaMerchantTx = await parseNotificationPayload(
+      'id.dana',
+      'DANA',
+      'Pembayaran Rp 37.000 di warung sayur mas Eko berhasil.'
+    );
+    assert.equal(danaMerchantTx.isTransaction, true);
+    assert.equal(danaMerchantTx.amount, 37000);
+    assert.equal(danaMerchantTx.direction, 'out');
+    assert.equal(danaMerchantTx.accountName, 'DANA');
+    assert.equal(danaMerchantTx.merchant, 'warung sayur mas Eko');
+
+    // 6. DANA Pocket Notification tidak menjadikan nama kantong sebagai merchant
+    const danaPocketTx = await parseNotificationPayload(
+      'id.dana',
+      'your Daily Pocket',
+      'You have paid Rp 37.000. Need help? Contact 1500 746.'
+    );
+    assert.equal(danaPocketTx.isTransaction, true);
+    assert.equal(danaPocketTx.amount, 37000);
+    assert.notEqual(danaPocketTx.merchant.toLowerCase(), 'your daily pocket');
+    assert.equal(danaPocketTx.accountName, 'DANA');
   });
 });

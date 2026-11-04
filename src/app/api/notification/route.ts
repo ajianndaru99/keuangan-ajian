@@ -334,6 +334,50 @@ export async function POST(req: NextRequest) {
 
       const suggestedCategoryId = categories ? suggestCategoryForMerchant(merchant, categories) : null;
 
+      // Cek apakah ada notifikasi konfirmasi ganda pada waktu bersamaan (+/- 3 menit)
+      const txTimeMs = new Date(transactionDate).getTime();
+      const minTimeIso = new Date(txTimeMs - 3 * 60 * 1000).toISOString();
+      const maxTimeIso = new Date(txTimeMs + 3 * 60 * 1000).toISOString();
+
+      const { data: existingSameTimeTx } = await supabase
+        .from('transactions')
+        .select('id, merchant, raw_notification')
+        .eq('household_id', householdId)
+        .eq('amount', amount)
+        .eq('direction', direction)
+        .eq('source_device', sourceDevice)
+        .gte('transaction_date', minTimeIso)
+        .lte('transaction_date', maxTimeIso)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (existingSameTimeTx) {
+        // Jika notifikasi baru memiliki nama merchant spesifik (misal 'warung sayur mas Eko') sedangkan sebelumnya nama kantong generik ('your Daily Pocket')
+        const isGeneric = (m: string) => /daily\s*pocket|kantong|saldo|dana|gopay|ovo|shopeepay|rekening|merchant\s*transaksi|transaksi\s*digital/i.test(m);
+        if (isGeneric(existingSameTimeTx.merchant) && !isGeneric(merchant)) {
+          await supabase
+            .from('transactions')
+            .update({
+              merchant,
+              raw_notification: `${existingSameTimeTx.raw_notification} | [Notif Ganda] ${safeTitle}: ${safeContent}`,
+            })
+            .eq('id', existingSameTimeTx.id);
+        }
+
+        return NextResponse.json(
+          {
+            status: 'success',
+            duplicate: true,
+            review_alert: null,
+            budget_alert: null,
+            message: 'Notifikasi konfirmasi kedua pada waktu dan nominal bersamaan disatukan otomatis.',
+            dedupe_hash: dedupeHash,
+          },
+          { status: 200, headers: corsHeaders }
+        );
+      }
+
       let { data: tx, error: txError } = await supabase
         .from('transactions')
         .insert({

@@ -195,4 +195,39 @@ describe('Daily AI Reconciler: Pembatasan Kuota & Logika Parsing', () => {
     assert.strictEqual(res.reconciled.length, 1);
     assert.strictEqual(res.reconciled[0].txId, 'tx-test');
   });
+
+  it('runLocalRuleBasedReconciliation mendeteksi pasangan notifikasi ganda e-wallet dan memilih merchant nyata (e.g. warung sayur mas Eko vs your Daily Pocket)', () => {
+    const dualNotifItems: CompactTransactionItem[] = [
+      {
+        id: 'tx-real-merchant',
+        time: '18:38',
+        account: 'Dana Suami (suami)',
+        direction: 'out',
+        amount: 37000,
+        merchant: 'warung sayur mas Eko',
+        text: 'Pembayaran Rp 37.000 di warung sayur mas Eko berhasil.',
+      },
+      {
+        id: 'tx-pocket-source',
+        time: '18:38',
+        account: 'Dana Suami (suami)',
+        direction: 'out',
+        amount: 37000,
+        merchant: 'your Daily Pocket',
+        text: 'your Daily Pocket: You have paid Rp 37.000. Need help? Call 1500 746.',
+      },
+    ];
+
+    const result = runLocalRuleBasedReconciliation(dualNotifItems, ['Belanja Dapur', 'Makan & Jajan']);
+
+    // Duplikat harus terdeteksi
+    assert.strictEqual(result.duplicates.length, 1);
+    // Merchant nyata harus di-keep, nama kantong harus di-ignore
+    assert.strictEqual(result.duplicates[0].keepTxId, 'tx-real-merchant');
+    assert.strictEqual(result.duplicates[0].ignoreTxId, 'tx-pocket-source');
+
+    // Transaksi nyata harus diteruskan ke reconciled
+    const isReconciled = result.reconciled.some((r) => r.txId === 'tx-real-merchant');
+    assert.strictEqual(isReconciled, true);
+  });
 });

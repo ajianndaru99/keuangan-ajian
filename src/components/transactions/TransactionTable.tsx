@@ -239,40 +239,42 @@ export default function TransactionTable({
                       </span>
                     </td>
 
-                    {/* 4. Status Badge & Parse Method */}
+                    {/* 4. Status Badge & Parse Method (Sejalur) */}
                     <td className="py-3.5 px-4 whitespace-nowrap align-top">
                       <div className="flex flex-col gap-1.5 items-start">
-                        {isPending ? (
-                          <div className="flex items-center gap-1.5 flex-wrap">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {isPending ? (
                             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-500 dark:text-amber-400 border border-amber-500/30 animate-pulse">
                               <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
                               Pending Review
                             </span>
-                            {onMarkAsPromoSpam && (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onMarkAsPromoSpam(tx);
-                                }}
-                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/20 transition-colors shadow-2xs"
-                                title="Tandai transaksi ini sebagai promo/iklan/spam yang lolos dari Regex"
-                              >
-                                <ShieldAlert className="w-2.5 h-2.5" />
-                                <span>Promo/Spam</span>
-                              </button>
-                            )}
-                          </div>
-                        ) : isIncome ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-income/15 text-income border border-income/30">
-                            Income
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-expense/15 text-expense border border-expense/30">
-                            Expense
-                          </span>
-                        )}
-                        {renderParseMethodBadge(tx.parse_method)}
+                          ) : isIncome ? (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-income/15 text-income border border-income/30">
+                              Income
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-expense/15 text-expense border border-expense/30">
+                              Expense
+                            </span>
+                          )}
+
+                          {renderParseMethodBadge(tx.parse_method)}
+
+                          {isPending && onMarkAsPromoSpam && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onMarkAsPromoSpam(tx);
+                              }}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/20 transition-colors shadow-2xs"
+                              title="Tandai transaksi ini sebagai promo/iklan/spam yang lolos dari Regex"
+                            >
+                              <ShieldAlert className="w-2.5 h-2.5" />
+                              <span>Promo/Spam</span>
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </td>
 
@@ -487,9 +489,9 @@ export default function TransactionTable({
                 </div>
               </div>
 
-              {/* Baris 2: Chips Metadata Ringkas (Akun, Kategori, Status) */}
+              {/* Baris 2: Chips Metadata Ringkas (Akun, Kategori, Status & Parse Method Sejalur) */}
               <div className="flex items-center gap-1.5 flex-wrap text-[10px]">
-                <span className="px-2 py-0.5 rounded-md bg-[var(--surface-2)] text-[var(--text-muted)] font-medium flex items-center gap-1">
+                <span className="px-2 py-0.5 rounded-full bg-[var(--surface-2)] text-[var(--text-muted)] font-medium flex items-center gap-1 border border-[var(--border-color)]/60">
                   <Building2 className="w-2.5 h-2.5 text-[var(--accent-color)]" />
                   <span>{tx.account_name || 'Rekening'}</span>
                   <span className="text-[var(--text-muted)]/60">•</span>
@@ -497,28 +499,32 @@ export default function TransactionTable({
                 </span>
 
                 {tx.category_name && (
-                  <span className="px-2 py-0.5 rounded-md bg-[var(--surface-2)] text-[var(--accent-color)] font-medium">
+                  <span className="px-2 py-0.5 rounded-full bg-[var(--surface-2)] text-[var(--accent-color)] font-medium border border-[var(--border-color)]/60">
                     {tx.category_name}
                   </span>
                 )}
 
-                {renderParseMethodBadge(tx.parse_method)}
+                {/* Badge Parsing & Status Transaksi Selalu Bersisian & Sejalur */}
+                <div className="inline-flex items-center gap-1 shrink-0">
+                  {renderParseMethodBadge(tx.parse_method)}
 
-                {isPending ? (
-                  <span className="px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-600 dark:text-amber-300 font-bold ml-auto">
-                    Pending
-                  </span>
-                ) : (
-                  <span
-                    className={`px-2 py-0.5 rounded-md font-medium ml-auto ${
-                      isIncome
-                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                        : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
-                    }`}
-                  >
-                    {isIncome ? 'Pemasukan' : 'Pengeluaran'}
-                  </span>
-                )}
+                  {isPending ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-300 border border-amber-500/30">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                      Pending
+                    </span>
+                  ) : (
+                    <span
+                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border ${
+                        isIncome
+                          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                          : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20'
+                      }`}
+                    >
+                      {isIncome ? 'Pemasukan' : 'Pengeluaran'}
+                    </span>
+                  )}
+                </div>
               </div>
 
               {/* Baris 3: Aksi Cepat Ramah Jempol */}

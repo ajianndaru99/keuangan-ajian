@@ -182,18 +182,24 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 2. Ambil Transaksi yang Perlu Direkonsiliasi (Status 'pending' KHUSUS HARI INI / 24 JAM DATA BERJALAN)
-    const startOfTodayIso = `${todayWib}T00:00:00+07:00`;
-    const endOfTodayIso = `${todayWib}T23:59:59.999+07:00`;
-
-    const { data: pendingTxs } = await clientToUse
+    // 2. Ambil Transaksi yang Perlu Direkonsiliasi (Status 'pending')
+    // Jika dipanggil via cron 23.00, prioritaskan hari ini; jika manual dari UI, rekonsiliasi seluruh antrean pending keluarga
+    let pendingQuery = clientToUse
       .from('transactions')
       .select('id, amount, direction, merchant, transaction_date, source_device, raw_notification, accounts(name, type)')
       .eq('household_id', householdId)
-      .eq('status', 'pending')
-      .gte('transaction_date', startOfTodayIso)
-      .lte('transaction_date', endOfTodayIso)
-      .order('transaction_date', { ascending: true })
+      .eq('status', 'pending');
+
+    if (isCron) {
+      const startOfTodayIso = `${todayWib}T00:00:00+07:00`;
+      const endOfTodayIso = `${todayWib}T23:59:59.999+07:00`;
+      pendingQuery = pendingQuery
+        .gte('transaction_date', startOfTodayIso)
+        .lte('transaction_date', endOfTodayIso);
+    }
+
+    const { data: pendingTxs } = await pendingQuery
+      .order('transaction_date', { ascending: false })
       .limit(100);
 
     // Ambil Daftar Kategori Aktif
@@ -209,14 +215,14 @@ export async function POST(req: NextRequest) {
     if (!pendingTxs || pendingTxs.length === 0) {
       return NextResponse.json({
         success: true,
-        message: 'Tidak ada transaksi berstatus pending untuk direkonsiliasi pada hari ini.',
+        message: 'Tidak ada transaksi berstatus pending untuk direkonsiliasi.',
         processedCount: 0,
         pairedTransfersCount: 0,
         duplicatesCount: 0,
         reconciledCount: 0,
         ignoredCount: 0,
         remainingQuota: MAX_DAILY_RECONCILIATION_RUNS - runsToday,
-        summaryNotes: 'Semua transaksi hari ini sudah berstatus reconciled atau bersih.',
+        summaryNotes: 'Semua transaksi sudah berstatus reconciled atau bersih.',
         details: null,
       });
     }
@@ -308,12 +314,17 @@ export async function POST(req: NextRequest) {
     }
 
     // E. Pembelajaran Otomatis Regex Adaptif (Closed-Loop Learning)
-    // Ekstrak frasa promo dari temuan Gemini dan simpan ke learned_promo_rules
-    if (aiResult.ignored.length > 0 && householdId) {
+    // Ekstrak frasa promo & pola konfirmasi ganda dari temuan Gemini untuk dipelajari
+    const candidatesForLearning = [
+      ...aiResult.ignored.map((i) => ({ txId: i.txId, reason: i.reason })),
+      ...aiResult.duplicates.map((d) => ({ txId: d.ignoreTxId, reason: d.reason })),
+    ];
+
+    if (candidatesForLearning.length > 0 && householdId) {
       try {
         const learnedEntries: Array<{ household_id: string; keyword: string; source: 'gemini'; sample_text: string }> = [];
 
-        for (const item of aiResult.ignored) {
+        for (const item of candidatesForLearning) {
           const tx = pendingTxs.find((t) => t.id === item.txId);
           if (tx) {
             const rawText = tx.raw_notification || '';

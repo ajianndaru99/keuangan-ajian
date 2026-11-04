@@ -167,6 +167,23 @@ export function cleanGeminiReconciliationJson(rawText: string): GeminiReconcilia
 }
 
 /**
+ * Mengecek apakah dua string waktu 'HH:mm' berjarak <= selisih menit yang ditentukan
+ */
+function areTimesClose(timeA: string, timeB: string, maxDiffMinutes: number = 3): boolean {
+  if (timeA === timeB) return true;
+  const parseMins = (t: string) => {
+    const parts = t.split(':').map((p) => parseInt(p, 10));
+    if (parts.length < 2 || isNaN(parts[0]) || isNaN(parts[1])) return null;
+    return parts[0] * 60 + parts[1];
+  };
+  const minsA = parseMins(timeA);
+  const minsB = parseMins(timeB);
+  if (minsA === null || minsB === null) return false;
+  const diff = Math.abs(minsA - minsB);
+  return diff <= maxDiffMinutes || diff >= (24 * 60 - maxDiffMinutes);
+}
+
+/**
  * Fallback algoritma lokal jika Gemini API offline / belum ada key
  * Mendeteksi pasangan internal transfer dan duplikat waktu sempit secara deterministik
  */
@@ -184,26 +201,39 @@ export function runLocalRuleBasedReconciliation(
 
   const processedIds = new Set<string>();
 
-  // 1. Deteksi Duplikat Waktu Sempit (nominal sama, akun sama, waktu sama)
+  // 1. Deteksi Duplikat Waktu Sempit (nominal sama, akun/perangkat sama, waktu bersamaan / selisih <= 3 menit)
   for (let i = 0; i < items.length; i++) {
     for (let j = i + 1; j < items.length; j++) {
       const a = items[i];
       const b = items[j];
 
+      const isSameAccountOrDevice =
+        a.account === b.account ||
+        (a.account.toLowerCase().includes('suami') && b.account.toLowerCase().includes('suami')) ||
+        (a.account.toLowerCase().includes('istri') && b.account.toLowerCase().includes('istri'));
+
       if (
         !processedIds.has(a.id) &&
         !processedIds.has(b.id) &&
-        a.account === b.account &&
+        isSameAccountOrDevice &&
         a.amount === b.amount &&
         a.direction === b.direction &&
-        a.time === b.time
+        areTimesClose(a.time, b.time, 3)
       ) {
+        // Tentukan mana yang disimpan: utamakan nama merchant nyata daripada nama kantong e-wallet/generik
+        const isGenericOrPocket = (m: string) =>
+          /daily\s*pocket|kantong|saldo|dana|gopay|ovo|shopeepay|rekening|merchant\s*transaksi|transaksi\s*digital|umum/i.test(m);
+
+        const keepA = !isGenericOrPocket(a.merchant) || isGenericOrPocket(b.merchant);
+        const keepTx = keepA ? a : b;
+        const ignoreTx = keepA ? b : a;
+
         output.duplicates.push({
-          keepTxId: a.id,
-          ignoreTxId: b.id,
-          reason: 'Konfirmasi kedua/duplikat bank dalam waktu bersamaan',
+          keepTxId: keepTx.id,
+          ignoreTxId: ignoreTx.id,
+          reason: `Konfirmasi ganda notifikasi pada waktu bersamaan (${a.time} WIB, Rp ${a.amount.toLocaleString('id-ID')}). Disatukan ke merchant '${keepTx.merchant}'.`,
         });
-        processedIds.add(b.id);
+        processedIds.add(ignoreTx.id);
       }
     }
   }
@@ -275,8 +305,12 @@ ${availableCategoryNames.map((c) => `- "${c}"`).join('\n')}
 ATURAN REKONSILIASI:
 1. DETEKSI TRANSFER INTERNAL SESAMA REKENING:
    - Jika ada transaksi OUT dan transaksi IN dengan nominal sama pada hari yang sama (misal Suami transfer ke Istri, atau transfer antar rekening pribadi), pasangkan keduanya dalam 'internalTransfers'.
-2. DETEKSI NOTIFIKASI DOBEL / DUPLIKAT:
-   - Jika ada 2 transaksi dari akun yang sama dengan nominal sama dan waktu berdekatan (< 3 menit) yang merupakan konfirmasi ganda bank digital atau notifikasi ganda SMS, masukkan ke 'duplicates' (keepTxId untuk disimpan, ignoreTxId untuk diabaikan).
+2. DETEKSI NOTIFIKASI DOBEL / GANDA DI WAKTU BERSAMAAN:
+   - Jika ada 2 transaksi dari akun/perangkat yang sama dengan nominal sama dan waktu bersamaan atau berdekatan (selisih <= 3 menit): ini adalah NOTIFIKASI GANDA dari satu transaksi yang sama (contoh nyata: notifikasi 'your Daily Pocket' dan 'warung sayur mas Eko' pada waktu bersamaan dengan nominal sama).
+   - Masukkan ke 'duplicates':
+     * 'keepTxId': ID transaksi yang memiliki nama merchant spesifik/asli (contoh: 'warung sayur mas Eko'). JANGAN simpan nama sumber/kantong seperti 'your Daily Pocket', 'Kantong Utama', atau 'Saldo'.
+     * 'ignoreTxId': ID notifikasi duplikat/konfirmasi kantong (contoh: 'your Daily Pocket') untuk diabaikan.
+     * 'reason': penjelasan singkat (contoh: "Notifikasi ganda dari satu transaksi yang sama, disatukan ke merchant nyata.").
 3. DETEKSI TRANSAKSI SEMU:
    - Transaksi nominal Rp 0, promo, atau info saldo masukkan ke 'ignored'.
 4. AUTO-RECONCILE TRANSAKSI BELANJA/PEMASUKAN SAH:
