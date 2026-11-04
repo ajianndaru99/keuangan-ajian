@@ -263,13 +263,18 @@ async function handleSetAnggaranFlow(
       category_name: target.name,
       limit_amount: setAnggaranCmd.amount,
       period_month: periodMonth,
+      updated_at: new Date().toISOString(),
     },
     { onConflict: 'household_id,category_id,period_month' }
   );
 
   if (bgErr) {
     console.error('[SetAnggaran Upsert Error]:', bgErr.message);
-    await sendTelegramMessage(chatId, '⚠️ Gagal memperbarui anggaran ke database.', { reply_to_message_id: messageId });
+    await sendTelegramMessage(
+      chatId,
+      `⚠️ *Gagal memperbarui anggaran ke database.*\n\nDetail: \`${bgErr.message}\``,
+      { reply_to_message_id: messageId }
+    );
     return true;
   }
 
