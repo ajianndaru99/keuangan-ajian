@@ -32,6 +32,7 @@ import {
   processFinancialChatWithAI,
 } from '../src/lib/telegram/nlp-chat.ts';
 import type { FinancialContext } from '../src/lib/telegram/nlp-chat.ts';
+import { isSafePromoKeyword } from '../src/lib/ai/adaptive-rules.ts';
 
 describe('Telegram Bot: Visual Formatters & Tipografi Finansial', () => {
   it('generateProgressBar membentuk visual progress bar karakter monospaced dengan tepat', () => {
@@ -412,6 +413,21 @@ describe('Telegram Bot: NLP Parser & Perintah Cepat', () => {
     assert.strictEqual(resAnggaran.type, 'chat_answer');
     assert.ok(resAnggaran.replyText.includes('Belanja Dapur'));
     assert.ok(resAnggaran.replyText.includes('900.000'));
+  });
+
+  it('Ekstraksi referensi UUID pada format force reply pembatalan [REF:uuid]', () => {
+    const promptText = '✍️ Tulis Alasan Pembatalan\n\nBalas pesan ini dengan alasan penolakan mutasi #a1b2c3d4 [REF:123e4567-e89b-12d3-a456-426614174000]:';
+    const match = promptText.match(/\[REF:([a-f0-9-]{36})\]/i);
+    assert.ok(match);
+    assert.strictEqual(match[1], '123e4567-e89b-12d3-a456-426614174000');
+  });
+
+  it('Pencegahan kata kunci merchant umum terblokir oleh aturan promo adaptif', () => {
+    // Indomaret atau Alfamart sah yang salah ketuk tidak boleh masuk ke aturan blokir
+    assert.strictEqual(isSafePromoKeyword('indomaret'), false);
+    assert.strictEqual(isSafePromoKeyword('alfamart'), false);
+    assert.strictEqual(isSafePromoKeyword('spbu pertamina'), false);
+    assert.strictEqual(isSafePromoKeyword('superindo'), false);
   });
 });
 

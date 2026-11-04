@@ -91,6 +91,20 @@ export async function sendTelegramMessage(
     const data: TelegramApiResponse = await response.json().catch(() => ({ ok: false, description: 'Respon JSON invalid' }));
 
     if (!response.ok || !data.ok) {
+      // Fallback otomatis: jika format markdown error karena karakter tak berpasangan, kirim plain text
+      if (data.description && /can't parse entities/i.test(data.description) && payload.parse_mode) {
+        const plainPayload = { ...payload, parse_mode: undefined };
+        const retryRes = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(plainPayload),
+        });
+        const retryData: TelegramApiResponse = await retryRes.json().catch(() => ({ ok: false }));
+        if (retryRes.ok && retryData.ok) {
+          return { success: true };
+        }
+      }
+
       const errMsg = `[Telegram API Error ${response.status}] ${data.description || 'Gagal mengirim pesan'}`;
       console.warn(errMsg);
       return { success: false, error: errMsg };
@@ -157,6 +171,18 @@ export async function editTelegramMessageText(
     });
     const data: TelegramApiResponse = await response.json().catch(() => ({ ok: false }));
     if (!response.ok || !data.ok) {
+      if (data.description && /can't parse entities/i.test(data.description) && payload.parse_mode) {
+        const plainPayload = { ...payload, parse_mode: undefined };
+        const retryRes = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(plainPayload),
+        });
+        const retryData: TelegramApiResponse = await retryRes.json().catch(() => ({ ok: false }));
+        if (retryRes.ok && retryData.ok) {
+          return { success: true };
+        }
+      }
       return { success: false, error: data.description || 'Gagal mengubah pesan' };
     }
     return { success: true };

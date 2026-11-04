@@ -25,6 +25,7 @@ interface TxCatRelation {
 
 /**
  * Membangun Konteks Finansial Lengkap untuk /status dan AI NLP Chat
+ * Aturan: Hanya menghitung transaksi 'reconciled' untuk pengeluaran sah
  */
 export async function buildFinancialContext(
   supabase: SupabaseClient,
@@ -35,11 +36,15 @@ export async function buildFinancialContext(
   const periodMonth = `${dateRange.startDate.getFullYear()}-${String(dateRange.startDate.getMonth() + 1).padStart(2, '0')}`;
 
   // 1. Ambil Saldo Rekening
-  const { data: accounts } = await supabase
+  const { data: accounts, error: accErr } = await supabase
     .from('accounts')
     .select('name, owner, balance, initial_balance')
     .eq('household_id', householdId)
     .eq('is_active', true);
+
+  if (accErr) {
+    console.error('[Commands buildFinancialContext Account Error]:', accErr.message);
+  }
 
   const accountItems = (accounts || []).map((acc) => ({
     name: acc.name,
@@ -49,24 +54,39 @@ export async function buildFinancialContext(
 
   const totalBalance = accountItems.reduce((sum, a) => sum + a.balance, 0);
 
-  // 2. Ambil Pengeluaran Transaksi Bulan Ini
-  const { data: txList } = await supabase
+  // 2. Ambil Pengeluaran Transaksi Bulan Ini (HANYA 'reconciled' sesuai standar AGENTS.md)
+  const { data: txList, error: txErr } = await supabase
     .from('transactions')
     .select('amount, category_id, categories(name)')
     .eq('household_id', householdId)
     .eq('direction', 'out')
-    .neq('status', 'ignored')
+    .eq('status', 'reconciled')
     .gte('transaction_date', dateRange.startDate.toISOString())
     .lte('transaction_date', dateRange.endDate.toISOString());
 
+  if (txErr) {
+    console.error('[Commands buildFinancialContext Tx Error]:', txErr.message);
+  }
+
   const totalSpentMonth = (txList || []).reduce((sum, t) => sum + Number(t.amount || 0), 0);
 
+  // Ambil transaksi pending untuk catatan konteks
+  const { count: pendingCount } = await supabase
+    .from('transactions')
+    .select('id', { count: 'exact', head: true })
+    .eq('household_id', householdId)
+    .eq('status', 'pending');
+
   // 3. Ambil Batas Anggaran Kategori
-  const { data: budgets } = await supabase
+  const { data: budgets, error: bgErr } = await supabase
     .from('category_budgets')
     .select('category_id, limit_amount')
     .eq('household_id', householdId)
     .eq('period_month', periodMonth);
+
+  if (bgErr) {
+    console.error('[Commands buildFinancialContext Budget Error]:', bgErr.message);
+  }
 
   const budgetMap = new Map<string, number>();
   (budgets || []).forEach((b) => budgetMap.set(b.category_id, Number(b.limit_amount || 0)));
@@ -108,6 +128,7 @@ export async function buildFinancialContext(
     safeDailySpend,
     categoryBudgets,
     periodLabel: dateRange.label,
+    pendingCount: pendingCount || 0,
   };
 }
 
@@ -122,12 +143,6 @@ export async function handleStatusCommand(
 ): Promise<void> {
   const context = await buildFinancialContext(supabase, householdId, monthStartDay);
 
-  const { count: pendingCount } = await supabase
-    .from('transactions')
-    .select('id', { count: 'exact', head: true })
-    .eq('household_id', householdId)
-    .eq('status', 'pending');
-
   const monthPercentage = context.totalBudgetLimit > 0
     ? Math.round((context.totalSpentMonth / context.totalBudgetLimit) * 100)
     : 0;
@@ -141,7 +156,7 @@ export async function handleStatusCommand(
     daysRemaining: context.daysRemaining,
     safeDailySpend: context.safeDailySpend,
     periodLabel: context.periodLabel,
-    pendingCount: pendingCount || 0,
+    pendingCount: context.pendingCount || 0,
   });
 
   await sendTelegramMessage(chatId, text);
@@ -187,23 +202,33 @@ export async function handleRekapCommand(
   const currentWeek = getWeeklyRange(0);
   const prevWeek = getWeeklyRange(-1);
 
-  const { data: currTxs } = await supabase
+  // Pengeluaran Minggu Ini (HANYA 'reconciled')
+  const { data: currTxs, error: currErr } = await supabase
     .from('transactions')
     .select('amount, category_id, categories(name)')
     .eq('household_id', householdId)
     .eq('direction', 'out')
-    .neq('status', 'ignored')
+    .eq('status', 'reconciled')
     .gte('transaction_date', currentWeek.startDate.toISOString())
     .lte('transaction_date', currentWeek.endDate.toISOString());
 
-  const { data: prevTxs } = await supabase
+  if (currErr) {
+    console.error('[Commands handleRekapCommand CurrTxs Error]:', currErr.message);
+  }
+
+  // Pengeluaran Minggu Lalu (HANYA 'reconciled')
+  const { data: prevTxs, error: prevErr } = await supabase
     .from('transactions')
     .select('amount')
     .eq('household_id', householdId)
     .eq('direction', 'out')
-    .neq('status', 'ignored')
+    .eq('status', 'reconciled')
     .gte('transaction_date', prevWeek.startDate.toISOString())
     .lte('transaction_date', prevWeek.endDate.toISOString());
+
+  if (prevErr) {
+    console.error('[Commands handleRekapCommand PrevTxs Error]:', prevErr.message);
+  }
 
   const currentWeekTotal = (currTxs || []).reduce((sum, t) => sum + Number(t.amount || 0), 0);
   const previousWeekTotal = (prevTxs || []).reduce((sum, t) => sum + Number(t.amount || 0), 0);
@@ -246,7 +271,7 @@ export async function handleInboxCommand(
   supabase: SupabaseClient,
   householdId: string
 ): Promise<void> {
-  const { count: pendingCount, data: oldestTx } = await supabase
+  const { count: pendingCount, data: oldestTx, error: txErr } = await supabase
     .from('transactions')
     .select('transaction_date', { count: 'exact' })
     .eq('household_id', householdId)
@@ -254,12 +279,20 @@ export async function handleInboxCommand(
     .order('transaction_date', { ascending: true })
     .limit(1);
 
-  const { count: unreviewedCount } = await supabase
+  if (txErr) {
+    console.error('[Commands handleInboxCommand Tx Error]:', txErr.message);
+  }
+
+  const { count: unreviewedCount, error: rawErr } = await supabase
     .from('raw_notifications')
     .select('id', { count: 'exact', head: true })
     .eq('household_id', householdId)
     .is('validated_at', null)
     .neq('outcome', 'transaction');
+
+  if (rawErr) {
+    console.error('[Commands handleInboxCommand Raw Error]:', rawErr.message);
+  }
 
   let oldestDateStr: string | undefined;
   if (oldestTx && oldestTx.length > 0 && oldestTx[0].transaction_date) {

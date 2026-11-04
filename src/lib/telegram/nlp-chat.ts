@@ -14,6 +14,7 @@ export interface FinancialContext {
   safeDailySpend: number;
   categoryBudgets: Array<{ name: string; spent: number; limit: number; remaining: number }>;
   periodLabel: string;
+  pendingCount?: number;
 }
 
 export interface ExtractedTransaction {
@@ -125,7 +126,8 @@ KONTEKS FINANSIAL KELUARGA BULAN INI (${context.periodLabel}):
 - Saldo Rekening Saat Ini:
 ${accountLines || '- Tidak ada data rekening'}
 - Total Saldo Kas: ${formatRupiah(context.totalBalance)}
-- Total Pengeluaran Bulan Ini: ${formatRupiah(context.totalSpentMonth)}
+- Total Pengeluaran Bulan Ini (Reconciled): ${formatRupiah(context.totalSpentMonth)}
+- Transaksi Pending Belum Terkonfirmasi: ${context.pendingCount || 0} transaksi
 - Total Batas Anggaran: ${formatRupiah(context.totalBudgetLimit)}
 - Sisa Waktu Menuju Gajian: ${context.daysRemaining} hari lagi
 - Rekomendasi Belanja Aman Harian: ${formatRupiah(context.safeDailySpend)} / hari
@@ -224,7 +226,9 @@ export async function processFinancialChatWithAI(
 
     if (parsed.type === 'transaction' && parsed.transaction?.amount > 0) {
       const tx = parsed.transaction;
-      const directionEmoji = tx.direction === 'in' ? '📈' : '💸';
+      const isIn = tx.direction === 'in';
+      const directionEmoji = isIn ? '📈' : '💸';
+      const directionTitle = isIn ? 'PEMASUKAN BARU TERDETEKSI' : 'PENGELUARAN BARU TERDETEKSI';
       return {
         type: 'transaction',
         data: {
@@ -232,9 +236,9 @@ export async function processFinancialChatWithAI(
           merchant: String(tx.merchant || 'Transaksi').trim(),
           categoryName: String(tx.categoryName || 'Lainnya').trim(),
           accountName: String(tx.accountName || 'Utama').trim(),
-          direction: tx.direction === 'in' ? 'in' : 'out',
+          direction: isIn ? 'in' : 'out',
         },
-        replyText: `${directionEmoji} *CATATAN BARU TERDETEKSI*\n\n🛒 *Merchant:* ${tx.merchant}\n💰 *Nominal:* \`${formatRupiah(tx.amount)}\`\n📁 *Kategori:* ${tx.categoryName}\n🏦 *Akun:* ${tx.accountName}`,
+        replyText: `${directionEmoji} *${directionTitle}*\n\n🛒 *Merchant:* ${tx.merchant}\n💰 *Nominal:* \`${formatRupiah(tx.amount)}\`\n📁 *Kategori:* ${tx.categoryName}\n🏦 *Akun:* ${tx.accountName}`,
       };
     }
 

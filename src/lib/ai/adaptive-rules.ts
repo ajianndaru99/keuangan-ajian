@@ -10,6 +10,8 @@ const RESERVED_WORDS = new Set([
   'bayar', 'pembayaran', 'payment', 'paid', 'berhasil', 'sukses', 'successful',
   'bca', 'mandiri', 'livin', 'jago', 'bri', 'bni', 'seabank', 'shopeepay',
   'gopay', 'dana', 'ovo', 'linkaja', 'qris', 'bank', 'kantong', 'utama',
+  'indomaret', 'alfamart', 'superindo', 'spbu', 'pertamina', 'shell',
+  'tokopedia', 'shopee', 'grab', 'gojek', 'warung', 'toko', 'pasar', 'sayur',
 ]);
 
 /**
@@ -108,18 +110,23 @@ export function extractPromoKeywordsFromText(
   }
 
   // 3. Fallback jika ditandai manual oleh pengguna tapi belum ada kata kunci terambil
+  // Catatan: Wajib ada indikator promosi/penawaran agar merchant belanja sah tidak terblokir
   if (isExplicitManualPromo && keywords.size === 0) {
-    const cleanCandidate = cleanRuleKeyword(title);
-    if (isSafePromoKeyword(cleanCandidate)) {
-      keywords.add(cleanCandidate);
-    } else {
-      const words = cleanRuleKeyword(text).split(' ').filter(Boolean);
-      for (let len = 3; len >= 2; len--) {
-        if (words.length >= len) {
-          const phrase = words.slice(0, len).join(' ');
-          if (isSafePromoKeyword(phrase)) {
-            keywords.add(phrase);
-            break;
+    const hasAnyPromoWord = /\b(promo|diskon|cashback|voucher|kupon|hadiah|gratis|asuransi|penipuan|perlindungan|spin|tebak|game|deals|undian|poin|bonus|paket\s+data|iklan|marketing|paylater|pinjaman|investasi|reward)\b/i.test(combined);
+
+    if (hasAnyPromoWord) {
+      const cleanCandidate = cleanRuleKeyword(title);
+      if (isSafePromoKeyword(cleanCandidate)) {
+        keywords.add(cleanCandidate);
+      } else {
+        const words = cleanRuleKeyword(text).split(' ').filter(Boolean);
+        for (let len = 3; len >= 2; len--) {
+          if (words.length >= len) {
+            const phrase = words.slice(0, len).join(' ');
+            if (isSafePromoKeyword(phrase)) {
+              keywords.add(phrase);
+              break;
+            }
           }
         }
       }

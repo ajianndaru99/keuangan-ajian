@@ -457,18 +457,20 @@ export async function POST(req: NextRequest) {
               sourceDevice,
             });
 
-            broadcastToAllowedChats(alertMsg, {
-              reply_markup: {
-                inline_keyboard: [
-                  [
-                    { text: '✅ Benar & Sesuai', callback_data: `tx_ok:${newTransaction.id}` },
-                    { text: '❌ Salah / Bukan Belanja', callback_data: `tx_wrong_menu:${newTransaction.id}` },
+            try {
+              await broadcastToAllowedChats(alertMsg, {
+                reply_markup: {
+                  inline_keyboard: [
+                    [
+                      { text: '✅ Benar & Sesuai', callback_data: `tx_ok:${newTransaction.id}` },
+                      { text: '❌ Salah / Bukan Belanja', callback_data: `tx_wrong_menu:${newTransaction.id}` },
+                    ],
                   ],
-                ],
-              },
-            }).catch((tErr) => {
+                },
+              });
+            } catch (tErr) {
               console.warn('[Telegram Broadcast Expense Alert Warn]:', tErr);
-            });
+            }
           }
 
           // 2. Evaluasi Ambang Batas Anggaran
@@ -484,9 +486,11 @@ export async function POST(req: NextRequest) {
                 budgetAlert.limitAmount,
                 overspent
               );
-              broadcastToAllowedChats(telegramMsg).catch((tErr) => {
+              try {
+                await broadcastToAllowedChats(telegramMsg);
+              } catch (tErr) {
                 console.warn('[Telegram Broadcast Overbudget Alert Warn]:', tErr);
-              });
+              }
             }
           } catch (bErr) {
             console.warn('Gagal evaluasi budget alert:', bErr);
