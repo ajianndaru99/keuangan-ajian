@@ -102,6 +102,22 @@ export function parseSetAnggaranCommand(rawText: string): { categoryName: string
 }
 
 /**
+ * Mendeteksi perintah atur tanggal gajian siklus bulanan (1-28)
+ * Contoh: "set gajian 25", "set tanggal gajian 25", "atur gajian 20", "/setgajian 25"
+ */
+export function parseSetGajianCommand(rawText: string): number | null {
+  const clean = rawText.trim();
+  const pattern = /^(?:\/setgajian|(?:set|ubah|atur)\s+(?:tanggal\s+)?gajian)\s+(\d{1,2})$/i;
+  const match = clean.match(pattern);
+  if (!match) return null;
+
+  const day = parseInt(match[1], 10);
+  if (isNaN(day) || day < 1 || day > 28) return null;
+
+  return day;
+}
+
+/**
  * Prompt instruksi sistem untuk Google Gemini Flash (Chat NLP Finansial)
  */
 function buildSystemPrompt(context: FinancialContext): string {

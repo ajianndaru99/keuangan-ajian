@@ -4,6 +4,7 @@ import {
   generateProgressBar,
   formatStatusMessage,
   formatAnggaranMessage,
+  formatBudgetUpdatedWithStatusMessage,
   formatRekapMessage,
   formatInboxMessage,
   formatHelpMessage,
@@ -29,6 +30,7 @@ import {
   parseNominal,
   parseSetSaldoCommand,
   parseSetAnggaranCommand,
+  parseSetGajianCommand,
   processFinancialChatWithAI,
 } from '../src/lib/telegram/nlp-chat.ts';
 import type { FinancialContext } from '../src/lib/telegram/nlp-chat.ts';
@@ -80,20 +82,43 @@ describe('Telegram Bot: Visual Formatters & Tipografi Finansial', () => {
     assert.ok(text.includes('10 hari'));
   });
 
-  it('formatAnggaranMessage memuat progress bar untuk daftar kategori', () => {
+  it('formatAnggaranMessage memuat progress bar untuk daftar kategori yang diset dan daftar kategori belum diset', () => {
     const text = formatAnggaranMessage(
       [
         { name: 'Belanja Dapur', emoji: '🛒', spent: 1500000, limit: 2000000, percentage: 75 },
         { name: 'Makan & Jajan', emoji: '🍔', spent: 850000, limit: 1000000, percentage: 85 },
+        { name: 'Transportasi/Bensin', emoji: '🚗', spent: 0, limit: 0, percentage: 0 },
       ],
       'November 2026'
     );
 
-    assert.ok(text.includes('STATUS KUOTA ANGGARAN KELUARGA'));
+    assert.ok(text.includes('STATUS & KESIAPAN ANGGARAN KELUARGA'));
+    assert.ok(text.includes('POS YANG SUDAH DISET'));
     assert.ok(text.includes('Belanja Dapur'));
     assert.ok(text.includes('Makan & Jajan'));
     assert.ok(text.includes('75%'));
     assert.ok(text.includes('85%'));
+    assert.ok(text.includes('POS YANG BELUM DISET'));
+    assert.ok(text.includes('Transportasi/Bensin'));
+  });
+
+  it('formatBudgetUpdatedWithStatusMessage mengonfirmasi update dan merinci status pos yang sudah dan belum diset', () => {
+    const text = formatBudgetUpdatedWithStatusMessage(
+      { name: 'Belanja Dapur', emoji: '🛒' },
+      2000000,
+      [
+        { name: 'Belanja Dapur', emoji: '🛒', spent: 500000, limit: 2000000, percentage: 25 },
+        { name: 'Makan & Jajan', emoji: '🍔', spent: 0, limit: 0, percentage: 0 },
+      ],
+      'November 2026'
+    );
+
+    assert.ok(text.includes('ANGGARAN BERHASIL DIPERBARUI'));
+    assert.ok(text.includes('Belanja Dapur'));
+    assert.ok(text.includes('2.000.000'));
+    assert.ok(text.includes('1/2 Pos Diset'));
+    assert.ok(text.includes('Masih Belum Diset'));
+    assert.ok(text.includes('Makan & Jajan'));
   });
 
   it('formatRekapMessage menyajikan perbandingan minggu ini vs minggu lalu', () => {
@@ -383,6 +408,17 @@ describe('Telegram Bot: NLP Parser & Perintah Cepat', () => {
 
     // Bukan perintah set anggaran
     assert.strictEqual(parseSetAnggaranCommand('tadi beli bensin'), null);
+  });
+
+  it('parseSetGajianCommand mengenali format set tanggal gajian 1-28', () => {
+    assert.strictEqual(parseSetGajianCommand('set gajian 25'), 25);
+    assert.strictEqual(parseSetGajianCommand('set tanggal gajian 25'), 25);
+    assert.strictEqual(parseSetGajianCommand('atur gajian 1'), 1);
+    assert.strictEqual(parseSetGajianCommand('/setgajian 28'), 28);
+    // Nilai tidak valid (> 28 atau <= 0)
+    assert.strictEqual(parseSetGajianCommand('set gajian 30'), null);
+    assert.strictEqual(parseSetGajianCommand('set gajian 0'), null);
+    assert.strictEqual(parseSetGajianCommand('gajian kapan'), null);
   });
 
   it('processFinancialChatWithAI fallback deterministik menangani pertanyaan saldo dan pagu saat offline', async () => {

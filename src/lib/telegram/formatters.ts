@@ -105,29 +105,82 @@ export function formatStatusMessage(data: StatusSummaryData): string {
 
 /**
  * Format Pesan Perintah /anggaran
+ * Menampilkan pengelompokan pos yang SUDAH DISET dan BELUM DISET secara transparan
  */
 export function formatAnggaranMessage(categories: CategoryBudgetItem[], periodLabel: string): string {
   const lines: string[] = [];
 
-  lines.push(`📋 *STATUS KUOTA ANGGARAN KELUARGA*`);
-  lines.push(`_Periode: ${periodLabel}_\n`);
+  const configured = categories.filter((c) => c.limit > 0);
+  const unconfigured = categories.filter((c) => c.limit <= 0);
 
-  if (categories.length === 0) {
-    lines.push(`⚠️ _Belum ada pos anggaran aktif yang disetel bulan ini._`);
-    lines.push(`💡 Atur batas anggaran melalui menu *Anggaran Belanja* di dasbor.`);
-    return lines.join('\n');
-  }
+  const totalLimit = configured.reduce((sum, c) => sum + c.limit, 0);
+  const totalSpent = categories.reduce((sum, c) => sum + c.spent, 0);
 
-  for (const cat of categories) {
-    if (cat.limit > 0) {
+  lines.push(`📋 *STATUS & KESIAPAN ANGGARAN KELUARGA*`);
+  lines.push(`_Periode Finansial: ${periodLabel}_\n`);
+
+  lines.push(`📊 *Kelengkapan Pos:* *${configured.length}/${categories.length} Pos Sudah Diset*`);
+  lines.push(`💰 *Total Pagu:* \`${formatRupiah(totalLimit)}\` • *Terpakai:* \`${formatRupiah(totalSpent)}\`\n`);
+
+  // Pos yang sudah diset
+  if (configured.length > 0) {
+    lines.push(`✅ *POS YANG SUDAH DISET:*`);
+    for (const cat of configured) {
+      const remaining = Math.max(0, cat.limit - cat.spent);
       lines.push(`${cat.emoji} *${cat.name}* • ${generateProgressBar(cat.percentage)}`);
-      lines.push(`   Terpakai: \`${formatRupiah(cat.spent)}\` / \`${formatRupiah(cat.limit)}\``);
-    } else {
-      lines.push(`${cat.emoji} *${cat.name}*: \`${formatRupiah(cat.spent)}\` _(Tanpa pagu)_`);
+      lines.push(`   Terpakai: \`${formatRupiah(cat.spent)}\` / \`${formatRupiah(cat.limit)}\` _(Sisa: ${formatRupiah(remaining)})_`);
     }
   }
 
-  lines.push(`\n💡 _Ketik /status untuk ringkasan kas atau /rekap untuk analisis tren._`);
+  // Pos yang belum diset
+  if (unconfigured.length > 0) {
+    lines.push(`\n⚠️ *POS YANG BELUM DISET (${unconfigured.length} Pos):*`);
+    for (const cat of unconfigured) {
+      const spentText = cat.spent > 0 ? ` _(Sudah ada belanja: ${formatRupiah(cat.spent)})_` : '';
+      lines.push(`• ${cat.emoji} *${cat.name}:* _Belum ada pagu_${spentText}`);
+    }
+    const sample = unconfigured[0];
+    lines.push(`\n💡 *Cara Mengatur:* \`set anggaran ${sample.name.toLowerCase()} 500rb\``);
+  } else {
+    lines.push(`\n🎉 *Seluruh ${categories.length} pos anggaran keluarga telah lengkap terisi!*`);
+  }
+
+  lines.push(`\n👉 _Ketik \`/status\` untuk kas harian atau \`/setup\` untuk checklist lengkap._`);
+  return lines.join('\n');
+}
+
+/**
+ * Format Pesan Konfirmasi Pembaruan Anggaran Disertai Status Kelengkapan Pos
+ */
+export function formatBudgetUpdatedWithStatusMessage(
+  updatedCat: { name: string; emoji: string },
+  amount: number,
+  categories: CategoryBudgetItem[],
+  periodLabel: string
+): string {
+  const configured = categories.filter((c) => c.limit > 0);
+  const unconfigured = categories.filter((c) => c.limit <= 0);
+  const totalLimit = configured.reduce((sum, c) => sum + c.limit, 0);
+
+  const lines: string[] = [];
+  lines.push(`📋 *ANGGARAN BERHASIL DIPERBARUI* ✅\n`);
+  lines.push(`Pos: ${updatedCat.emoji} *${updatedCat.name}*`);
+  lines.push(`Pagu Baru: \`${formatRupiah(amount)}\``);
+  lines.push(`Periode: *${periodLabel}*\n`);
+
+  lines.push(`📊 *Status Kelengkapan (${configured.length}/${categories.length} Pos Diset):*`);
+  lines.push(`Total Pagu Terkumpul: \`${formatRupiah(totalLimit)}\`\n`);
+
+  if (unconfigured.length > 0) {
+    lines.push(`⚠️ *Masih Belum Diset (${unconfigured.length} Pos):*`);
+    for (const u of unconfigured) {
+      lines.push(`• ${u.emoji} ${u.name}`);
+    }
+    lines.push(`\n👉 _Atur pos berikutnya, contoh:_ \`set anggaran ${unconfigured[0].name.toLowerCase()} 500rb\``);
+  } else {
+    lines.push(`🎉 *Luar biasa! Seluruh 8 pos anggaran keluarga kini sudah terisi lengkap.*`);
+  }
+
   return lines.join('\n');
 }
 
@@ -191,19 +244,22 @@ export function formatHelpMessage(): string {
 
 Halo! Saya bot asisten keuangan yang terhubung langsung ke dasbor keluarga Anda.
 
-📋 *Menu Perintah Cepat:*
+📋 *Menu Laporan & Status:*
 📊 \`/status\` — Ringkasan kas, belanja & batas aman harian
-📋 \`/anggaran\` — Kuota belanja 8 kategori utama
+📋 \`/anggaran\` — Kuota belanja 8 kategori (lengkap dengan status pos diset / belum)
 📈 \`/rekap\` — Pengeluaran 7 hari & tren vs minggu lalu
-📥 \`/inbox\` — Cek transaksi gantung yang butuh konfirmasi
+📥 \`/inbox\` — Cek mutasi gantung yang butuh konfirmasi
 💡 \`/help\` — Panduan bantuan perintah ini
 
-⏰ *Jadwal Pengingat Otomatis (08:00 WIB):*
-☕ *Senin Pagi* — Rekap finansial mingguan
-⚡ *Tgl 18* — Pengingat tagihan rutin (PLN, WiFi, BPJS)
-🎉 *Tgl Gajian* — Pengingat menabung (Pay Yourself First)
-⏳ *H+15* — Cek ritme belanja tengah bulan
-🚨 *Real-time* — Peringatan darurat overbudget 100%
+⚙️ *Pengaturan Langsung via Chat:*
+• \`set anggaran dapur 1,5jt\` — Mengatur pagu belanja kategori
+• \`set saldo dana suami 2jt\` — Sinkronisasi saldo rekening riil
+• \`set gajian 25\` — Mengatur tanggal siklus gajian keluarga (tgl 1-28)
+
+💬 *Catat Mutasi & Tanya Jawab AI:*
+• _"tadi beli martabak 35rb pake gopay"_
+• _"sisa anggaran belanja dapur masih aman?"_
+• Kirimkan foto struk kasir / bukti transfer untuk dicatat otomatis
 
 🔒 _Data terenkripsi dan terlindungi whitelist chat ID keluarga._`;
 }

@@ -9,9 +9,11 @@ import { isChatIdAllowed, sendTelegramMessage } from '@/lib/telegram/bot.ts';
 import {
   formatHelpMessage,
   formatExpenseAlertMessage,
+  formatBudgetUpdatedWithStatusMessage,
+  CategoryBudgetItem,
 } from '@/lib/telegram/formatters.ts';
 import { formatRupiah } from '@/lib/utils.ts';
-import { matchTargetCategory } from '@/lib/budget/budget-guard.ts';
+import { matchTargetCategory, TARGET_BUDGET_CATEGORIES } from '@/lib/budget/budget-guard.ts';
 import { getMonthlyRange } from '@/lib/date-utils.ts';
 import {
   handleStatusCommand,
@@ -31,6 +33,7 @@ import {
 import {
   parseSetSaldoCommand,
   parseSetAnggaranCommand,
+  parseSetGajianCommand,
   processFinancialChatWithAI,
 } from '@/lib/telegram/nlp-chat.ts';
 import { generateScreenshotDedupeHash, suggestCategoryForMerchant } from '@/lib/vision/gemini.ts';
@@ -236,6 +239,7 @@ async function handleSetSaldoFlow(
 
 /**
  * 5. Handler Atur Pagu Anggaran Kategori
+ * Melaporkan konfirmasi pembaruan sekaligus status pos apa saja yang sudah dan belum diset
  */
 async function handleSetAnggaranFlow(
   rawText: string,
@@ -269,16 +273,74 @@ async function handleSetAnggaranFlow(
     return true;
   }
 
+  // Ambil konteks terbaru untuk menampilkan status seluruh 8 pos anggaran
+  const context = await buildFinancialContext(supabase, householdId, monthStartDay);
+  const categoryItems: CategoryBudgetItem[] = TARGET_BUDGET_CATEGORIES.map((t) => {
+    const item = context.categoryBudgets.find((b) => b.name === t.name);
+    const limit = item?.limit || 0;
+    const spent = item?.spent || 0;
+    const percentage = limit > 0 ? Math.round((spent / limit) * 100) : 0;
+    return {
+      name: t.name,
+      emoji: t.emoji,
+      spent,
+      limit,
+      percentage,
+    };
+  });
+
+  const responseText = formatBudgetUpdatedWithStatusMessage(
+    target,
+    setAnggaranCmd.amount,
+    categoryItems,
+    dateRange.label
+  );
+
+  await sendTelegramMessage(chatId, responseText, { reply_to_message_id: messageId });
+  return true;
+}
+
+/**
+ * 6. Handler Atur Tanggal Gajian Siklus Bulanan
+ */
+async function handleSetGajianFlow(
+  rawText: string,
+  chatId: number | string,
+  messageId: number,
+  supabase: SupabaseClient,
+  householdId: string
+): Promise<boolean> {
+  const day = parseSetGajianCommand(rawText);
+  if (!day) return false;
+
+  const { error: setErr } = await supabase
+    .from('settings')
+    .upsert(
+      {
+        household_id: householdId,
+        month_start_day: day,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'household_id' }
+    );
+
+  if (setErr) {
+    console.error('[SetGajian Upsert Error]:', setErr.message);
+    await sendTelegramMessage(chatId, '⚠️ Gagal memperbarui tanggal gajian ke database.', { reply_to_message_id: messageId });
+    return true;
+  }
+
+  const dateRange = getMonthlyRange(0, day);
   await sendTelegramMessage(
     chatId,
-    `📋 *Anggaran Berhasil Diperbarui*\n\nPos: ${target.emoji} *${target.name}*\nPeriode: *${dateRange.label}*\nPagu Baru: \`${formatRupiah(setAnggaranCmd.amount)}\``,
+    `🎉 *Tanggal Siklus Gajian Berhasil Diperbarui* ✅\n\nTanggal Gajian Baru: *Tanggal ${day} setiap bulan*\nSiklus Finansial Aktif: *${dateRange.label}*\n\n_Batas aman harian dan penghitungan rekapitulasi keluarga kini otomatis diselaraskan ke tanggal ${day}._`,
     { reply_to_message_id: messageId }
   );
   return true;
 }
 
 /**
- * 6. Handler Perintah Slash Standar (/status, /anggaran, /rekap, dll)
+ * 7. Handler Perintah Slash Standar (/status, /anggaran, /rekap, /setup, dll)
  */
 async function handleSlashCommands(
   command: string,
@@ -302,6 +364,12 @@ async function handleSlashCommands(
     }
     case '/anggaran':
     case '/budget': {
+      await handleAnggaranCommand(chatId, supabase, householdId, monthStartDay);
+      break;
+    }
+    case '/setup':
+    case '/pos': {
+      // Menampilkan checklist kelengkapan setup pos anggaran
       await handleAnggaranCommand(chatId, supabase, householdId, monthStartDay);
       break;
     }
@@ -541,7 +609,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    // 9. Handler Perintah Slash
+    // 9. Handler Perintah Set Tanggal Gajian
+    const wasHandledAsSetGajian = await handleSetGajianFlow(rawText, chatId, message.message_id, supabase, householdId);
+    if (wasHandledAsSetGajian) {
+      return NextResponse.json({ ok: true });
+    }
+
+    // 10. Handler Perintah Slash
     if (rawText.startsWith('/')) {
       const commandPart = rawText.split(/\s+/)[0].toLowerCase();
       const command = commandPart.split('@')[0];
