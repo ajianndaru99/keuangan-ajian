@@ -12,7 +12,7 @@ import { parseNotificationPayload } from '@/lib/ai/notification-parser';
 import { evaluateBudgetAlert, type BudgetAlert, type ReviewAlert } from '@/lib/budget/budget-guard';
 import { formatRupiah } from '@/lib/utils';
 import { isTelegramConfigured, broadcastToAllowedChats } from '@/lib/telegram/bot';
-import { formatOverbudgetAlert } from '@/lib/telegram/formatters';
+import { formatOverbudgetAlert, formatExpenseAlertMessage } from '@/lib/telegram/formatters';
 
 export const dynamic = 'force-dynamic';
 
@@ -444,8 +444,35 @@ export async function POST(req: NextRequest) {
 
         // Evaluasi ambang batas anggaran jika pengeluaran riil
         if (direction === 'out' && amount > 0) {
+          const catName = categories?.find(c => c.id === suggestedCategoryId)?.name || merchant || 'Lainnya';
+          const accName = accounts?.find(a => a.id === accountId)?.name || 'Akun Keluarga';
+
+          // 1. Kirim Notifikasi Pengeluaran Realtime ke Telegram (Hanya untuk Uang Keluar Sah / FIX)
+          if (isTelegramConfigured() && newTransaction?.id) {
+            const alertMsg = formatExpenseAlertMessage({
+              merchant,
+              amount,
+              categoryName: catName,
+              accountName: accName,
+              sourceDevice,
+            });
+
+            broadcastToAllowedChats(alertMsg, {
+              reply_markup: {
+                inline_keyboard: [
+                  [
+                    { text: '✅ Benar & Sesuai', callback_data: `tx_ok:${newTransaction.id}` },
+                    { text: '❌ Salah / Bukan Belanja', callback_data: `tx_wrong_menu:${newTransaction.id}` },
+                  ],
+                ],
+              },
+            }).catch((tErr) => {
+              console.warn('[Telegram Broadcast Expense Alert Warn]:', tErr);
+            });
+          }
+
+          // 2. Evaluasi Ambang Batas Anggaran
           try {
-            const catName = categories?.find(c => c.id === suggestedCategoryId)?.name || merchant || 'Lainnya';
             budgetAlert = await evaluateBudgetAlert(supabase, householdId, catName, transactionDate);
 
             // Memicu notifikasi darurat ke Telegram jika batas anggaran mencapai 100%

@@ -3,10 +3,22 @@
 // Native Fetch Client untuk Komunikasi dengan Telegram Bot API
 // ==============================================================================
 
+export interface TelegramInlineKeyboardButton {
+  text: string;
+  callback_data?: string;
+  url?: string;
+}
+
+export interface TelegramReplyMarkup {
+  inline_keyboard?: TelegramInlineKeyboardButton[][];
+  force_reply?: boolean;
+}
+
 export interface TelegramSendMessageOptions {
   parse_mode?: 'Markdown' | 'HTML' | 'MarkdownV2';
   disable_web_page_preview?: boolean;
   reply_to_message_id?: number;
+  reply_markup?: TelegramReplyMarkup;
 }
 
 export interface TelegramApiResponse<T = unknown> {
@@ -64,6 +76,7 @@ export async function sendTelegramMessage(
     parse_mode: options.parse_mode || 'Markdown',
     disable_web_page_preview: options.disable_web_page_preview ?? true,
     ...(options.reply_to_message_id ? { reply_to_message_id: options.reply_to_message_id } : {}),
+    ...(options.reply_markup ? { reply_markup: options.reply_markup } : {}),
   };
 
   try {
@@ -112,5 +125,114 @@ export async function broadcastToAllowedChats(
   }
 
   return { sentCount, errors };
+}
+
+/**
+ * Mengubah isi pesan teks yang sudah terkirim (misal setelah tombol inline diklik)
+ */
+export async function editTelegramMessageText(
+  chatId: string | number,
+  messageId: number,
+  text: string,
+  options: TelegramSendMessageOptions = {}
+): Promise<{ success: boolean; error?: string }> {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  if (!token) return { success: false, error: 'TELEGRAM_BOT_TOKEN belum disetel.' };
+
+  const endpoint = `https://api.telegram.org/bot${token}/editMessageText`;
+  const payload = {
+    chat_id: chatId,
+    message_id: messageId,
+    text,
+    parse_mode: options.parse_mode || 'Markdown',
+    disable_web_page_preview: options.disable_web_page_preview ?? true,
+    ...(options.reply_markup ? { reply_markup: options.reply_markup } : {}),
+  };
+
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data: TelegramApiResponse = await response.json().catch(() => ({ ok: false }));
+    if (!response.ok || !data.ok) {
+      return { success: false, error: data.description || 'Gagal mengubah pesan' };
+    }
+    return { success: true };
+  } catch (err: unknown) {
+    return { success: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+/**
+ * Merespons interaksi callback query dari tombol inline (menghilangkan status loading tombol di Telegram)
+ */
+export async function answerCallbackQuery(
+  callbackQueryId: string,
+  text?: string,
+  showAlert: boolean = false
+): Promise<{ success: boolean; error?: string }> {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  if (!token) return { success: false, error: 'TELEGRAM_BOT_TOKEN belum disetel.' };
+
+  const endpoint = `https://api.telegram.org/bot${token}/answerCallbackQuery`;
+  const payload = {
+    callback_query_id: callbackQueryId,
+    ...(text ? { text } : {}),
+    show_alert: showAlert,
+  };
+
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data: TelegramApiResponse = await response.json().catch(() => ({ ok: false }));
+    return { success: Boolean(data.ok) };
+  } catch (err: unknown) {
+    return { success: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+/**
+ * Mendapatkan URL unduh file gambar dari Telegram API
+ */
+export async function getTelegramFileUrl(fileId: string): Promise<string | null> {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  if (!token) return null;
+
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${token}/getFile?file_id=${fileId}`);
+    const data = await res.json();
+    if (data.ok && data.result?.file_path) {
+      return `https://api.telegram.org/file/bot${token}/${data.result.file_path}`;
+    }
+  } catch (err) {
+    console.warn('[Telegram getFile error]:', err);
+  }
+  return null;
+}
+
+/**
+ * Mengunduh file dari Telegram sebagai Base64 string untuk diproses oleh Vision AI
+ */
+export async function downloadTelegramFileAsBase64(fileId: string): Promise<{ base64: string; mimeType: string } | null> {
+  const fileUrl = await getTelegramFileUrl(fileId);
+  if (!fileUrl) return null;
+
+  try {
+    const res = await fetch(fileUrl);
+    if (!res.ok) return null;
+    const arrayBuffer = await res.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const base64 = buffer.toString('base64');
+    const mimeType = res.headers.get('content-type') || 'image/jpeg';
+    return { base64, mimeType };
+  } catch (err) {
+    console.warn('[Telegram downloadFile error]:', err);
+    return null;
+  }
 }
 

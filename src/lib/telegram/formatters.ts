@@ -284,3 +284,83 @@ Pos pengeluaran *${categoryName}* telah melampaui batas 100% yang disepakati:
 Mohon jeda atau tahan sementara pengeluaran non-esensial pada pos ini hingga siklus gajian berikutnya tiba. 🙏`;
 }
 
+/**
+ * Format Pesan Real-time Alert Pengeluaran Baru dengan Tombol Interaktif
+ */
+export function formatExpenseAlertMessage(tx: {
+  merchant: string;
+  amount: number;
+  categoryName: string;
+  accountName: string;
+  sourceDevice?: string;
+}): string {
+  const deviceBadge = tx.sourceDevice ? (tx.sourceDevice.includes('istri') ? '(Istri)' : '(Suami)') : '';
+  return `💸 *PENGELUARAN BARU TERDETEKSI*
+
+🛒 *Merchant:* ${tx.merchant}
+💰 *Nominal:* \`${formatRupiah(tx.amount)}\`
+📁 *Kategori:* ${tx.categoryName}
+🏦 *Sumber:* ${tx.accountName} ${deviceBadge}
+
+_Apakah hasil pencatatan ini sudah sesuai?_`;
+}
+
+/**
+ * Format Pesan Pengeluaran Terverifikasi
+ */
+export function formatExpenseVerifiedMessage(tx: {
+  merchant: string;
+  amount: number;
+  categoryName: string;
+  accountName: string;
+  verifiedBy?: string;
+}): string {
+  return `💸 *PENGELUARAN TERVERIFIKASI* ✅
+
+🛒 *Merchant:* ${tx.merchant}
+💰 *Nominal:* \`${formatRupiah(tx.amount)}\`
+📁 *Kategori:* ${tx.categoryName}
+🏦 *Sumber:* ${tx.accountName}
+
+_Diverifikasi oleh ${tx.verifiedBy || 'Keluarga'} (Status: Reconciled)_`;
+}
+
+/**
+ * Format Pesan Pengeluaran Ditolak / Dibatalkan
+ */
+export function formatExpenseRejectedMessage(tx: {
+  merchant: string;
+  amount: number;
+  reason: string;
+  learnedByAi?: boolean;
+}): string {
+  const aiNote = tx.learnedByAi
+    ? `\n\n💡 _Pola teks ini telah dipelajari oleh AI agar otomatis diabaikan di kemudian hari._`
+    : '';
+
+  return `❌ *PENGELUARAN DIBATALKAN*
+
+🛒 *Merchant:* ${tx.merchant}
+💰 *Nominal:* \`${formatRupiah(tx.amount)}\`
+📝 *Alasan:* ${tx.reason}${aiNote}`;
+}
+
+/**
+ * Format Pesan Hasil Pemindaian Foto Struk / Bukti Transfer
+ */
+export function formatReceiptScanSuccessMessage(result: {
+  merchant: string;
+  amount: number;
+  categoryName: string;
+  accountName: string;
+}): string {
+  return `📸 *STRUK BERHASIL DIPINDAI*
+
+🛒 *Merchant:* ${result.merchant}
+💰 *Total Belanja:* \`${formatRupiah(result.amount)}\`
+📁 *Kategori:* ${result.categoryName}
+🏦 *Sumber:* ${result.accountName}
+
+_Data telah dicatat. Apakah hasil pembacaan ini sudah benar?_`;
+}
+

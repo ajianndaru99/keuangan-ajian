@@ -12,13 +12,26 @@ import {
   formatBillReminderNudge,
   formatMidMonthNudge,
   formatOverbudgetAlert,
+  formatExpenseAlertMessage,
+  formatExpenseVerifiedMessage,
+  formatExpenseRejectedMessage,
+  formatReceiptScanSuccessMessage,
 } from '../src/lib/telegram/formatters.ts';
 import {
   isChatIdAllowed,
   getAllowedChatIds,
   isTelegramConfigured,
   sendTelegramMessage,
+  editTelegramMessageText,
+  answerCallbackQuery,
 } from '../src/lib/telegram/bot.ts';
+import {
+  parseNominal,
+  parseSetSaldoCommand,
+  parseSetAnggaranCommand,
+  processFinancialChatWithAI,
+} from '../src/lib/telegram/nlp-chat.ts';
+import type { FinancialContext } from '../src/lib/telegram/nlp-chat.ts';
 
 describe('Telegram Bot: Visual Formatters & Tipografi Finansial', () => {
   it('generateProgressBar membentuk visual progress bar karakter monospaced dengan tepat', () => {
@@ -206,6 +219,199 @@ describe('Telegram Bot: Keamanan & Whitelist Chat ID', () => {
       if (originalEnv) process.env.TELEGRAM_ALLOWED_CHAT_IDS = originalEnv;
       if (originalToken) process.env.TELEGRAM_BOT_TOKEN = originalToken;
     }
+  });
+
+  it('editTelegramMessageText memanggil endpoint editMessageText dengan benar', async () => {
+    process.env.TELEGRAM_BOT_TOKEN = 'token_edit_test';
+    const originalFetch = globalThis.fetch;
+    try {
+      globalThis.fetch = async (input, init) => {
+        const url = String(input);
+        assert.ok(url.includes('editMessageText'));
+        const body = JSON.parse(String(init?.body || '{}'));
+        assert.strictEqual(body.chat_id, 12345);
+        assert.strictEqual(body.message_id, 88);
+        assert.strictEqual(body.text, 'Pesan Baru');
+        return new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      };
+
+      const res = await editTelegramMessageText(12345, 88, 'Pesan Baru');
+      assert.strictEqual(res.success, true);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it('answerCallbackQuery memanggil endpoint answerCallbackQuery dengan benar', async () => {
+    process.env.TELEGRAM_BOT_TOKEN = 'token_cb_test';
+    const originalFetch = globalThis.fetch;
+    try {
+      globalThis.fetch = async (input, init) => {
+        const url = String(input);
+        assert.ok(url.includes('answerCallbackQuery'));
+        const body = JSON.parse(String(init?.body || '{}'));
+        assert.strictEqual(body.callback_query_id, 'cb_99');
+        assert.strictEqual(body.text, 'Notif Pop');
+        return new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      };
+
+      const res = await answerCallbackQuery('cb_99', 'Notif Pop');
+      assert.strictEqual(res.success, true);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+});
+
+describe('Telegram Bot: Format Pesan Alert Realtime & Struk Belanja', () => {
+  it('formatExpenseAlertMessage menampilkan nominal rupiah, merchant, kategori, dan tombol siap verifikasi', () => {
+    const text = formatExpenseAlertMessage({
+      merchant: 'Warung Bu Joko',
+      amount: 45000,
+      categoryName: 'Belanja Dapur',
+      accountName: 'GoPay',
+      sourceDevice: 'istri',
+    });
+
+    assert.ok(text.includes('PENGELUARAN BARU TERDETEKSI'));
+    assert.ok(text.includes('Warung Bu Joko'));
+    assert.ok(text.includes('45.000'));
+    assert.ok(text.includes('Belanja Dapur'));
+    assert.ok(text.includes('(Istri)'));
+  });
+
+  it('formatExpenseVerifiedMessage menampilkan status reconciled dan nama verifikator', () => {
+    const text = formatExpenseVerifiedMessage({
+      merchant: 'SPBU Pertamina',
+      amount: 100000,
+      categoryName: 'Transportasi/Bensin',
+      accountName: 'Bank Jago',
+      verifiedBy: 'Ajian N.',
+    });
+
+    assert.ok(text.includes('PENGELUARAN TERVERIFIKASI'));
+    assert.ok(text.includes('SPBU Pertamina'));
+    assert.ok(text.includes('100.000'));
+    assert.ok(text.includes('Ajian N.'));
+    assert.ok(text.includes('Reconciled'));
+  });
+
+  it('formatExpenseRejectedMessage menampilkan alasan penolakan dan indikator pembelajaran AI', () => {
+    const text = formatExpenseRejectedMessage({
+      merchant: 'Promo GoFood Deals',
+      amount: 0,
+      reason: 'Promo / Iklan',
+      learnedByAi: true,
+    });
+
+    assert.ok(text.includes('PENGELUARAN DIBATALKAN'));
+    assert.ok(text.includes('Promo GoFood Deals'));
+    assert.ok(text.includes('Promo / Iklan'));
+    assert.ok(text.includes('dipelajari oleh AI'));
+  });
+
+  it('formatReceiptScanSuccessMessage menampilkan hasil pembacaan Vision AI', () => {
+    const text = formatReceiptScanSuccessMessage({
+      merchant: 'Indomaret Point',
+      amount: 87500,
+      categoryName: 'Belanja Dapur',
+      accountName: 'BCA',
+    });
+
+    assert.ok(text.includes('STRUK BERHASIL DIPINDAI'));
+    assert.ok(text.includes('Indomaret Point'));
+    assert.ok(text.includes('87.500'));
+    assert.ok(text.includes('BCA'));
+  });
+});
+
+describe('Telegram Bot: NLP Parser & Perintah Cepat', () => {
+  it('parseNominal mengekstrak format angka ribuan, shorthand rb/k/jt, dan desimal', () => {
+    assert.strictEqual(parseNominal('38rb'), 38000);
+    assert.strictEqual(parseNominal('38 rb'), 38000);
+    assert.strictEqual(parseNominal('35k'), 35000);
+    assert.strictEqual(parseNominal('2jt'), 2000000);
+    assert.strictEqual(parseNominal('1,5jt'), 1500000);
+    assert.strictEqual(parseNominal('1.5jt'), 1500000);
+    assert.strictEqual(parseNominal('Rp 75.000'), 75000);
+    assert.strictEqual(parseNominal('50000'), 50000);
+    assert.strictEqual(parseNominal(''), 0);
+  });
+
+  it('parseSetSaldoCommand mengenali pola set/atur saldo rekening', () => {
+    const res1 = parseSetSaldoCommand('set saldo gopay 38rb');
+    assert.ok(res1);
+    assert.strictEqual(res1.accountName.toLowerCase(), 'gopay');
+    assert.strictEqual(res1.amount, 38000);
+
+    const res2 = parseSetSaldoCommand('atur saldo bank jago 2jt');
+    assert.ok(res2);
+    assert.strictEqual(res2.accountName.toLowerCase(), 'bank jago');
+    assert.strictEqual(res2.amount, 2000000);
+
+    const res3 = parseSetSaldoCommand('/setsaldo bca 1.500.000');
+    assert.ok(res3);
+    assert.strictEqual(res3.accountName.toLowerCase(), 'bca');
+    assert.strictEqual(res3.amount, 1500000);
+
+    // Bukan perintah set saldo
+    assert.strictEqual(parseSetSaldoCommand('halo apa kabar?'), null);
+  });
+
+  it('parseSetAnggaranCommand mengenali pola set/atur anggaran kategori', () => {
+    const res1 = parseSetAnggaranCommand('set anggaran belanja dapur 1,5jt');
+    assert.ok(res1);
+    assert.strictEqual(res1.categoryName.toLowerCase(), 'belanja dapur');
+    assert.strictEqual(res1.amount, 1500000);
+
+    const res2 = parseSetAnggaranCommand('ubah anggaran makan 800rb');
+    assert.ok(res2);
+    assert.strictEqual(res2.categoryName.toLowerCase(), 'makan');
+    assert.strictEqual(res2.amount, 800000);
+
+    const res3 = parseSetAnggaranCommand('/setanggaran dapur 2jt');
+    assert.ok(res3);
+    assert.strictEqual(res3.categoryName.toLowerCase(), 'dapur');
+    assert.strictEqual(res3.amount, 2000000);
+
+    // Bukan perintah set anggaran
+    assert.strictEqual(parseSetAnggaranCommand('tadi beli bensin'), null);
+  });
+
+  it('processFinancialChatWithAI fallback deterministik menangani pertanyaan saldo dan pagu saat offline', async () => {
+    const mockContext: FinancialContext = {
+      accounts: [
+        { name: 'GoPay', owner: 'Suami', balance: 38000 },
+        { name: 'Bank Jago', owner: 'Suami', balance: 2000000 },
+      ],
+      totalBalance: 2038000,
+      totalSpentMonth: 1200000,
+      totalBudgetLimit: 3000000,
+      daysRemaining: 15,
+      safeDailySpend: 120000,
+      categoryBudgets: [
+        { name: 'Belanja Dapur', spent: 600000, limit: 1500000, remaining: 900000 },
+      ],
+      periodLabel: 'November 2026',
+    };
+
+    // Pertanyaan Saldo
+    const resSaldo = await processFinancialChatWithAI('saldo gopay berapa?', mockContext);
+    assert.strictEqual(resSaldo.type, 'chat_answer');
+    assert.ok(resSaldo.replyText.includes('GoPay'));
+    assert.ok(resSaldo.replyText.includes('38.000'));
+
+    // Pertanyaan Anggaran
+    const resAnggaran = await processFinancialChatWithAI('sisa anggaran belanja dapur berapa?', mockContext);
+    assert.strictEqual(resAnggaran.type, 'chat_answer');
+    assert.ok(resAnggaran.replyText.includes('Belanja Dapur'));
+    assert.ok(resAnggaran.replyText.includes('900.000'));
   });
 });
 
