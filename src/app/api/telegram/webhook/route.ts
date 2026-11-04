@@ -129,14 +129,14 @@ export async function POST(req: NextRequest) {
         // Ambil Saldo Rekening
         const { data: accounts } = await supabase
           .from('accounts')
-          .select('name, owner, current_balance')
+          .select('name, owner, balance, initial_balance')
           .eq('household_id', householdId)
           .eq('is_active', true);
 
         const accountItems: AccountBalanceItem[] = (accounts || []).map((acc) => ({
           name: acc.name,
           owner: acc.owner === 'suami' ? 'Suami' : 'Istri',
-          balance: Number(acc.current_balance || 0),
+          balance: Number(acc.balance ?? acc.initial_balance ?? 0),
         }));
 
         const totalBalance = accountItems.reduce((sum, a) => sum + a.balance, 0);
@@ -163,6 +163,13 @@ export async function POST(req: NextRequest) {
         const totalBudgetLimit = (budgetData || []).reduce((sum, b) => sum + Number(b.limit_amount || 0), 0);
         const monthPercentage = totalBudgetLimit > 0 ? Math.round((totalSpentMonth / totalBudgetLimit) * 100) : 0;
 
+        // Ambil Jumlah Transaksi Pending
+        const { count: pendingCount } = await supabase
+          .from('transactions')
+          .select('id', { count: 'exact', head: true })
+          .eq('household_id', householdId)
+          .eq('status', 'pending');
+
         // Hitung Safe-to-Spend Harian
         const now = new Date();
         const msRemaining = Math.max(0, dateRange.endDate.getTime() - now.getTime());
@@ -179,6 +186,7 @@ export async function POST(req: NextRequest) {
           daysRemaining,
           safeDailySpend,
           periodLabel: dateRange.label,
+          pendingCount: pendingCount || 0,
         });
 
         await sendTelegramMessage(chatId, text);

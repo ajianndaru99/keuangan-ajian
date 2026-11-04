@@ -28,6 +28,7 @@ export interface StatusSummaryData {
   daysRemaining: number;
   safeDailySpend: number;
   periodLabel: string;
+  pendingCount?: number;
 }
 
 export interface RekapSummaryData {
@@ -64,7 +65,7 @@ export function generateProgressBar(percentage: number, length: number = 10): st
 }
 
 /**
- * Format Pesan Perintah /status atau /cek
+ * Format Pesan Perintah /status atau /cek (Ringkas & Representatif)
  */
 export function formatStatusMessage(data: StatusSummaryData): string {
   const lines: string[] = [];
@@ -72,28 +73,32 @@ export function formatStatusMessage(data: StatusSummaryData): string {
   lines.push(`📊 *DETAK FINANSIAL KELUARGA*`);
   lines.push(`_Periode: ${data.periodLabel}_\n`);
 
-  lines.push(`💰 *Saldo Dompet & Kas Bersih:*`);
+  // Tab: Dompet & Akun
+  lines.push(`💰 *Total Kas Siap Pakai:* \`${formatRupiah(data.totalBalance)}\``);
   if (data.accounts.length === 0) {
-    lines.push(`_Belum ada data rekening terdaftar._`);
+    lines.push(`🏦 _Belum ada data rekening terdaftar._`);
   } else {
     for (const acc of data.accounts) {
-      lines.push(`• ${acc.name} (${acc.owner}): \`${formatRupiah(acc.balance)}\``);
+      lines.push(`🏦 • ${acc.name} (${acc.owner}): \`${formatRupiah(acc.balance)}\``);
     }
-  }
-  lines.push(`*Total Kas Siap Pakai:* \`${formatRupiah(data.totalBalance)}\`\n`);
-
-  lines.push(`💳 *Realisasi Anggaran Bulan Ini:*`);
-  lines.push(`• Total Belanja: \`${formatRupiah(data.totalSpentMonth)}\``);
-  if (data.totalBudgetLimit > 0) {
-    lines.push(`• Batas Pagu: \`${formatRupiah(data.totalBudgetLimit)}\``);
-    lines.push(`• Utilisasi: ${generateProgressBar(data.monthPercentage)}`);
   }
   lines.push('');
 
-  lines.push(`🎯 *Daya Belanja Harian Aman (Safe-to-Spend):*`);
-  lines.push(`• Sisa Waktu Menuju Gajian: *${data.daysRemaining} hari*`);
-  lines.push(`• Batas Belanja Harian: \`${formatRupiah(data.safeDailySpend)} / hari\``);
-  lines.push(`_Jaga ritme pengeluaran di bawah batas harian agar surplus tetap terjaga._`);
+  // Tab: Anggaran Belanja
+  if (data.totalBudgetLimit > 0) {
+    lines.push(`💳 *Belanja Bulan Ini:* \`${formatRupiah(data.totalSpentMonth)}\` / \`${formatRupiah(data.totalBudgetLimit)}\``);
+    lines.push(`📊 *Utilisasi:* ${generateProgressBar(data.monthPercentage)}`);
+  } else {
+    lines.push(`💳 *Total Belanja Bulan Ini:* \`${formatRupiah(data.totalSpentMonth)}\``);
+  }
+
+  // Safe-to-Spend
+  lines.push(`🎯 *Batas Aman Harian:* \`${formatRupiah(data.safeDailySpend)} / hari\` _(${data.daysRemaining} hari ke gajian)_`);
+
+  // Tab: Transactions / Inbox Pending (jika ada)
+  if (data.pendingCount && data.pendingCount > 0) {
+    lines.push(`📥 *Inbox Pending:* _${data.pendingCount} transaksi butuh review_ (\`/inbox\`)`);
+  }
 
   return lines.join('\n');
 }
@@ -108,23 +113,21 @@ export function formatAnggaranMessage(categories: CategoryBudgetItem[], periodLa
   lines.push(`_Periode: ${periodLabel}_\n`);
 
   if (categories.length === 0) {
-    lines.push(`_Belum ada pos anggaran aktif yang disetel bulan ini._`);
-    lines.push(`Atur batas anggaran melalui dasbor menu Anggaran Belanja.`);
+    lines.push(`⚠️ _Belum ada pos anggaran aktif yang disetel bulan ini._`);
+    lines.push(`💡 Atur batas anggaran melalui menu *Anggaran Belanja* di dasbor.`);
     return lines.join('\n');
   }
 
   for (const cat of categories) {
-    lines.push(`${cat.emoji} *${cat.name}*`);
     if (cat.limit > 0) {
-      lines.push(`${generateProgressBar(cat.percentage)}`);
-      lines.push(`Terpakai: \`${formatRupiah(cat.spent)}\` / \`${formatRupiah(cat.limit)}\``);
+      lines.push(`${cat.emoji} *${cat.name}* • ${generateProgressBar(cat.percentage)}`);
+      lines.push(`   Terpakai: \`${formatRupiah(cat.spent)}\` / \`${formatRupiah(cat.limit)}\``);
     } else {
-      lines.push(`Terpakai: \`${formatRupiah(cat.spent)}\` _(Batas belum disetel)_`);
+      lines.push(`${cat.emoji} *${cat.name}*: \`${formatRupiah(cat.spent)}\` _(Tanpa pagu)_`);
     }
-    lines.push('');
   }
 
-  lines.push(`_Ketik /status untuk ringkasan kas atau /rekap untuk analisis mingguan._`);
+  lines.push(`\n💡 _Ketik /status untuk ringkasan kas atau /rekap untuk analisis tren._`);
   return lines.join('\n');
 }
 
@@ -137,21 +140,19 @@ export function formatRekapMessage(data: RekapSummaryData): string {
   lines.push(`📈 *REKAP PENGELUARAN MINGGUAN*`);
   lines.push(`_Rentang: ${data.weekLabel}_\n`);
 
-  lines.push(`• Belanja Minggu Ini: *${formatRupiah(data.currentWeekTotal)}*`);
-  lines.push(`• Belanja Minggu Lalu: *${formatRupiah(data.previousWeekTotal)}*`);
+  lines.push(`🛒 *Minggu Ini:* \`${formatRupiah(data.currentWeekTotal)}\``);
+  lines.push(`⏮️ *Minggu Lalu:* \`${formatRupiah(data.previousWeekTotal)}\``);
 
   if (data.previousWeekTotal > 0) {
     const icon = data.isIncrease ? '📈 Naik' : '📉 Turun';
-    lines.push(`• Perubahan: *${icon} ${data.comparisonPercent}%* dibanding minggu lalu.`);
+    lines.push(`📊 *Tren:* ${icon} ${data.comparisonPercent}% dibanding minggu lalu.`);
   }
-  lines.push('');
 
   if (data.topCategoryName && data.topCategoryAmount) {
-    lines.push(`🏆 *Pos Pengeluaran Terbesar:*`);
-    lines.push(`• ${data.topCategoryName}: \`${formatRupiah(data.topCategoryAmount)}\`\n`);
+    lines.push(`🏆 *Pos Terbesar:* ${data.topCategoryName} (\`${formatRupiah(data.topCategoryAmount)}\`)`);
   }
 
-  lines.push(`_Evaluasi bersama dan prioritaskan kebutuhan esensial keluarga._`);
+  lines.push(`\n🎯 _Prioritaskan pos esensial keluarga agar cash flow tetap sehat._`);
   return lines.join('\n');
 }
 
@@ -170,15 +171,15 @@ export function formatInboxMessage(data: InboxSummaryData): string {
   }
 
   lines.push(`\n⚠️ *Perhatian Dibutuhkan:*`);
-  lines.push(`• Transaksi Pending Review: *${data.pendingCount} transaksi*`);
+  lines.push(`⏳ *Pending Review:* *${data.pendingCount} transaksi*`);
   if (data.unreviewedRawCount > 0) {
-    lines.push(`• Notifikasi Mentah Belum Terurai: *${data.unreviewedRawCount} mutasi*`);
+    lines.push(`📱 *Notifikasi Mentah:* *${data.unreviewedRawCount} mutasi*`);
   }
   if (data.oldestPendingDate) {
-    lines.push(`• Transaksi Tertua Menunggu: _${data.oldestPendingDate}_`);
+    lines.push(`🕒 *Tertua:* _${data.oldestPendingDate}_`);
   }
 
-  lines.push(`\nSilakan buka Dasbor Keuangan di HP/laptop untuk verifikasi atau gunakan tombol *Rekonsiliasi AI* untuk menyetujui sekaligus.`);
+  lines.push(`\n👉 _Buka menu *Transactions* di dasbor untuk verifikasi atau gunakan *Rekonsiliasi AI*._`);
   return lines.join('\n');
 }
 
@@ -188,23 +189,23 @@ export function formatInboxMessage(data: InboxSummaryData): string {
 export function formatHelpMessage(): string {
   return `🤖 *ASISTEN KEUANGAN KELUARGA*
 
-Halo! Saya adalah bot asisten keuangan keluarga yang terhubung langsung ke dasbor finansial Anda.
+Halo! Saya bot asisten keuangan yang terhubung langsung ke dasbor keluarga Anda.
 
-*Perintah Interaktif yang Tersedia:*
-• \`/status\` atau \`/cek\` : Ringkasan kas, daya belanja harian (_safe-to-spend_), dan utilisasi anggaran.
-• \`/anggaran\` : Pantau progress bar kuota belanja 8 kategori utama.
-• \`/rekap\` : Evaluasi belanja 7 hari terakhir dan perbandingan minggu lalu.
-• \`/inbox\` : Cek mutasi bank gantung yang butuh konfirmasi.
-• \`/help\` : Menampilkan panduan bantuan ini.
+📋 *Menu Perintah Cepat:*
+📊 \`/status\` — Ringkasan kas, belanja & batas aman harian
+📋 \`/anggaran\` — Kuota belanja 8 kategori utama
+📈 \`/rekap\` — Pengeluaran 7 hari & tren vs minggu lalu
+📥 \`/inbox\` — Cek transaksi gantung yang butuh konfirmasi
+💡 \`/help\` — Panduan bantuan perintah ini
 
-*Notifikasi Otomatis Terjadwal (08:00 WIB):*
-1. *Senin Pagi* : Rekap Finansial Mingguan (_Weekly Digest_).
-2. *Tanggal 18* : Pengingat Tagihan Rutin H-2 (PLN, WiFi, BPJS).
-3. *Tanggal Gajian* : Pengingat Menabung Awal Bulan (_Pay Yourself First_).
-4. *H+15 Gajian* : Cek Ritme Belanja Tengah Bulan (_Mid-Month Burn Rate_).
-5. *Real-time* : Darurat Peringatan Kuota Anggaran Habis 100%.
+⏰ *Jadwal Pengingat Otomatis (08:00 WIB):*
+☕ *Senin Pagi* — Rekap finansial mingguan
+⚡ *Tgl 18* — Pengingat tagihan rutin (PLN, WiFi, BPJS)
+🎉 *Tgl Gajian* — Pengingat menabung (Pay Yourself First)
+⏳ *H+15* — Cek ritme belanja tengah bulan
+🚨 *Real-time* — Peringatan darurat overbudget 100%
 
-_Kerahasiaan data terjamin melalui enkripsi dan whitelist chat ID resmi keluarga._`;
+🔒 _Data terenkripsi dan terlindungi whitelist chat ID keluarga._`;
 }
 
 /**
