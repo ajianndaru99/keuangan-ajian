@@ -207,8 +207,17 @@ export function runLocalRuleBasedReconciliation(
       const a = items[i];
       const b = items[j];
 
+      // Cek apakah berasal dari akun/perangkat yang sama ATAU akun bersama seperti Kantong Bersama Bank Jago (diterima HP Suami & HP Istri)
+      const isBothJagoOrShared =
+        (a.account.toLowerCase().includes('jago') && b.account.toLowerCase().includes('jago')) ||
+        ((a.text.toLowerCase().includes('jago') || a.text.includes('1500 746')) &&
+         (b.text.toLowerCase().includes('jago') || b.text.includes('1500 746'))) ||
+        a.account.toLowerCase().includes('bersama') ||
+        b.account.toLowerCase().includes('bersama');
+
       const isSameAccountOrDevice =
         a.account === b.account ||
+        isBothJagoOrShared ||
         (a.account.toLowerCase().includes('suami') && b.account.toLowerCase().includes('suami')) ||
         (a.account.toLowerCase().includes('istri') && b.account.toLowerCase().includes('istri'));
 
@@ -306,7 +315,7 @@ ATURAN REKONSILIASI:
 1. DETEKSI TRANSFER INTERNAL SESAMA REKENING:
    - Jika ada transaksi OUT dan transaksi IN dengan nominal sama pada hari yang sama (misal Suami transfer ke Istri, atau transfer antar rekening pribadi), pasangkan keduanya dalam 'internalTransfers'.
 2. DETEKSI NOTIFIKASI DOBEL / GANDA DI WAKTU BERSAMAAN:
-   - Jika ada 2 transaksi dari akun/perangkat yang sama dengan nominal sama dan waktu bersamaan atau berdekatan (selisih <= 3 menit): ini adalah NOTIFIKASI GANDA dari satu transaksi yang sama (contoh nyata: notifikasi 'your Daily Pocket' dan 'warung sayur mas Eko' pada waktu bersamaan dengan nominal sama).
+   - Jika ada 2 transaksi dari akun/perangkat yang sama ATAU dari akun bersama (seperti Kantong Bersama Bank Jago yang diterima di HP Suami dan HP Istri secara bersamaan) dengan nominal sama dan waktu bersamaan atau berdekatan (selisih <= 3 menit): ini adalah NOTIFIKASI GANDA dari satu transaksi yang sama (contoh nyata: notifikasi 'your Daily Pocket' dan 'warung sayur mas Eko', atau notifikasi Jago yang masuk di HP Suami dan HP Istri).
    - Masukkan ke 'duplicates':
      * 'keepTxId': ID transaksi yang memiliki nama merchant spesifik/asli (contoh: 'warung sayur mas Eko'). JANGAN simpan nama sumber/kantong seperti 'your Daily Pocket', 'Kantong Utama', atau 'Saldo'.
      * 'ignoreTxId': ID notifikasi duplikat/konfirmasi kantong (contoh: 'your Daily Pocket') untuk diabaikan.

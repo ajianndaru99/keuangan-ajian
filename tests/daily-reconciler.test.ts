@@ -230,4 +230,34 @@ describe('Daily AI Reconciler: Pembatasan Kuota & Logika Parsing', () => {
     const isReconciled = result.reconciled.some((r) => r.txId === 'tx-real-merchant');
     assert.strictEqual(isReconciled, true);
   });
+
+  it('runLocalRuleBasedReconciliation mendeteksi duplikasi Kantong Bersama Bank Jago yang diterima di HP Suami dan HP Istri sekaligus', () => {
+    const sharedJagoItems: CompactTransactionItem[] = [
+      {
+        id: 'jago-hp-suami',
+        time: '14:20',
+        account: 'Bank Jago (hp_suami)',
+        direction: 'out',
+        amount: 85000,
+        merchant: 'Super Indo',
+        text: 'Super Indo: You have paid Rp 85.000. Need help? Call 1500 746.',
+      },
+      {
+        id: 'jago-hp-istri',
+        time: '14:20',
+        account: 'Bank Jago (hp_istri)',
+        direction: 'out',
+        amount: 85000,
+        merchant: 'Super Indo',
+        text: 'Super Indo: You have paid Rp 85.000. Need help? Call 1500 746.',
+      },
+    ];
+
+    const result = runLocalRuleBasedReconciliation(sharedJagoItems, ['Belanja Dapur', 'Makan & Jajan']);
+
+    // Harus terdeteksi sebagai 1 transaksi duplikat dan diabaikan salah satunya
+    assert.strictEqual(result.duplicates.length, 1);
+    assert.strictEqual(result.reconciled.length, 1);
+    assert.strictEqual(result.reconciled[0].txId, 'jago-hp-suami');
+  });
 });
