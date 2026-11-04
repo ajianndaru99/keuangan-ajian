@@ -55,16 +55,16 @@ export default function TableToolbar({
           </p>
         </div>
 
-        {/* 3 Tombol Aksi: Kalender, Rekonsiliasi AI, dan Tambah Transaksi */}
-        <div className="flex items-center gap-2 flex-wrap">
+        {/* 3 Tombol Aksi: Kalender, Rekonsiliasi AI, dan Tambah Transaksi (Selalu 1 Baris Seimbang & Rapi di HP) */}
+        <div className="flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto">
           {/* 1. Tombol Kalender */}
           <button
             onClick={onOpenDateModal}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 sm:py-2 rounded-xl border border-[var(--border-color)] bg-[var(--surface-1)] text-xs font-semibold text-[var(--text-main)] hover:bg-[var(--surface-2)] transition-colors shadow-2xs shrink-0"
-            title="Filter Tanggal"
+            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl border border-[var(--border-color)] bg-[var(--surface-1)] text-xs font-semibold text-[var(--text-main)] hover:bg-[var(--surface-2)] transition-colors shadow-2xs min-w-0"
+            title="Filter Tanggal Transaksi"
           >
-            <Calendar className="w-3.5 h-3.5 text-[var(--accent-color)]" />
-            <span className="truncate max-w-[120px] sm:max-w-none">{dateRange.label}</span>
+            <Calendar className="w-3.5 h-3.5 shrink-0 text-[var(--accent-color)]" />
+            <span className="truncate">{dateRange.label}</span>
           </button>
 
           {/* 2. Tombol Rekonsiliasi AI */}
@@ -72,7 +72,7 @@ export default function TableToolbar({
             <button
               onClick={onRunAiReconcile}
               disabled={isAiReconciling}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 sm:py-2 rounded-xl border text-xs font-semibold transition-all shadow-2xs shrink-0 ${
+              className={`shrink-0 inline-flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl border text-xs font-semibold transition-all shadow-2xs ${
                 isAiReconciling
                   ? 'border-purple-500/40 bg-purple-500/10 text-purple-600 dark:text-purple-300 animate-pulse cursor-wait'
                   : aiRemainingQuota === 0
@@ -85,9 +85,15 @@ export default function TableToolbar({
                   : `Rekonsiliasi AI Gemini (Sisa: ${aiRemainingQuota}x)`
               }
             >
-              <Sparkles className={`w-3.5 h-3.5 ${isAiReconciling ? 'animate-spin' : 'text-purple-600 dark:text-purple-400'}`} />
-              <span>{isAiReconciling ? 'Audit...' : 'Rekonsiliasi AI'}</span>
-              <span className={`px-1.5 py-0.2 text-[10px] font-bold rounded-full ${
+              <Sparkles className={`w-3.5 h-3.5 shrink-0 ${isAiReconciling ? 'animate-spin' : 'text-purple-600 dark:text-purple-400'}`} />
+              <span className="truncate">
+                {isAiReconciling ? 'Audit...' : (
+                  <>
+                    <span className="hidden sm:inline">Rekonsiliasi </span>AI
+                  </>
+                )}
+              </span>
+              <span className={`px-1.5 py-0.2 text-[10px] font-bold rounded-full shrink-0 ${
                 aiRemainingQuota === 0
                   ? 'bg-zinc-500/20 text-zinc-500'
                   : aiRemainingQuota === 1
@@ -102,9 +108,9 @@ export default function TableToolbar({
           {/* 3. Tombol Tambah Transaksi */}
           <button
             onClick={onAddTransaction}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 sm:py-2 rounded-xl bg-[var(--accent-color)] hover:opacity-90 active:scale-95 text-white dark:text-[#0B0F17] text-xs font-bold transition-all shadow-sm shrink-0 ml-auto sm:ml-0"
+            className="shrink-0 inline-flex items-center justify-center gap-1.5 px-3 sm:px-3.5 py-2 rounded-xl bg-[var(--accent-color)] hover:opacity-90 active:scale-95 text-white dark:text-[#0B0F17] text-xs font-bold transition-all shadow-sm"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-4 h-4 shrink-0" />
             <span>Tambah</span>
           </button>
         </div>

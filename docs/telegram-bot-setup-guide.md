@@ -117,3 +117,4 @@ Bot akan mengirim pesan pengingat ke grup setiap hari pukul **08:00 WIB** secara
   3. Di grup Telegram, jika bot tidak bisa membaca pesan, buka `@BotFather` > `/mybots` > pilih bot Anda > **Bot Settings** > **Group Privacy** > pilih **Turn off** agar bot dapat mendengarkan perintah di dalam grup.
 * **Pesan "Akses Ditolak"**:
   Artinya Chat ID pengirim belum dimasukkan ke `TELEGRAM_ALLOWED_CHAT_IDS`. Tambahkan ID tersebut ke environment variable lalu redeploy.
+
