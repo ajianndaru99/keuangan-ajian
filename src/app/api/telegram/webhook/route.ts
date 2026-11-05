@@ -33,6 +33,8 @@ import {
   handleSetSaldoFlow,
   handleSetAnggaranFlow,
   handleSetGajianFlow,
+  shouldProcessChat,
+  stripBotMentions,
 } from '@/lib/telegram/settings-commands.ts';
 import { applyAccountBalanceDelta } from '@/lib/account-balance.ts';
 import { generateScreenshotDedupeHash, suggestCategoryForMerchant } from '@/lib/vision/gemini.ts';
@@ -94,26 +96,7 @@ function isWebhookAuthorized(req: NextRequest): boolean {
 }
 
 /**
- * 2. Filter Anti-Spam: Pastikan pesan grup memang ditujukan untuk Bot
- */
-function shouldProcessChat(message: TelegramMessage, rawText: string): boolean {
-  // Chat pribadi 1-on-1 dengan bot selalu diproses
-  if (message.chat.type === 'private') return true;
-
-  // Jika di grup: proses jika me-reply bot atau menyebut bot
-  if (message.reply_to_message || rawText.includes('@')) return true;
-
-  // Jika diawali kata pemicu finansial eksplisit
-  const lower = rawText.toLowerCase().trim();
-  const triggers = [
-    'catat', 'tanya', 'cek', 'saldo', 'anggaran', 'budget',
-    'rekap', 'set', 'ubah', 'atur', 'beli', 'bayar', 'gaji', 'transfer',
-  ];
-  return triggers.some((t) => lower.startsWith(t));
-}
-
-/**
- * 3. Handler Perintah Slash Standar (/status, /anggaran, /rekap, /setup, dll)
+ * 2. Handler Perintah Slash Standar (/status, /anggaran, /rekap, /setup, dll)
  */
 async function handleSlashCommands(
   command: string,
@@ -372,31 +355,39 @@ export async function POST(req: NextRequest) {
 
     const rawText = message.text.trim();
 
-    // 6. Handler Balasan Penolakan Custom (Force Reply)
+    // 6. Verifikasi Kebijakan Respon Grup: Diam jika tidak ditag (Anti-Nyamber)
+    if (!shouldProcessChat(message, rawText)) {
+      return NextResponse.json({ ok: true });
+    }
+
+    // Bersihkan mention (@username) agar pemrosesan perintah dan NLP bersih alami
+    const cleanedText = stripBotMentions(rawText);
+
+    // 7. Handler Balasan Penolakan Custom (Force Reply)
     const wasHandledAsReply = await handleCustomRejectionReply(message, supabase, householdId);
     if (wasHandledAsReply) {
       return NextResponse.json({ ok: true });
     }
 
-    // 7. Handler Perintah Set Saldo
-    const wasHandledAsSetSaldo = await handleSetSaldoFlow(rawText, chatId, message.message_id, supabase, householdId);
+    // 8. Handler Perintah Set Saldo
+    const wasHandledAsSetSaldo = await handleSetSaldoFlow(cleanedText, chatId, message.message_id, supabase, householdId);
     if (wasHandledAsSetSaldo) {
       return NextResponse.json({ ok: true });
     }
 
-    // 8. Handler Perintah Set Anggaran
-    const wasHandledAsSetAnggaran = await handleSetAnggaranFlow(rawText, chatId, message.message_id, supabase, householdId, monthStartDay);
+    // 9. Handler Perintah Set Anggaran
+    const wasHandledAsSetAnggaran = await handleSetAnggaranFlow(cleanedText, chatId, message.message_id, supabase, householdId, monthStartDay);
     if (wasHandledAsSetAnggaran) {
       return NextResponse.json({ ok: true });
     }
 
-    // 9. Handler Perintah Set Tanggal Gajian
-    const wasHandledAsSetGajian = await handleSetGajianFlow(rawText, chatId, message.message_id, supabase, householdId);
+    // 10. Handler Perintah Set Tanggal Gajian
+    const wasHandledAsSetGajian = await handleSetGajianFlow(cleanedText, chatId, message.message_id, supabase, householdId);
     if (wasHandledAsSetGajian) {
       return NextResponse.json({ ok: true });
     }
 
-    // 10. Handler Perintah Slash
+    // 11. Handler Perintah Slash
     if (rawText.startsWith('/')) {
       const commandPart = rawText.split(/\s+/)[0].toLowerCase();
       const command = commandPart.split('@')[0];
@@ -404,12 +395,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    // 10. Filter Anti-Spam Obrolan Grup & Natural Language AI Chat
-    if (!shouldProcessChat(message, rawText)) {
-      return NextResponse.json({ ok: true });
-    }
-
-    await handleNaturalLanguageFlow(rawText, message, supabase, householdId, monthStartDay);
+    // 12. Natural Language AI Chat (Gemini Flash)
+    await handleNaturalLanguageFlow(cleanedText, message, supabase, householdId, monthStartDay);
     return NextResponse.json({ ok: true });
   } catch (err: unknown) {
     console.error('[Telegram Webhook Exception]:', err);

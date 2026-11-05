@@ -36,6 +36,10 @@ export type NLPProcessResult =
       replyText: string;
     }
   | {
+      type: 'off_topic';
+      replyText: string;
+    }
+  | {
       type: 'unknown';
       replyText: string;
     };
@@ -118,7 +122,7 @@ export function parseSetGajianCommand(rawText: string): number | null {
 }
 
 /**
- * Prompt instruksi sistem untuk Google Gemini Flash (Chat NLP Finansial)
+ * Prompt instruksi sistem untuk Google Gemini Flash (Chat NLP Finansial & Guardrail)
  */
 function buildSystemPrompt(context: FinancialContext): string {
   const accountLines = context.accounts
@@ -129,14 +133,19 @@ function buildSystemPrompt(context: FinancialContext): string {
     .map((b) => `- ${b.name}: Terpakai ${formatRupiah(b.spent)} dari pagu ${formatRupiah(b.limit)} (Sisa: ${formatRupiah(b.remaining)})`)
     .join('\n');
 
-  return `Anda adalah asisten keuangan keluarga Indonesia cerdas, ramah, dan ringkas.
+  return `Anda adalah asisten keuangan keluarga Indonesia cerdas, ramah, dan teliti untuk keluarga Ajian.
 Tugas Anda:
-1. Jika pesan pengguna adalah PENCATATAN TRANSAKSI (contoh: "tadi beli martabak 35rb pake gopay", "beli bensin motor 30rb jago", "gaji masuk 10jt di bank jago"):
-   Ekstrak data transaksi secara presisi.
-2. Jika pesan pengguna adalah TANYA-JAWAB FINANSIAL (contoh: "sisa anggaran belanja dapur masih aman nggak?", "uang keluar bulan ini berapa?", "saldo gopay berapa?"):
-   Jawab langsung berbasis data riil keluarga di bawah ini secara ringkas (maksimal 2-3 kalimat, to-the-point, santun).
-3. Jika pesan adalah obrolan santai/salam:
-   Balas ramah dan ingatkan bahwa Anda siap membantu mencatat transaksi atau mengecek anggaran keluarga.
+1. PENCATATAN TRANSAKSI (type: "transaction"):
+   Jika pesan pengguna mencatat pengeluaran atau pemasukan (contoh: "tadi beli martabak 35rb pake gopay", "isi bensin motor 30rb jago", "gaji masuk 10jt di bank jago").
+   Ekstrak: amount, merchant, categoryName, accountName, direction ("out" atau "in").
+2. PERTANYAAN & KONSULTASI KEUANGAN (type: "chat_answer"):
+   Jika pesan pengguna menanyakan data keuangan keluarga (saldo, pengeluaran, sisa pagu, safe daily spend) ATAU konsultasi keuangan keluarga (tips menabung, evaluasi belanja, dana darurat, investasi, utang, perencanaan keuangan).
+   Jawab langsung berbasis data riil keluarga di bawah ini secara ringkas, to-the-point, dan santun (maksimal 2-3 kalimat).
+3. DI LUAR TOPIK KEUANGAN / NON-FINANSIAL (type: "off_topic"):
+   Jika pesan pengguna TIDAK ADA HUBUNGANNYA SAMA SEKALI DENGAN KEUANGAN (contoh: tanya cuaca, resep masakan, politik, coding, kesehatan umum non-biaya, tugas sekolah umum, gosip, atau topik di luar finansial).
+   Tolak secara santun dan ramah: jelaskan bahwa Anda adalah asisten khusus keuangan keluarga Ajian, dan undang mereka untuk menanyakan seputar catatan transaksi, saldo, pagu belanja, atau perencanaan finansial keluarga.
+4. SALAM & SAPAAN (type: "chat_answer"):
+   Jika pengguna menyapa (halo, selamat pagi, assalamu'alaikum), balas ramah dan ingatkan bahwa Anda siap membantu mencatat mutasi atau mengecek kondisi finansial keluarga.
 
 KONTEKS FINANSIAL KELUARGA BULAN INI (${context.periodLabel}):
 - Saldo Rekening Saat Ini:
@@ -155,7 +164,7 @@ Belanja Dapur, Makan & Jajan, Transportasi/Bensin, Tagihan & Utilitas, Kebutuhan
 
 Keluarkan HANYA JSON valid tanpa markdown wrapper:
 {
-  "type": "transaction" | "chat_answer",
+  "type": "transaction" | "chat_answer" | "off_topic",
   "transaction": {
     "amount": 35000,
     "merchant": "Martabak",
@@ -163,7 +172,8 @@ Keluarkan HANYA JSON valid tanpa markdown wrapper:
     "accountName": "GoPay",
     "direction": "out"
   },
-  "answer": "Jawaban informatif berbasis konteks riil keluarga"
+  "answer": "Jawaban finansial berbasis data riil keluarga",
+  "rejectionReason": "Penolakan santun jika di luar topik keuangan"
 }`;
 }
 
@@ -258,6 +268,17 @@ export async function processFinancialChatWithAI(
       };
     }
 
+    if (parsed.type === 'off_topic') {
+      const rejection =
+        parsed.rejectionReason ||
+        parsed.answer ||
+        'Maaf, saya asisten khusus keuangan keluarga Ajian. Saya hanya dapat membantu pencatatan transaksi belanja, pengecekan saldo, pagu anggaran, serta konsultasi keuangan keluarga. Ada yang ingin dicek seputar keuangan hari ini? 😊';
+      return {
+        type: 'off_topic',
+        replyText: rejection,
+      };
+    }
+
     if (parsed.type === 'chat_answer' && parsed.answer) {
       return {
         type: 'chat_answer',
@@ -275,8 +296,8 @@ export async function processFinancialChatWithAI(
 /**
  * Fallback lokal deterministik bila offline atau tanpa API key
  */
-function handleLocalDeterministicFallback(userText: string, context: FinancialContext): NLPProcessResult {
-  const lower = userText.toLowerCase();
+export function handleLocalDeterministicFallback(userText: string, context: FinancialContext): NLPProcessResult {
+  const lower = userText.toLowerCase().trim();
 
   // 1. Cek pola tanya saldo
   if (lower.includes('saldo')) {
@@ -303,7 +324,28 @@ function handleLocalDeterministicFallback(userText: string, context: FinancialCo
     };
   }
 
-  // 3. Fallback umum
+  // 3. Verifikasi apakah pertanyaan berkaitan dengan keuangan
+  const financialKeywords = [
+    'uang', 'duit', 'kas', 'rekap', 'belanja', 'beli', 'bayar', 'pengeluaran', 'pemasukan',
+    'gaji', 'gajian', 'hemat', 'boros', 'catat', 'struk', 'bank', 'rekening', 'dompet',
+    'gopay', 'dana', 'ovo', 'shopeepay', 'jago', 'bca', 'mandiri', 'bri', 'seabank',
+    'investasi', 'tabungan', 'darurat', 'hutang', 'utang', 'cicilan', 'budget', 'tagihan',
+    'dapur', 'makan', 'bensin', 'transport', 'pulsa', 'listrik', 'wifi', 'bpjs',
+    'keuangan', 'finansial', 'inflasi', 'reksa dana', 'saham', 'aset', 'dana',
+    'halo', 'hai', 'pagi', 'siang', 'sore', 'malam', 'assalamu', 'bantuan', 'bisa apa',
+  ];
+
+  const isFinancialRelated = financialKeywords.some((kw) => lower.includes(kw));
+
+  if (!isFinancialRelated) {
+    return {
+      type: 'off_topic',
+      replyText:
+        'Maaf, saya asisten khusus keuangan keluarga Ajian. Saya hanya dapat membantu pencatatan transaksi belanja, pengecekan saldo, pagu anggaran, serta konsultasi keuangan keluarga. Ada yang ingin dicek seputar keuangan hari ini? 😊',
+    };
+  }
+
+  // 4. Fallback umum finansial
   return {
     type: 'chat_answer',
     replyText: `🤖 Saya dapat membantu mencatat belanja harian Anda (misal: _"beli martabak 35rb pake gopay"_), memeriksa saldo (_"saldo jago berapa?"_), atau mengecek pagu anggaran (_"sisa belanja dapur aman?"_).`,

@@ -40,6 +40,33 @@ export interface TelegramMessage {
 }
 
 /**
+ * Kebijakan Tagging: Pastikan bot hanya merespon bila ditag di grup (Anti-Nyamber)
+ */
+export function shouldProcessChat(message: TelegramMessage, rawText: string): boolean {
+  // 1. Chat pribadi 1-on-1 dengan bot selalu diproses
+  if (message.chat?.type === 'private') return true;
+
+  // 2. Perintah slash standar selalu diproses (/status, /anggaran, /rekap, dll)
+  if (rawText.startsWith('/')) return true;
+
+  // 3. Jika pengguna me-reply pesan dari bot
+  if (message.reply_to_message) return true;
+
+  // 4. Jika pesan menyebut / men-tag bot (@...)
+  if (rawText.includes('@')) return true;
+
+  // 5. Selain itu (obrolan bebas di grup tanpa tag): DIAM / ABAIKAN
+  return false;
+}
+
+/**
+ * Membersihkan mention bot (@username) dari teks pesan agar query bersih alami
+ */
+export function stripBotMentions(rawText: string): string {
+  return rawText.replace(/@\w+/g, '').replace(/\s+/g, ' ').trim();
+}
+
+/**
  * Mencari akun rekening yang paling cocok dengan memperhitungkan nama dan pemilik (owner)
  */
 export function findMatchingAccount(

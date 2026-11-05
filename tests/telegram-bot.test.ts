@@ -19,7 +19,11 @@ import {
   formatReceiptScanSuccessMessage,
   formatInternalTransferAlertMessage,
 } from '../src/lib/telegram/formatters.ts';
-import { findMatchingAccount } from '../src/lib/telegram/settings-commands.ts';
+import {
+  findMatchingAccount,
+  shouldProcessChat,
+  stripBotMentions,
+} from '../src/lib/telegram/settings-commands.ts';
 import { getMonthlyRange, getBudgetPeriodKey } from '../src/lib/date-utils.ts';
 import {
   isChatIdAllowed,
@@ -35,6 +39,7 @@ import {
   parseSetAnggaranCommand,
   parseSetGajianCommand,
   processFinancialChatWithAI,
+  handleLocalDeterministicFallback,
 } from '../src/lib/telegram/nlp-chat.ts';
 import type { FinancialContext } from '../src/lib/telegram/nlp-chat.ts';
 import { isSafePromoKeyword } from '../src/lib/ai/adaptive-rules.ts';
@@ -633,6 +638,72 @@ describe('Telegram Bot: NLP Parser & Perintah Cepat', () => {
     assert.strictEqual(checkTopUp('Mandiri Livin', 'Transfer TRSF E-BANKING DB OVO', 'OVO', 'out'), true);
     assert.strictEqual(checkTopUp('GoPay', 'Isi saldo dari Bank BCA sebesar 50.000 berhasil', 'BCA', 'in'), true);
     assert.strictEqual(checkTopUp('BCA Mobile', 'm-Transfer ke Rekening 12345678 Bapak Joko', 'Bapak Joko', 'out'), false);
+  });
+
+  it('Kebijakan Tagging Grup: shouldProcessChat hanya aktif jika ditag, reply, slash, atau chat privat', () => {
+    // 1. Chat privat selalu diproses (tanpa perlu tag)
+    const privateMsg = { message_id: 1, chat: { id: 101, type: 'private' }, date: 1700000000 };
+    assert.strictEqual(shouldProcessChat(privateMsg, 'saldo gopay berapa?'), true);
+
+    // 2. Chat grup tanpa tag/reply/slash -> DIAM / FALSE (silent drop)
+    const groupMsg = { message_id: 2, chat: { id: -100123, type: 'group' }, date: 1700000000 };
+    assert.strictEqual(shouldProcessChat(groupMsg, 'Kalo anggaran dapur sisa berapa?'), false);
+    assert.strictEqual(shouldProcessChat(groupMsg, 'saldo rekening kamu berapa ma?'), false);
+    assert.strictEqual(shouldProcessChat(groupMsg, 'halo semuanya'), false);
+
+    // 3. Chat grup dengan mention bot (@...) -> TRUE
+    assert.strictEqual(shouldProcessChat(groupMsg, '@KeuanganAjianBot Kalo anggaran dapur sisa berapa?'), true);
+    assert.strictEqual(shouldProcessChat(groupMsg, 'Kalo anggaran dapur sisa berapa? @KeuanganAjianBot'), true);
+
+    // 4. Chat grup dengan reply ke pesan bot -> TRUE
+    const groupReplyMsg = {
+      message_id: 3,
+      chat: { id: -100123, type: 'supergroup' },
+      date: 1700000000,
+      reply_to_message: { message_id: 99, text: 'Halo!' },
+    };
+    assert.strictEqual(shouldProcessChat(groupReplyMsg, 'Kalo anggaran dapur sisa berapa?'), true);
+
+    // 5. Chat grup dengan perintah slash (/status, /anggaran, /rekap) -> TRUE
+    assert.strictEqual(shouldProcessChat(groupMsg, '/status'), true);
+    assert.strictEqual(shouldProcessChat(groupMsg, '/anggaran'), true);
+  });
+
+  it('stripBotMentions membersihkan username mention (@...) dari query chat', () => {
+    assert.strictEqual(stripBotMentions('@KeuanganAjianBot saldo gopay berapa?'), 'saldo gopay berapa?');
+    assert.strictEqual(stripBotMentions('set anggaran makan 500rb @KeuanganAjianBot'), 'set anggaran makan 500rb');
+    assert.strictEqual(stripBotMentions('@bot1 @bot2 halo'), 'halo');
+  });
+
+  it('Guardrail Topik Finansial: menolak pertanyaan di luar keuangan dan menjawab pertanyaan finansial', () => {
+    const mockContext: FinancialContext = {
+      accounts: [{ name: 'GoPay', owner: 'Suami', balance: 50000 }],
+      totalBalance: 50000,
+      totalSpentMonth: 100000,
+      totalBudgetLimit: 1000000,
+      daysRemaining: 10,
+      safeDailySpend: 90000,
+      categoryBudgets: [{ name: 'Belanja Dapur', spent: 50000, limit: 500000, remaining: 450000 }],
+      periodLabel: 'November 2026',
+    };
+
+    // 1. Pertanyaan di luar keuangan -> off_topic
+    const resResep = handleLocalDeterministicFallback('resep nasi goreng kampung yang enak apa ya?', mockContext);
+    assert.strictEqual(resResep.type, 'off_topic');
+    assert.ok(resResep.replyText.includes('asisten khusus keuangan'));
+
+    const resCuaca = handleLocalDeterministicFallback('besok ramalan cuaca di jakarta hujan nggak?', mockContext);
+    assert.strictEqual(resCuaca.type, 'off_topic');
+    assert.ok(resCuaca.replyText.includes('asisten khusus keuangan'));
+
+    // 2. Pertanyaan finansial keluarga -> chat_answer dengan data riil
+    const resSaldo = handleLocalDeterministicFallback('saldo gopay berapa?', mockContext);
+    assert.strictEqual(resSaldo.type, 'chat_answer');
+    assert.ok(resSaldo.replyText.includes('50.000'));
+
+    const resAnggaran = handleLocalDeterministicFallback('sisa anggaran belanja dapur berapa?', mockContext);
+    assert.strictEqual(resAnggaran.type, 'chat_answer');
+    assert.ok(resAnggaran.replyText.includes('450.000'));
   });
 });
 
