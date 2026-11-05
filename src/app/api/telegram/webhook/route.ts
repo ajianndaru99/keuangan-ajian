@@ -9,12 +9,9 @@ import { isChatIdAllowed, sendTelegramMessage } from '@/lib/telegram/bot.ts';
 import {
   formatHelpMessage,
   formatExpenseAlertMessage,
-  formatBudgetUpdatedWithStatusMessage,
-  CategoryBudgetItem,
 } from '@/lib/telegram/formatters.ts';
 import { formatRupiah } from '@/lib/utils.ts';
-import { matchTargetCategory, TARGET_BUDGET_CATEGORIES } from '@/lib/budget/budget-guard.ts';
-import { getMonthlyRange } from '@/lib/date-utils.ts';
+import { matchTargetCategory } from '@/lib/budget/budget-guard.ts';
 import {
   handleStatusCommand,
   handleAnggaranCommand,
@@ -30,12 +27,13 @@ import {
   handleTelegramPhotoMessage,
   TelegramPhotoItem,
 } from '@/lib/telegram/photo-handler.ts';
+import { processFinancialChatWithAI } from '@/lib/telegram/nlp-chat.ts';
 import {
-  parseSetSaldoCommand,
-  parseSetAnggaranCommand,
-  parseSetGajianCommand,
-  processFinancialChatWithAI,
-} from '@/lib/telegram/nlp-chat.ts';
+  handleCustomRejectionReply,
+  handleSetSaldoFlow,
+  handleSetAnggaranFlow,
+  handleSetGajianFlow,
+} from '@/lib/telegram/settings-commands.ts';
 import { generateScreenshotDedupeHash, suggestCategoryForMerchant } from '@/lib/vision/gemini.ts';
 
 export const dynamic = 'force-dynamic';
@@ -114,238 +112,7 @@ function shouldProcessChat(message: TelegramMessage, rawText: string): boolean {
 }
 
 /**
- * 3. Handler Balasan Teks Pengguna untuk Alasan Pembatalan Custom
- */
-async function handleCustomRejectionReply(
-  message: TelegramMessage,
-  supabase: SupabaseClient,
-  householdId: string
-): Promise<boolean> {
-  const replyText = message.reply_to_message?.text || '';
-  if (!replyText.includes('Tulis Alasan Pembatalan')) return false;
-
-  const match = replyText.match(/\[REF:([a-f0-9-]{36})\]/i);
-  if (!match) return false;
-
-  const fullTxId = match[1];
-  const userReason = (message.text || '').trim();
-
-  // Update status menjadi ignored dengan catatan alasan
-  const { data: updatedTx, error: updateErr } = await supabase
-    .from('transactions')
-    .update({
-      status: 'ignored',
-      notes: `Ditolak via Telegram: ${userReason}`,
-    })
-    .eq('id', fullTxId)
-    .eq('household_id', householdId)
-    .select('id, merchant')
-    .maybeSingle();
-
-  if (updateErr) {
-    // Fallback jika kolom notes belum ada di schema cache
-    await supabase
-      .from('transactions')
-      .update({ status: 'ignored' })
-      .eq('id', fullTxId)
-      .eq('household_id', householdId);
-  }
-
-  const merchantName = updatedTx?.merchant || 'Transaksi';
-  await sendTelegramMessage(
-    message.chat.id,
-    `✅ *Alasan Disimpan*\n\nTransaksi *${merchantName}* telah dibatalkan dengan catatan:\n_"${userReason}"_.\n\nTerima kasih atas masukannya!`,
-    { reply_to_message_id: message.message_id }
-  );
-
-  return true;
-}
-
-/**
- * 4. Handler Sinkronisasi Saldo dengan Transaksi Koreksi Resmi
- */
-async function handleSetSaldoFlow(
-  rawText: string,
-  chatId: number | string,
-  messageId: number,
-  supabase: SupabaseClient,
-  householdId: string
-): Promise<boolean> {
-  const setSaldoCmd = parseSetSaldoCommand(rawText);
-  if (!setSaldoCmd) return false;
-
-  const { data: accounts, error: accErr } = await supabase
-    .from('accounts')
-    .select('id, name, owner, balance')
-    .eq('household_id', householdId)
-    .eq('is_active', true);
-
-  if (accErr) {
-    console.error('[SetSaldo Account Fetch Error]:', accErr.message);
-    await sendTelegramMessage(chatId, '⚠️ Gagal memuat daftar rekening dari database.', { reply_to_message_id: messageId });
-    return true;
-  }
-
-  const targetAccount = (accounts || []).find((a) =>
-    a.name.toLowerCase().includes(setSaldoCmd.accountName.toLowerCase()) ||
-    setSaldoCmd.accountName.toLowerCase().includes(a.name.toLowerCase())
-  );
-
-  if (!targetAccount) {
-    const list = (accounts || []).map((a) => `• *${a.name}* (Saldo: \`${formatRupiah(Number(a.balance || 0))}\`)`).join('\n');
-    await sendTelegramMessage(
-      chatId,
-      `⚠️ Akun *${setSaldoCmd.accountName}* tidak ditemukan di dasbor.\n\nRekening aktif yang terdaftar saat ini:\n${list || 'Belum ada rekening'}\n\n_Contoh perintah:_ \`set saldo dana suami 2jt\``,
-      { reply_to_message_id: messageId }
-    );
-    return true;
-  }
-
-  const currentBalance = Number(targetAccount.balance || 0);
-  const targetBalance = setSaldoCmd.amount;
-  const diff = targetBalance - currentBalance;
-
-  // Catat transaksi koreksi saldo jika ada selisih nominal
-  if (diff !== 0) {
-    const owner = targetAccount.owner === 'istri' ? 'istri' : 'suami';
-    await supabase.from('transactions').insert({
-      household_id: householdId,
-      account_id: targetAccount.id,
-      amount: Math.abs(diff),
-      direction: diff > 0 ? 'in' : 'out',
-      merchant: `Koreksi Saldo: ${targetAccount.name}`,
-      raw_notification: `Penyesuaian saldo manual via Telegram: ${targetAccount.name} menjadi ${formatRupiah(targetBalance)} (Selisih: ${formatRupiah(diff)})`,
-      source_device: owner,
-      transaction_date: new Date().toISOString(),
-      status: 'reconciled',
-      dedupe_hash: `adj_${targetAccount.id}_${Date.now()}`,
-      needs_review: false,
-    });
-  }
-
-  // Update nilai saldo akun
-  await supabase
-    .from('accounts')
-    .update({ balance: targetBalance })
-    .eq('id', targetAccount.id);
-
-  await sendTelegramMessage(
-    chatId,
-    `💰 *Saldo Berhasil Diperbarui*\n\nAkun: *${targetAccount.name}*\nSaldo Sekarang: \`${formatRupiah(targetBalance)}\`\nSelisih Tercatat: \`${diff >= 0 ? '+' : ''}${formatRupiah(diff)}\``,
-    { reply_to_message_id: messageId }
-  );
-  return true;
-}
-
-/**
- * 5. Handler Atur Pagu Anggaran Kategori
- * Melaporkan konfirmasi pembaruan sekaligus status pos apa saja yang sudah dan belum diset
- */
-async function handleSetAnggaranFlow(
-  rawText: string,
-  chatId: number | string,
-  messageId: number,
-  supabase: SupabaseClient,
-  householdId: string,
-  monthStartDay: number
-): Promise<boolean> {
-  const setAnggaranCmd = parseSetAnggaranCommand(rawText);
-  if (!setAnggaranCmd) return false;
-
-  const target = matchTargetCategory(setAnggaranCmd.categoryName);
-  const dateRange = getMonthlyRange(0, monthStartDay);
-  const periodMonth = `${dateRange.startDate.getFullYear()}-${String(dateRange.startDate.getMonth() + 1).padStart(2, '0')}`;
-
-  const { error: bgErr } = await supabase.from('category_budgets').upsert(
-    {
-      household_id: householdId,
-      category_id: target.id,
-      category_name: target.name,
-      limit_amount: setAnggaranCmd.amount,
-      period_month: periodMonth,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: 'household_id,category_id,period_month' }
-  );
-
-  if (bgErr) {
-    console.error('[SetAnggaran Upsert Error]:', bgErr.message);
-    await sendTelegramMessage(
-      chatId,
-      `⚠️ *Gagal memperbarui anggaran ke database.*\n\nDetail: \`${bgErr.message}\``,
-      { reply_to_message_id: messageId }
-    );
-    return true;
-  }
-
-  // Ambil konteks terbaru untuk menampilkan status seluruh 8 pos anggaran
-  const context = await buildFinancialContext(supabase, householdId, monthStartDay);
-  const categoryItems: CategoryBudgetItem[] = TARGET_BUDGET_CATEGORIES.map((t) => {
-    const item = context.categoryBudgets.find((b) => b.name === t.name);
-    const limit = item?.limit || 0;
-    const spent = item?.spent || 0;
-    const percentage = limit > 0 ? Math.round((spent / limit) * 100) : 0;
-    return {
-      name: t.name,
-      emoji: t.emoji,
-      spent,
-      limit,
-      percentage,
-    };
-  });
-
-  const responseText = formatBudgetUpdatedWithStatusMessage(
-    target,
-    setAnggaranCmd.amount,
-    categoryItems,
-    dateRange.label
-  );
-
-  await sendTelegramMessage(chatId, responseText, { reply_to_message_id: messageId });
-  return true;
-}
-
-/**
- * 6. Handler Atur Tanggal Gajian Siklus Bulanan
- */
-async function handleSetGajianFlow(
-  rawText: string,
-  chatId: number | string,
-  messageId: number,
-  supabase: SupabaseClient,
-  householdId: string
-): Promise<boolean> {
-  const day = parseSetGajianCommand(rawText);
-  if (!day) return false;
-
-  const { error: setErr } = await supabase
-    .from('settings')
-    .upsert(
-      {
-        household_id: householdId,
-        month_start_day: day,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'household_id' }
-    );
-
-  if (setErr) {
-    console.error('[SetGajian Upsert Error]:', setErr.message);
-    await sendTelegramMessage(chatId, '⚠️ Gagal memperbarui tanggal gajian ke database.', { reply_to_message_id: messageId });
-    return true;
-  }
-
-  const dateRange = getMonthlyRange(0, day);
-  await sendTelegramMessage(
-    chatId,
-    `🎉 *Tanggal Siklus Gajian Berhasil Diperbarui* ✅\n\nTanggal Gajian Baru: *Tanggal ${day} setiap bulan*\nSiklus Finansial Aktif: *${dateRange.label}*\n\n_Batas aman harian dan penghitungan rekapitulasi keluarga kini otomatis diselaraskan ke tanggal ${day}._`,
-    { reply_to_message_id: messageId }
-  );
-  return true;
-}
-
-/**
- * 7. Handler Perintah Slash Standar (/status, /anggaran, /rekap, /setup, dll)
+ * 3. Handler Perintah Slash Standar (/status, /anggaran, /rekap, /setup, dll)
  */
 async function handleSlashCommands(
   command: string,

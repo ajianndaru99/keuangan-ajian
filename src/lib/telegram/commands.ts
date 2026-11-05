@@ -10,6 +10,8 @@ import {
   formatAnggaranMessage,
   formatRekapMessage,
   formatInboxMessage,
+} from './formatters.ts';
+import type {
   CategoryBudgetItem,
   AccountBalanceItem,
 } from './formatters.ts';
@@ -54,13 +56,23 @@ export async function buildFinancialContext(
 
   const totalBalance = accountItems.reduce((sum, a) => sum + a.balance, 0);
 
-  // 2. Ambil Pengeluaran Transaksi Bulan Ini (HANYA 'reconciled' sesuai standar AGENTS.md)
-  const { data: txList, error: txErr } = await supabase
+  // 2. Ambil Pengeluaran Transaksi Bulan Ini (HANYA 'reconciled' belanja sah)
+  // Kecualikan koreksi saldo administratif dan transfer internal antar rekening
+  let txQuery = supabase
     .from('transactions')
-    .select('amount, category_id, categories(name)')
+    .select('amount, merchant, category_id, categories(name)')
     .eq('household_id', householdId)
     .eq('direction', 'out')
-    .eq('status', 'reconciled')
+    .eq('status', 'reconciled');
+
+  const tqAny = txQuery as any;
+  if (typeof tqAny.not === 'function') {
+    txQuery = tqAny
+      .not('merchant', 'ilike', 'Koreksi Saldo:%')
+      .not('merchant', 'ilike', 'Transfer Internal:%');
+  }
+
+  const { data: txList, error: txErr } = await txQuery
     .gte('transaction_date', dateRange.startDate.toISOString())
     .lte('transaction_date', dateRange.endDate.toISOString());
 
@@ -68,7 +80,9 @@ export async function buildFinancialContext(
     console.error('[Commands buildFinancialContext Tx Error]:', txErr.message);
   }
 
-  const totalSpentMonth = (txList || []).reduce((sum, t) => sum + Number(t.amount || 0), 0);
+  // Filter in-memory cadangan
+  const validTxs = (txList || []).filter((t: any) => !/^(koreksi saldo|transfer internal):/i.test(t.merchant || ''));
+  const totalSpentMonth = validTxs.reduce((sum, t) => sum + Number(t.amount || 0), 0);
 
   // Ambil transaksi pending untuk catatan konteks
   const { count: pendingCount } = await supabase
@@ -92,7 +106,7 @@ export async function buildFinancialContext(
   (budgets || []).forEach((b) => budgetMap.set(b.category_id, Number(b.limit_amount || 0)));
 
   const spentMap = new Map<string, number>();
-  (txList || []).forEach((tx) => {
+  validTxs.forEach((tx) => {
     const item = tx as unknown as TxCatRelation;
     const catName = item.categories?.name || item.category_id || '';
     const target = matchTargetCategory(catName);
@@ -202,13 +216,22 @@ export async function handleRekapCommand(
   const currentWeek = getWeeklyRange(0);
   const prevWeek = getWeeklyRange(-1);
 
-  // Pengeluaran Minggu Ini (HANYA 'reconciled')
-  const { data: currTxs, error: currErr } = await supabase
+  // Pengeluaran Minggu Ini (HANYA 'reconciled' belanja riil)
+  let currQuery = supabase
     .from('transactions')
-    .select('amount, category_id, categories(name)')
+    .select('amount, merchant, category_id, categories(name)')
     .eq('household_id', householdId)
     .eq('direction', 'out')
-    .eq('status', 'reconciled')
+    .eq('status', 'reconciled');
+
+  const cqAny = currQuery as any;
+  if (typeof cqAny.not === 'function') {
+    currQuery = cqAny
+      .not('merchant', 'ilike', 'Koreksi Saldo:%')
+      .not('merchant', 'ilike', 'Transfer Internal:%');
+  }
+
+  const { data: currTxs, error: currErr } = await currQuery
     .gte('transaction_date', currentWeek.startDate.toISOString())
     .lte('transaction_date', currentWeek.endDate.toISOString());
 
@@ -216,13 +239,22 @@ export async function handleRekapCommand(
     console.error('[Commands handleRekapCommand CurrTxs Error]:', currErr.message);
   }
 
-  // Pengeluaran Minggu Lalu (HANYA 'reconciled')
-  const { data: prevTxs, error: prevErr } = await supabase
+  // Pengeluaran Minggu Lalu (HANYA 'reconciled' belanja riil)
+  let prevQuery = supabase
     .from('transactions')
-    .select('amount')
+    .select('amount, merchant')
     .eq('household_id', householdId)
     .eq('direction', 'out')
-    .eq('status', 'reconciled')
+    .eq('status', 'reconciled');
+
+  const pqAny = prevQuery as any;
+  if (typeof pqAny.not === 'function') {
+    prevQuery = pqAny
+      .not('merchant', 'ilike', 'Koreksi Saldo:%')
+      .not('merchant', 'ilike', 'Transfer Internal:%');
+  }
+
+  const { data: prevTxs, error: prevErr } = await prevQuery
     .gte('transaction_date', prevWeek.startDate.toISOString())
     .lte('transaction_date', prevWeek.endDate.toISOString());
 
@@ -230,12 +262,15 @@ export async function handleRekapCommand(
     console.error('[Commands handleRekapCommand PrevTxs Error]:', prevErr.message);
   }
 
-  const currentWeekTotal = (currTxs || []).reduce((sum, t) => sum + Number(t.amount || 0), 0);
-  const previousWeekTotal = (prevTxs || []).reduce((sum, t) => sum + Number(t.amount || 0), 0);
+  const validCurrTxs = (currTxs || []).filter((t: any) => !/^(koreksi saldo|transfer internal):/i.test(t.merchant || ''));
+  const validPrevTxs = (prevTxs || []).filter((t: any) => !/^(koreksi saldo|transfer internal):/i.test(t.merchant || ''));
+
+  const currentWeekTotal = validCurrTxs.reduce((sum, t) => sum + Number(t.amount || 0), 0);
+  const previousWeekTotal = validPrevTxs.reduce((sum, t) => sum + Number(t.amount || 0), 0);
   const comparison = calculateComparison(currentWeekTotal, previousWeekTotal);
 
   const catSpent = new Map<string, number>();
-  (currTxs || []).forEach((tx) => {
+  validCurrTxs.forEach((tx) => {
     const item = tx as unknown as TxCatRelation;
     const name = item.categories?.name || 'Lainnya';
     catSpent.set(name, (catSpent.get(name) || 0) + Number(item.amount || 0));

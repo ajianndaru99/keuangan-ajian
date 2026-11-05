@@ -12,7 +12,11 @@ import { parseNotificationPayload } from '@/lib/ai/notification-parser';
 import { evaluateBudgetAlert, type BudgetAlert, type ReviewAlert } from '@/lib/budget/budget-guard';
 import { formatRupiah } from '@/lib/utils';
 import { isTelegramConfigured, broadcastToAllowedChats } from '@/lib/telegram/bot';
-import { formatOverbudgetAlert, formatExpenseAlertMessage } from '@/lib/telegram/formatters';
+import {
+  formatOverbudgetAlert,
+  formatExpenseAlertMessage,
+  formatInternalTransferAlertMessage,
+} from '@/lib/telegram/formatters';
 
 export const dynamic = 'force-dynamic';
 
@@ -380,19 +384,106 @@ export async function POST(req: NextRequest) {
         );
       }
 
+      // Ambil tanggal siklus gajian dari settings
+      const { data: settingData } = await supabase
+        .from('settings')
+        .select('month_start_day')
+        .eq('household_id', householdId)
+        .maybeSingle();
+      const monthStartDay = settingData?.month_start_day || 1;
+
+      // Cek apakah ada pasangan mutasi arah berlawanan dalam rentang +/- 3 menit (Transfer Internal / Top-Up)
+      const oppositeDirection = direction === 'out' ? 'in' : 'out';
+      const { data: pairedTransferTx } = await supabase
+        .from('transactions')
+        .select('id, merchant, account_id, raw_notification, accounts(name)')
+        .eq('household_id', householdId)
+        .eq('amount', amount)
+        .eq('direction', oppositeDirection)
+        .gte('transaction_date', minTimeIso)
+        .lte('transaction_date', maxTimeIso)
+        .neq('status', 'ignored')
+        .not('merchant', 'ilike', 'Transfer Internal:%')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const isTopUpKeyword = /\b(top\s*up|isi\s*saldo|isi\s*ulang)\s*(?:ke\s*)?(gopay|dana|ovo|shopeepay|linkaja|kantong)/i.test(`${safeTitle} ${safeContent}`) ||
+        /\b(top\s*up|isi\s*saldo)\b/i.test(merchant);
+
+      let isInternalTransfer = false;
+      let finalMerchant = merchant;
+      let finalNotes = '';
+
+      if (pairedTransferTx) {
+        isInternalTransfer = true;
+        const pairedAccName = (pairedTransferTx.accounts as unknown as { name?: string })?.name || pairedTransferTx.merchant || 'Akun Lain';
+        const currentAccName = accountName || app_name || 'Akun';
+        const fromAccount = direction === 'out' ? currentAccName : pairedAccName;
+        const toAccount = direction === 'out' ? pairedAccName : currentAccName;
+
+        finalMerchant = `Transfer Internal: ${fromAccount} ➔ ${toAccount}`;
+        finalNotes = 'Dipasangkan otomatis sebagai perpindahan dana internal';
+
+        // Update pasangan transaksi sebelumnya
+        await supabase
+          .from('transactions')
+          .update({
+            merchant: finalMerchant,
+            status: 'reconciled',
+            notes: finalNotes,
+          })
+          .eq('id', pairedTransferTx.id);
+
+        if (isTelegramConfigured()) {
+          const transferAlert = formatInternalTransferAlertMessage({
+            fromAccount,
+            toAccount,
+            amount,
+          });
+          try {
+            await broadcastToAllowedChats(transferAlert);
+          } catch (tErr) {
+            console.warn('[Telegram Broadcast Paired Transfer Alert Warn]:', tErr);
+          }
+        }
+      } else if (isTopUpKeyword) {
+        isInternalTransfer = true;
+        finalMerchant = `Transfer Internal: Top Up ${merchant || 'E-Wallet'}`;
+        finalNotes = 'Terdeteksi top-up dompet digital / perpindahan internal';
+
+        if (isTelegramConfigured()) {
+          const transferAlert = formatInternalTransferAlertMessage({
+            fromAccount: accountName || app_name || 'Bank',
+            toAccount: merchant || 'E-Wallet',
+            amount,
+          });
+          try {
+            await broadcastToAllowedChats(transferAlert);
+          } catch (tErr) {
+            console.warn('[Telegram Broadcast TopUp Alert Warn]:', tErr);
+          }
+        }
+      }
+
+      // Penentuan status otomatis: jika format baku regex atau transfer internal -> langsung 'reconciled'
+      const isFixFormat = parsed.parseMethod === 'regex' && !isSensitive && amount > 0;
+      const initialStatus = (isInternalTransfer || isFixFormat) ? 'reconciled' : 'pending';
+
       let { data: tx, error: txError } = await supabase
         .from('transactions')
         .insert({
           household_id: householdId,
           account_id: accountId,
-          category_id: suggestedCategoryId,
+          category_id: isInternalTransfer ? null : suggestedCategoryId,
           amount,
           direction,
-          merchant,
+          merchant: finalMerchant,
           raw_notification: `[Notifikasi ${accountName || app_name}] ${safeTitle}: ${safeContent}`,
           source_device: sourceDevice,
           transaction_date: transactionDate,
-          status: 'pending',
+          status: initialStatus,
+          notes: finalNotes || null,
           dedupe_hash: dedupeHash,
           needs_review: isSensitive || amount === 0,
           parse_method: parsed.parseMethod,
@@ -400,21 +491,21 @@ export async function POST(req: NextRequest) {
         .select('*')
         .single();
 
-      // Retry tanpa parse_method jika kolom belum dibuat di database Supabase
+      // Retry tanpa parse_method atau notes jika kolom belum termigrasi
       if (txError && txError.code === '42703') {
         const retryRes = await supabase
           .from('transactions')
           .insert({
             household_id: householdId,
             account_id: accountId,
-            category_id: suggestedCategoryId,
+            category_id: isInternalTransfer ? null : suggestedCategoryId,
             amount,
             direction,
-            merchant,
+            merchant: finalMerchant,
             raw_notification: `[Notifikasi ${accountName || app_name}] ${safeTitle}: ${safeContent}`,
             source_device: sourceDevice,
             transaction_date: transactionDate,
-            status: 'pending',
+            status: initialStatus,
             dedupe_hash: dedupeHash,
             needs_review: isSensitive || amount === 0,
           })
@@ -442,31 +533,43 @@ export async function POST(req: NextRequest) {
       } else {
         newTransaction = tx as TransactionRecord;
 
-        // Evaluasi ambang batas anggaran jika pengeluaran riil
-        if (direction === 'out' && amount > 0) {
+        // Evaluasi ambang batas anggaran jika pengeluaran riil (bukan transfer internal)
+        if (direction === 'out' && amount > 0 && !isInternalTransfer) {
           const catName = categories?.find(c => c.id === suggestedCategoryId)?.name || merchant || 'Lainnya';
           const accName = accounts?.find(a => a.id === accountId)?.name || 'Akun Keluarga';
 
-          // 1. Kirim Notifikasi Pengeluaran Realtime ke Telegram (Hanya untuk Uang Keluar Sah / FIX)
+          // 1. Kirim Notifikasi Pengeluaran Realtime ke Telegram (Hanya untuk Uang Keluar Sah)
           if (isTelegramConfigured() && newTransaction?.id) {
             const alertMsg = formatExpenseAlertMessage({
-              merchant,
+              merchant: finalMerchant,
               amount,
               categoryName: catName,
               accountName: accName,
               sourceDevice,
+              isAutoReconciled: isFixFormat,
             });
 
-            try {
-              await broadcastToAllowedChats(alertMsg, {
-                reply_markup: {
+            const replyMarkup = isFixFormat
+              ? {
+                  inline_keyboard: [
+                    [
+                      { text: '🔄 Itu Transfer Sendiri', callback_data: `tx_mark_transfer:${newTransaction.id}` },
+                      { text: '❌ Batalkan / Promo', callback_data: `tx_wrong_menu:${newTransaction.id}` },
+                    ],
+                  ],
+                }
+              : {
                   inline_keyboard: [
                     [
                       { text: '✅ Benar & Sesuai', callback_data: `tx_ok:${newTransaction.id}` },
                       { text: '❌ Salah / Bukan Belanja', callback_data: `tx_wrong_menu:${newTransaction.id}` },
                     ],
                   ],
-                },
+                };
+
+            try {
+              await broadcastToAllowedChats(alertMsg, {
+                reply_markup: replyMarkup,
               });
             } catch (tErr) {
               console.warn('[Telegram Broadcast Expense Alert Warn]:', tErr);
@@ -475,7 +578,7 @@ export async function POST(req: NextRequest) {
 
           // 2. Evaluasi Ambang Batas Anggaran
           try {
-            budgetAlert = await evaluateBudgetAlert(supabase, householdId, catName, transactionDate);
+            budgetAlert = await evaluateBudgetAlert(supabase, householdId, catName, transactionDate, monthStartDay);
 
             // Memicu notifikasi darurat ke Telegram jika batas anggaran mencapai 100%
             if (budgetAlert && budgetAlert.level === '100' && isTelegramConfigured()) {

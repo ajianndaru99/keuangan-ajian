@@ -349,16 +349,41 @@ export function formatExpenseAlertMessage(tx: {
   categoryName: string;
   accountName: string;
   sourceDevice?: string;
+  isAutoReconciled?: boolean;
 }): string {
   const deviceBadge = tx.sourceDevice ? (tx.sourceDevice.includes('istri') ? '(Istri)' : '(Suami)') : '';
-  return `💸 *PENGELUARAN BARU TERDETEKSI*
+  const header = tx.isAutoReconciled
+    ? `💸 *PENGELUARAN DICATAT OTOMATIS* ✅`
+    : `💸 *PENGELUARAN BARU TERDETEKSI*`;
+  const footer = tx.isAutoReconciled
+    ? `_Format baku terverifikasi (Status: Reconciled). Saldo dan anggaran telah disesuaikan._`
+    : `_Apakah hasil pencatatan ini sudah sesuai?_`;
+
+  return `${header}
 
 🛒 *Merchant:* ${tx.merchant}
 💰 *Nominal:* \`${formatRupiah(tx.amount)}\`
 📁 *Kategori:* ${tx.categoryName}
 🏦 *Sumber:* ${tx.accountName} ${deviceBadge}
 
-_Apakah hasil pencatatan ini sudah sesuai?_`;
+${footer}`;
+}
+
+/**
+ * Format Pesan Real-time Alert Perpindahan Dana Internal / Top-Up E-Wallet
+ */
+export function formatInternalTransferAlertMessage(tx: {
+  fromAccount: string;
+  toAccount: string;
+  amount: number;
+}): string {
+  return `🔄 *PERPINDAHAN DANA TERDETEKSI* ✅
+
+💰 *Nominal:* \`${formatRupiah(tx.amount)}\`
+📤 *Dari:* ${tx.fromAccount}
+📥 *Ke:* ${tx.toAccount}
+
+_Saldo kedua rekening otomatis diselaraskan dan tidak dihitung memotong anggaran belanja keluarga._`;
 }
 
 /**

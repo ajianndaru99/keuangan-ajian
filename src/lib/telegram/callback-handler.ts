@@ -13,6 +13,7 @@ import {
   formatExpenseVerifiedMessage,
   formatExpenseRejectedMessage,
 } from './formatters.ts';
+import { formatRupiah } from '../utils.ts';
 import { extractPromoKeywordsFromText } from '../ai/adaptive-rules.ts';
 
 export interface TelegramCallbackQuery {
@@ -154,6 +155,48 @@ export async function handleTelegramCallbackQuery(
     return;
   }
 
+  // 1.5. Koreksi Transaksi Menjadi Transfer Internal: [🔄 Itu Transfer Sendiri]
+  if (data.startsWith('tx_mark_transfer:')) {
+    const txId = data.replace('tx_mark_transfer:', '').trim();
+
+    const { data: currentTx, error: fetchErr } = await supabase
+      .from('transactions')
+      .select('id, amount, merchant, accounts(name)')
+      .eq('id', txId)
+      .eq('household_id', householdId)
+      .maybeSingle();
+
+    if (fetchErr || !currentTx) {
+      await answerCallbackQuery(cq.id, '⚠️ Data transaksi tidak ditemukan.', true);
+      return;
+    }
+
+    const rawMerchant = currentTx.merchant || 'Transaksi';
+    const cleanMerchant = rawMerchant.replace(/^Transfer Internal:\s*/i, '');
+    const newMerchant = `Transfer Internal: ${cleanMerchant}`;
+
+    await supabase
+      .from('transactions')
+      .update({
+        merchant: newMerchant,
+        status: 'reconciled',
+        notes: `Ditandai sebagai transfer internal via Telegram oleh ${cq.from.first_name || 'Keluarga'}`,
+      })
+      .eq('id', txId)
+      .eq('household_id', householdId);
+
+    await answerCallbackQuery(cq.id, '🔄 Diubah menjadi Transfer Internal!');
+
+    const accRelation = currentTx.accounts as unknown as { name?: string } | null;
+    const accName = accRelation?.name || 'Rekening';
+    const text = `🔄 *PERPINDAHAN DANA INTERNAL DIKONFIRMASI* ✅\n\nTransaksi: *${cleanMerchant}*\nNominal: \`${formatRupiah(Number(currentTx.amount || 0))}\`\nAkun: *${accName}*\nDiubah oleh: *${cq.from.first_name || 'Keluarga'}*\n\n_Transaksi ini disetel sebagai mutasi antar rekening/dompet keluarga dan tidak memotong anggaran belanja._`;
+
+    await editTelegramMessageText(chatId, messageId, text, {
+      reply_markup: { inline_keyboard: [] },
+    });
+    return;
+  }
+
   // 2. Menu Pilihan Alasan Penolakan: [❌ Salah / Bukan Belanja]
   if (data.startsWith('tx_wrong_menu:')) {
     const txId = data.replace('tx_wrong_menu:', '').trim();
@@ -181,14 +224,24 @@ export async function handleTelegramCallbackQuery(
     await answerCallbackQuery(cq.id);
 
     const baseText = originalText.replace(/\n\n\*Pilih Alasan Penolakan:\*.*$/s, '');
-    await editTelegramMessageText(chatId, messageId, baseText, {
-      reply_markup: {
-        inline_keyboard: [
+    const isAuto = baseText.includes('PENGELUARAN DICATAT OTOMATIS');
+    const buttons = isAuto
+      ? [
+          [
+            { text: '🔄 Itu Transfer Sendiri', callback_data: `tx_mark_transfer:${txId}` },
+            { text: '❌ Batalkan / Promo', callback_data: `tx_wrong_menu:${txId}` },
+          ],
+        ]
+      : [
           [
             { text: '✅ Benar & Sesuai', callback_data: `tx_ok:${txId}` },
             { text: '❌ Salah / Bukan Belanja', callback_data: `tx_wrong_menu:${txId}` },
           ],
-        ],
+        ];
+
+    await editTelegramMessageText(chatId, messageId, baseText, {
+      reply_markup: {
+        inline_keyboard: buttons,
       },
     });
     return;

@@ -17,7 +17,10 @@ import {
   formatExpenseVerifiedMessage,
   formatExpenseRejectedMessage,
   formatReceiptScanSuccessMessage,
+  formatInternalTransferAlertMessage,
 } from '../src/lib/telegram/formatters.ts';
+import { findMatchingAccount } from '../src/lib/telegram/settings-commands.ts';
+import { getMonthlyRange, getBudgetPeriodKey } from '../src/lib/date-utils.ts';
 import {
   isChatIdAllowed,
   getAllowedChatIds,
@@ -355,6 +358,35 @@ describe('Telegram Bot: Format Pesan Alert Realtime & Struk Belanja', () => {
     assert.ok(text.includes('87.500'));
     assert.ok(text.includes('BCA'));
   });
+
+  it('formatExpenseAlertMessage dengan isAutoReconciled menyajikan status reconciled', () => {
+    const text = formatExpenseAlertMessage({
+      merchant: 'Superindo',
+      amount: 150000,
+      categoryName: 'Belanja Dapur',
+      accountName: 'BCA',
+      sourceDevice: 'suami',
+      isAutoReconciled: true,
+    });
+
+    assert.ok(text.includes('PENGELUARAN DICATAT OTOMATIS'));
+    assert.ok(text.includes('Reconciled'));
+    assert.ok(text.includes('150.000'));
+  });
+
+  it('formatInternalTransferAlertMessage menyajikan informasi perpindahan akun dan saldo seimbang', () => {
+    const text = formatInternalTransferAlertMessage({
+      fromAccount: 'Bank Jago Suami',
+      toAccount: 'GoPay Suami',
+      amount: 200000,
+    });
+
+    assert.ok(text.includes('PERPINDAHAN DANA TERDETEKSI'));
+    assert.ok(text.includes('Bank Jago Suami'));
+    assert.ok(text.includes('GoPay Suami'));
+    assert.ok(text.includes('200.000'));
+    assert.ok(text.includes('tidak dihitung memotong anggaran'));
+  });
 });
 
 describe('Telegram Bot: NLP Parser & Perintah Cepat', () => {
@@ -419,6 +451,50 @@ describe('Telegram Bot: NLP Parser & Perintah Cepat', () => {
     assert.strictEqual(parseSetGajianCommand('set gajian 30'), null);
     assert.strictEqual(parseSetGajianCommand('set gajian 0'), null);
     assert.strictEqual(parseSetGajianCommand('gajian kapan'), null);
+  });
+
+  it('findMatchingAccount membedakan akun berdasarkan kombinasi nama dan pemilik (owner)', () => {
+    const mockAccounts = [
+      { id: '1', name: 'DANA', owner: 'suami', balance: 500000 },
+      { id: '2', name: 'DANA', owner: 'istri', balance: 750000 },
+      { id: '3', name: 'Bank Jago', owner: 'suami', balance: 2000000 },
+    ];
+
+    // Cocok nama & pemilik: istri
+    const matchIstri = findMatchingAccount(mockAccounts, 'dana istri');
+    assert.ok(matchIstri);
+    assert.strictEqual(matchIstri.id, '2');
+    assert.strictEqual(matchIstri.owner, 'istri');
+
+    // Cocok nama & pemilik: suami
+    const matchSuami = findMatchingAccount(mockAccounts, 'dana suami');
+    assert.ok(matchSuami);
+    assert.strictEqual(matchSuami.id, '1');
+    assert.strictEqual(matchSuami.owner, 'suami');
+
+    // Cocok nama saja
+    const matchJago = findMatchingAccount(mockAccounts, 'jago');
+    assert.ok(matchJago);
+    assert.strictEqual(matchJago.id, '3');
+
+    // Tidak ditemukan
+    const matchBca = findMatchingAccount(mockAccounts, 'bca');
+    assert.strictEqual(matchBca, null);
+  });
+
+  it('getMonthlyRange dan getBudgetPeriodKey menyelaraskan siklus finansial sesuai tanggal gajian', () => {
+    // 1. Tanggal gajian default = tgl 1
+    const rangeDay1 = getMonthlyRange(0, 1);
+    assert.strictEqual(rangeDay1.startDate.getDate(), 1);
+
+    const keyDay1 = getBudgetPeriodKey(new Date(), 1);
+    assert.match(keyDay1, /^\d{4}-\d{2}$/);
+
+    // 2. Tanggal gajian tgl 25
+    const rangeDay25 = getMonthlyRange(0, 25);
+    assert.strictEqual(rangeDay25.startDate.getDate(), 25);
+    // Akhir siklus selalu 1 hari sebelum tanggal gajian (tgl 24)
+    assert.strictEqual(rangeDay25.endDate.getDate(), 24);
   });
 
   it('processFinancialChatWithAI fallback deterministik menangani pertanyaan saldo dan pagu saat offline', async () => {

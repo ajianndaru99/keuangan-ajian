@@ -74,19 +74,36 @@ export function getWeeklyRange(offset: number = 0): DateRange {
  */
 export function getMonthlyRange(offset: number = 0, monthStartDay: number = 1): DateRange {
   const now = new Date();
-  const targetYear = now.getFullYear();
-  const targetMonth = now.getMonth() + offset;
+  const safeStartDay = Math.min(28, Math.max(1, monthStartDay));
 
-  const startDate = new Date(targetYear, targetMonth, monthStartDay, 0, 0, 0, 0);
-  
-  // Tanggal akhir: 1 hari sebelum tanggal awal bulan berikutnya
-  const nextMonthStart = new Date(targetYear, targetMonth + 1, monthStartDay, 0, 0, 0, 0);
+  let baseYear = now.getFullYear();
+  let baseMonth = now.getMonth();
+
+  // Jika tanggal hari ini belum mencapai tanggal gajian siklus berjalan, siklus aktif dimulai pada bulan lalu
+  if (safeStartDay > 1 && now.getDate() < safeStartDay) {
+    baseMonth -= 1;
+  }
+
+  const targetMonth = baseMonth + offset;
+  const startDate = new Date(baseYear, targetMonth, safeStartDay, 0, 0, 0, 0);
+
+  // Tanggal akhir: 1 hari sebelum tanggal awal siklus berikutnya (23:59:59.999)
+  const nextMonthStart = new Date(baseYear, targetMonth + 1, safeStartDay, 0, 0, 0, 0);
   const endDate = new Date(nextMonthStart.getTime() - 1);
 
-  const monthName = MONTH_NAMES_ID[startDate.getMonth()];
-  const year = startDate.getFullYear();
-
-  const label = `${monthName} ${year}`;
+  let label: string;
+  if (safeStartDay === 1) {
+    const monthName = MONTH_NAMES_ID[startDate.getMonth()];
+    const year = startDate.getFullYear();
+    label = `${monthName} ${year}`;
+  } else {
+    const startDayNum = startDate.getDate();
+    const endDayNum = endDate.getDate();
+    const startMonthShort = MONTH_SHORT_ID[startDate.getMonth()];
+    const endMonthShort = MONTH_SHORT_ID[endDate.getMonth()];
+    const endYear = endDate.getFullYear();
+    label = `${startDayNum} ${startMonthShort} - ${endDayNum} ${endMonthShort} ${endYear}`;
+  }
 
   let subLabel = 'Bulan Ini';
   if (offset === -1) subLabel = 'Bulan Lalu';
@@ -100,6 +117,16 @@ export function getMonthlyRange(offset: number = 0, monthStartDay: number = 1): 
     label,
     subLabel,
   };
+}
+
+/**
+ * Mendapatkan kunci string period_month standar (format: YYYY-MM) berdasarkan tanggal dan siklus gajian
+ */
+export function getBudgetPeriodKey(date: Date = new Date(), monthStartDay: number = 1): string {
+  const range = getMonthlyRange(0, monthStartDay);
+  const year = range.startDate.getFullYear();
+  const month = String(range.startDate.getMonth() + 1).padStart(2, '0');
+  return `${year}-${month}`;
 }
 
 /**

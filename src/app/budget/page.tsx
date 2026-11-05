@@ -12,6 +12,7 @@ import CategoryBudgetCard, { CategoryBudgetItem } from '@/components/budget/Cate
 import CurvedDonutBreakdown, { BudgetSegment } from '@/components/budget/CurvedDonutBreakdown';
 import SetBudgetModal from '@/components/budget/SetBudgetModal';
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
+import { getMonthlyRange, getBudgetPeriodKey } from '@/lib/date-utils';
 import { Plus, Sliders, PieChart, RefreshCw } from 'lucide-react';
 
 // 8 Kategori spesifik yang ditentukan pengguna
@@ -81,10 +82,18 @@ export default function BudgetPage() {
       setUserRole(profile.role);
       setDisplayName(profile.display_name);
 
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-      const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999).toISOString();
+      // Ambil tanggal siklus gajian dari settings
+      const { data: settingData } = await supabase
+        .from('settings')
+        .select('month_start_day')
+        .eq('household_id', profile.household_id)
+        .maybeSingle();
+      const monthStartDay = settingData?.month_start_day || 1;
+      const dateRange = getMonthlyRange(0, monthStartDay);
+      const startOfCycle = dateRange.startDate.toISOString();
+      const endOfCycle = dateRange.endDate.toISOString();
 
-      // Ambil transaksi pengeluaran bulan ini yang sudah direkonsiliasi
+      // Ambil transaksi pengeluaran siklus ini yang sudah direkonsiliasi (hanya belanja riil)
       const { data: txList } = await supabase
         .from('transactions')
         .select(`
@@ -94,11 +103,13 @@ export default function BudgetPage() {
         .eq('household_id', profile.household_id)
         .eq('direction', 'out')
         .eq('status', 'reconciled')
-        .gte('transaction_date', startOfMonth)
-        .lte('transaction_date', endOfMonth);
+        .not('merchant', 'ilike', 'Koreksi Saldo:%')
+        .not('merchant', 'ilike', 'Transfer Internal:%')
+        .gte('transaction_date', startOfCycle)
+        .lte('transaction_date', endOfCycle);
 
       // Ambil budget limit dari Supabase jika ada
-      const periodMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      const periodMonthKey = getBudgetPeriodKey(now, monthStartDay);
       const { data: dbBudgets } = await supabase
         .from('category_budgets')
         .select('category_id, limit_amount')
@@ -213,7 +224,14 @@ export default function BudgetPage() {
 
           if (profile?.household_id) {
             const now = new Date();
-            const periodMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+            const { data: settingData } = await supabase
+              .from('settings')
+              .select('month_start_day')
+              .eq('household_id', profile.household_id)
+              .maybeSingle();
+            const monthStartDay = settingData?.month_start_day || 1;
+            const periodMonthKey = getBudgetPeriodKey(now, monthStartDay);
+
             await supabase.from('category_budgets').upsert({
               household_id: profile.household_id,
               category_id: id,

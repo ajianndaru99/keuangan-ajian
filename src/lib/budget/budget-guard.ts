@@ -6,6 +6,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { formatRupiah } from '../utils.ts';
+import { getMonthlyRange, getBudgetPeriodKey } from '../date-utils.ts';
 
 export interface TargetCategory {
   id: string;
@@ -79,13 +80,13 @@ export async function evaluateBudgetAlert(
   supabase: SupabaseClient,
   householdId: string,
   categoryIdentifier: string,
-  txDateIso: string
+  txDateIso: string,
+  monthStartDay: number = 1
 ): Promise<BudgetAlert | null> {
   const targetCategory = matchTargetCategory(categoryIdentifier);
   const txDate = new Date(txDateIso);
-  const year = txDate.getFullYear();
-  const month = String(txDate.getMonth() + 1).padStart(2, '0');
-  const periodMonth = `${year}-${month}`;
+  const dateRange = getMonthlyRange(0, monthStartDay);
+  const periodMonth = getBudgetPeriodKey(txDate, monthStartDay);
 
   // 1. Ambil batas anggaran kategori bulan ini dari tabel category_budgets
   const { data: budgetData } = await supabase
@@ -102,27 +103,41 @@ export async function evaluateBudgetAlert(
     return null;
   }
 
-  // 2. Hitung total pengeluaran kategori bulan ini
-  const startOfMonth = new Date(year, txDate.getMonth(), 1).toISOString();
-  const endOfMonth = new Date(year, txDate.getMonth() + 1, 0, 23, 59, 59, 999).toISOString();
+  // 2. Hitung total pengeluaran kategori bulan ini (hanya belanja riil)
+  const startOfPeriod = dateRange.startDate.toISOString();
+  const endOfPeriod = dateRange.endDate.toISOString();
 
-  const { data: txList } = await supabase
+  let query = supabase
     .from('transactions')
-    .select('amount, category_id, categories (name)')
+    .select('amount, merchant, category_id, categories (name)')
     .eq('household_id', householdId)
     .eq('direction', 'out')
-    .neq('status', 'ignored')
-    .gte('transaction_date', startOfMonth)
-    .lte('transaction_date', endOfMonth);
+    .neq('status', 'ignored');
+
+  // Filter query database jika metode not() didukung client
+  const qAny = query as any;
+  if (typeof qAny.not === 'function') {
+    query = qAny
+      .not('merchant', 'ilike', 'Koreksi Saldo:%')
+      .not('merchant', 'ilike', 'Transfer Internal:%');
+  }
+
+  const { data: txList } = await query
+    .gte('transaction_date', startOfPeriod)
+    .lte('transaction_date', endOfPeriod);
 
   let totalSpent = 0;
   if (txList) {
     interface TxRow {
       amount: number;
+      merchant?: string;
       category_id: string | null;
       categories: { name: string } | null;
     }
     (txList as unknown as TxRow[]).forEach((tx) => {
+      const m = tx.merchant || '';
+      if (/^(koreksi saldo|transfer internal):/i.test(m)) return;
+
       const catName = tx.categories?.name || tx.category_id || '';
       const matched = matchTargetCategory(catName);
       if (matched.id === targetCategory.id) {
