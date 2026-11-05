@@ -11,6 +11,7 @@ import { formatRupiah } from '../utils.ts';
 import { matchTargetCategory, TARGET_BUDGET_CATEGORIES } from '../budget/budget-guard.ts';
 import { getMonthlyRange, getBudgetPeriodKey } from '../date-utils.ts';
 import { buildFinancialContext } from './commands.ts';
+import { applyAccountBalanceDelta } from '../account-balance.ts';
 import {
   parseSetSaldoCommand,
   parseSetAnggaranCommand,
@@ -83,6 +84,14 @@ export async function handleCustomRejectionReply(
   const fullTxId = match[1];
   const userReason = (message.text || '').trim();
 
+  // Ambil transaksi sebelumnya untuk cek status dan saldo
+  const { data: prevTx } = await supabase
+    .from('transactions')
+    .select('id, merchant, amount, direction, account_id, status')
+    .eq('id', fullTxId)
+    .eq('household_id', householdId)
+    .maybeSingle();
+
   const { data: updatedTx, error: updateErr } = await supabase
     .from('transactions')
     .update({
@@ -102,6 +111,12 @@ export async function handleCustomRejectionReply(
       { reply_to_message_id: message.message_id }
     );
     return true;
+  }
+
+  // Jika transaksi sebelumnya reconciled, pulihkan saldo akun
+  if (prevTx?.status === 'reconciled' && prevTx.account_id && prevTx.amount) {
+    const revertDelta = prevTx.direction === 'in' ? -Number(prevTx.amount) : Number(prevTx.amount);
+    await applyAccountBalanceDelta(supabase, prevTx.account_id, revertDelta);
   }
 
   const txName = updatedTx?.merchant || 'Transaksi';
@@ -215,7 +230,7 @@ export async function handleSetAnggaranFlow(
   const dateRange = getMonthlyRange(0, monthStartDay);
   const periodMonth = getBudgetPeriodKey(dateRange.startDate, monthStartDay);
 
-  const { error: bgErr } = await supabase.from('category_budgets').upsert(
+  let { error: bgErr } = await supabase.from('category_budgets').upsert(
     {
       household_id: householdId,
       category_id: target.id,
@@ -227,11 +242,64 @@ export async function handleSetAnggaranFlow(
     { onConflict: 'household_id,category_id,period_month' }
   );
 
+  // Fallback 1: Jika kolom updated_at belum ada di schema database
+  if (bgErr && bgErr.code === '42703') {
+    const retry = await supabase.from('category_budgets').upsert(
+      {
+        household_id: householdId,
+        category_id: target.id,
+        category_name: target.name,
+        limit_amount: setAnggaranCmd.amount,
+        period_month: periodMonth,
+      },
+      { onConflict: 'household_id,category_id,period_month' }
+    );
+    bgErr = retry.error;
+  }
+
+  // Fallback 2: Jika constraint onConflict belum dibuat atau gagal dicocokkan
+  if (bgErr && (bgErr.code === '42P10' || bgErr.message?.includes('ON CONFLICT') || bgErr.message?.includes('constraint'))) {
+    const { data: existingBudget } = await supabase
+      .from('category_budgets')
+      .select('id')
+      .eq('household_id', householdId)
+      .eq('category_id', target.id)
+      .eq('period_month', periodMonth)
+      .maybeSingle();
+
+    if (existingBudget?.id) {
+      const updateRes = await supabase
+        .from('category_budgets')
+        .update({
+          limit_amount: setAnggaranCmd.amount,
+          category_name: target.name,
+        })
+        .eq('id', existingBudget.id);
+      bgErr = updateRes.error;
+    } else {
+      const insertRes = await supabase
+        .from('category_budgets')
+        .insert({
+          household_id: householdId,
+          category_id: target.id,
+          category_name: target.name,
+          limit_amount: setAnggaranCmd.amount,
+          period_month: periodMonth,
+        });
+      bgErr = insertRes.error;
+    }
+  }
+
   if (bgErr) {
     console.error('[SetAnggaran Upsert Error]:', bgErr.message);
+    const isMissingTable = bgErr.code === '42P01' || bgErr.message?.includes('does not exist');
+    const errorDetail = isMissingTable
+      ? 'Tabel category_budgets belum dibuat di database. Jalankan migration 20261022000000_category_budgets_and_alert_logs.sql di Supabase SQL Editor.'
+      : bgErr.message;
+
     await sendTelegramMessage(
       chatId,
-      `⚠️ *Gagal memperbarui anggaran ke database.*\n\nDetail: \`${bgErr.message}\``,
+      `⚠️ *Gagal memperbarui anggaran ke database.*\n\nDetail: \`${errorDetail}\``,
       { reply_to_message_id: messageId }
     );
     return true;

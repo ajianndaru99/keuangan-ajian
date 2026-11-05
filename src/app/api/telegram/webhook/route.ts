@@ -34,6 +34,7 @@ import {
   handleSetAnggaranFlow,
   handleSetGajianFlow,
 } from '@/lib/telegram/settings-commands.ts';
+import { applyAccountBalanceDelta } from '@/lib/account-balance.ts';
 import { generateScreenshotDedupeHash, suggestCategoryForMerchant } from '@/lib/vision/gemini.ts';
 
 export const dynamic = 'force-dynamic';
@@ -236,9 +237,10 @@ async function handleNaturalLanguageFlow(
         direction: tx.direction,
         merchant: tx.merchant,
         raw_notification: `[Chat Telegram] ${rawText}`,
+        notes: 'Dicatat via Chat Telegram',
         source_device: accountOwner,
         transaction_date: new Date().toISOString(),
-        status: 'pending',
+        status: 'reconciled',
         dedupe_hash: dedupeHash,
       })
       .select('id')
@@ -254,19 +256,26 @@ async function handleNaturalLanguageFlow(
       return;
     }
 
+    // Sinkronisasi saldo akun secara instan di level aplikasi
+    if (accountId) {
+      const delta = tx.direction === 'in' ? tx.amount : -tx.amount;
+      await applyAccountBalanceDelta(supabase, accountId, delta);
+    }
+
     const alertText = formatExpenseAlertMessage({
       merchant: tx.merchant,
       amount: tx.amount,
       categoryName,
       accountName,
+      isAutoReconciled: true,
     });
 
     const replyMarkup = newTx?.id
       ? {
           inline_keyboard: [
             [
-              { text: '✅ Benar & Sesuai', callback_data: `tx_ok:${newTx.id}` },
-              { text: '❌ Salah / Bukan Belanja', callback_data: `tx_wrong_menu:${newTx.id}` },
+              { text: '🔄 Itu Transfer Sendiri', callback_data: `tx_mark_transfer:${newTx.id}` },
+              { text: '❌ Batalkan / Salah', callback_data: `tx_wrong_menu:${newTx.id}` },
             ],
           ],
         }

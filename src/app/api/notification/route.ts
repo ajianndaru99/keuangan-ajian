@@ -17,6 +17,7 @@ import {
   formatExpenseAlertMessage,
   formatInternalTransferAlertMessage,
 } from '@/lib/telegram/formatters';
+import { applyAccountBalanceDelta } from '@/lib/account-balance';
 
 export const dynamic = 'force-dynamic';
 
@@ -322,14 +323,19 @@ export async function POST(req: NextRequest) {
         const exactMatch = accounts.find(a => 
           (target.includes(a.name.toLowerCase()) || a.name.toLowerCase().includes(target)) && a.owner === sourceDevice
         );
-        // Prioritas 2: nama bank/wallet cocok (apapun pemiliknya)
+        // Prioritas 2: Akun bersama (shared) yang cocok nama
+        const sharedMatch = accounts.find(a =>
+          (target.includes(a.name.toLowerCase()) || a.name.toLowerCase().includes(target)) &&
+          (a.owner === 'bersama' || a.name.toLowerCase().includes('bersama'))
+        );
+        // Prioritas 3: akun default milik sourceDevice (hindari salah assign ke akun pribadi pasangan)
+        const deviceDefault = accounts.find(a => a.owner === sourceDevice);
+        // Prioritas 4: fallback nama bank/wallet cocok (jika akun umum/tak terikat device)
         const nameMatch = accounts.find(a =>
           target.includes(a.name.toLowerCase()) || a.name.toLowerCase().includes(target)
         );
-        // Prioritas 3: akun default milik sourceDevice
-        const deviceDefault = accounts.find(a => a.owner === sourceDevice);
 
-        accountId = exactMatch?.id || nameMatch?.id || deviceDefault?.id || accounts[0].id;
+        accountId = exactMatch?.id || sharedMatch?.id || deviceDefault?.id || nameMatch?.id || accounts[0].id;
       }
 
       // Cari kategori
@@ -394,22 +400,30 @@ export async function POST(req: NextRequest) {
 
       // Cek apakah ada pasangan mutasi arah berlawanan dalam rentang +/- 3 menit (Transfer Internal / Top-Up)
       const oppositeDirection = direction === 'out' ? 'in' : 'out';
-      const { data: pairedTransferTx } = await supabase
+      let pairedQuery = supabase
         .from('transactions')
-        .select('id, merchant, account_id, raw_notification, accounts(name)')
+        .select('id, merchant, account_id, direction, amount, status, raw_notification, accounts(name)')
         .eq('household_id', householdId)
         .eq('amount', amount)
         .eq('direction', oppositeDirection)
         .gte('transaction_date', minTimeIso)
         .lte('transaction_date', maxTimeIso)
-        .neq('status', 'ignored')
-        .not('merchant', 'ilike', 'Transfer Internal:%')
+        .neq('status', 'ignored');
+
+      if (accountId) {
+        pairedQuery = pairedQuery.neq('account_id', accountId);
+      }
+
+      const { data: pairedTransferTx } = await pairedQuery
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
 
-      const isTopUpKeyword = /\b(top\s*up|isi\s*saldo|isi\s*ulang)\s*(?:ke\s*)?(gopay|dana|ovo|shopeepay|linkaja|kantong)/i.test(`${safeTitle} ${safeContent}`) ||
-        /\b(top\s*up|isi\s*saldo)\b/i.test(merchant);
+      const textToScan = `${safeTitle} ${safeContent} ${merchant}`.toLowerCase();
+      const isTopUpKeyword =
+        /\b(top\s*up|isi\s*saldo|isi\s*ulang)\b/i.test(textToScan) ||
+        (/\b(transfer\s*(?:ke)?|trsf)\b/i.test(textToScan) && /\b(gopay|dana|ovo|shopeepay|linkaja|kantong)/i.test(textToScan)) ||
+        (/\b(gopay|dana|ovo|shopeepay|linkaja)\b/i.test(merchant) && direction === 'out');
 
       let isInternalTransfer = false;
       let finalMerchant = merchant;
@@ -435,7 +449,16 @@ export async function POST(req: NextRequest) {
           })
           .eq('id', pairedTransferTx.id);
 
-        if (isTelegramConfigured()) {
+        // Jika paired leg sebelumnya masih pending, sinkronkan saldonya sekarang
+        if (pairedTransferTx.status !== 'reconciled' && pairedTransferTx.account_id) {
+          const pairedDelta = pairedTransferTx.direction === 'in' ? Number(pairedTransferTx.amount) : -Number(pairedTransferTx.amount);
+          await applyAccountBalanceDelta(supabase, pairedTransferTx.account_id, pairedDelta);
+        }
+
+        // Cek apakah leg pertama sudah mengirim broadcast Telegram (hindari dobel notif)
+        const alreadyBroadcasted = typeof pairedTransferTx.merchant === 'string' && pairedTransferTx.merchant.startsWith('Transfer Internal:');
+
+        if (!alreadyBroadcasted && isTelegramConfigured()) {
           const transferAlert = formatInternalTransferAlertMessage({
             fromAccount,
             toAccount,
@@ -532,6 +555,12 @@ export async function POST(req: NextRequest) {
         console.error('[Notification Insert Error]:', txError.message);
       } else {
         newTransaction = tx as TransactionRecord;
+
+        // Sinkronisasi saldo akun di level aplikasi jika transaksi reconciled
+        if (initialStatus === 'reconciled' && accountId) {
+          const delta = direction === 'in' ? amount : -amount;
+          await applyAccountBalanceDelta(supabase, accountId, delta);
+        }
 
         // Evaluasi ambang batas anggaran jika pengeluaran riil (bukan transfer internal)
         if (direction === 'out' && amount > 0 && !isInternalTransfer) {

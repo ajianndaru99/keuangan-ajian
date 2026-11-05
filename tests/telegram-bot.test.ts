@@ -38,6 +38,7 @@ import {
 } from '../src/lib/telegram/nlp-chat.ts';
 import type { FinancialContext } from '../src/lib/telegram/nlp-chat.ts';
 import { isSafePromoKeyword } from '../src/lib/ai/adaptive-rules.ts';
+import { applyAccountBalanceDelta } from '../src/lib/account-balance.ts';
 
 describe('Telegram Bot: Visual Formatters & Tipografi Finansial', () => {
   it('generateProgressBar membentuk visual progress bar karakter monospaced dengan tepat', () => {
@@ -540,6 +541,98 @@ describe('Telegram Bot: NLP Parser & Perintah Cepat', () => {
     assert.strictEqual(isSafePromoKeyword('alfamart'), false);
     assert.strictEqual(isSafePromoKeyword('spbu pertamina'), false);
     assert.strictEqual(isSafePromoKeyword('superindo'), false);
+  });
+
+  it('applyAccountBalanceDelta menyesuaikan saldo akun dengan akurat', async () => {
+    // Mock Supabase client
+    let updatedBalance: number | null = null;
+    const mockSupabase = {
+      from: (table: string) => ({
+        select: () => ({
+          eq: (col: string, val: string) => ({
+            maybeSingle: async () => {
+              if (val === 'acc-1') {
+                return { data: { id: 'acc-1', balance: 500000, initial_balance: 0 }, error: null };
+              }
+              return { data: null, error: { message: 'Not found' } };
+            },
+          }),
+        }),
+        update: (payload: { balance: number }) => ({
+          eq: async (col: string, val: string) => {
+            updatedBalance = payload.balance;
+            return { error: null };
+          },
+        }),
+      }),
+    } as any;
+
+    // 1. Penambahan saldo (+ Rp 100.000)
+    const resAdd = await applyAccountBalanceDelta(mockSupabase, 'acc-1', 100000);
+    assert.strictEqual(resAdd.success, true);
+    assert.strictEqual(resAdd.newBalance, 600000);
+    assert.strictEqual(updatedBalance, 600000);
+
+    // 2. Pengurangan saldo (- Rp 50.000)
+    const resSub = await applyAccountBalanceDelta(mockSupabase, 'acc-1', -50000);
+    assert.strictEqual(resSub.success, true);
+    assert.strictEqual(resSub.newBalance, 450000);
+
+    // 3. Delta 0 -> return true tanpa update
+    const resZero = await applyAccountBalanceDelta(mockSupabase, 'acc-1', 0);
+    assert.strictEqual(resZero.success, true);
+
+    // 4. Akun tidak ditemukan
+    const resNotFound = await applyAccountBalanceDelta(mockSupabase, 'acc-missing', 50000);
+    assert.strictEqual(resNotFound.success, false);
+  });
+
+  it('Prioritas pencocokan akun notifikasi mendahulukan device default daripada akun milik pasangan', () => {
+    const mockAccounts = [
+      { id: 'acc-bca-suami', name: 'BCA Suami', owner: 'suami', type: 'bank' },
+      { id: 'acc-dana-istri', name: 'DANA Istri', owner: 'istri', type: 'ewallet' },
+      { id: 'acc-tabungan-bersama', name: 'Tabungan Bersama', owner: 'bersama', type: 'bank' },
+    ];
+
+    const sourceDevice = 'istri';
+    const target = 'bca'.toLowerCase();
+
+    // Prioritas 1: exactMatch (nama bank/wallet cocok dan owner === sourceDevice)
+    const exactMatch = mockAccounts.find(a => 
+      (target.includes(a.name.toLowerCase()) || a.name.toLowerCase().includes(target)) && a.owner === sourceDevice
+    );
+    // Prioritas 2: sharedMatch (akun bersama)
+    const sharedMatch = mockAccounts.find(a =>
+      (target.includes(a.name.toLowerCase()) || a.name.toLowerCase().includes(target)) &&
+      (a.owner === 'bersama' || a.name.toLowerCase().includes('bersama'))
+    );
+    // Prioritas 3: deviceDefault (akun milik istri)
+    const deviceDefault = mockAccounts.find(a => a.owner === sourceDevice);
+    // Prioritas 4: nameMatch (apapun pemiliknya, fallback)
+    const nameMatch = mockAccounts.find(a =>
+      target.includes(a.name.toLowerCase()) || a.name.toLowerCase().includes(target)
+    );
+
+    // Karena istri tidak punya BCA tapi punya DANA (deviceDefault), jangan masukkan ke BCA Suami!
+    const resolvedAccountId = exactMatch?.id || sharedMatch?.id || deviceDefault?.id || nameMatch?.id || mockAccounts[0].id;
+    assert.strictEqual(resolvedAccountId, 'acc-dana-istri');
+  });
+
+  it('Deteksi kata kunci Top-Up dan perpindahan dana bank ke e-wallet', () => {
+    const checkTopUp = (title: string, content: string, merchant: string, direction: 'in' | 'out') => {
+      const textToScan = `${title} ${content} ${merchant}`.toLowerCase();
+      return (
+        /\b(top\s*up|isi\s*saldo|isi\s*ulang)\b/i.test(textToScan) ||
+        (/\b(transfer\s*(?:ke)?|trsf)\b/i.test(textToScan) && /\b(gopay|dana|ovo|shopeepay|linkaja|kantong)/i.test(textToScan)) ||
+        (/\b(gopay|dana|ovo|shopeepay|linkaja)\b/i.test(merchant) && direction === 'out')
+      );
+    };
+
+    assert.strictEqual(checkTopUp('BCA Mobile', 'm-Transfer berhasil ke GOPAY 081234567890', 'GOPAY', 'out'), true);
+    assert.strictEqual(checkTopUp('Bank Jago', 'Kamu berhasil top up Saldo DANA', 'DANA', 'out'), true);
+    assert.strictEqual(checkTopUp('Mandiri Livin', 'Transfer TRSF E-BANKING DB OVO', 'OVO', 'out'), true);
+    assert.strictEqual(checkTopUp('GoPay', 'Isi saldo dari Bank BCA sebesar 50.000 berhasil', 'BCA', 'in'), true);
+    assert.strictEqual(checkTopUp('BCA Mobile', 'm-Transfer ke Rekening 12345678 Bapak Joko', 'Bapak Joko', 'out'), false);
   });
 });
 

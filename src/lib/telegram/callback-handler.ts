@@ -15,6 +15,7 @@ import {
 } from './formatters.ts';
 import { formatRupiah } from '../utils.ts';
 import { extractPromoKeywordsFromText } from '../ai/adaptive-rules.ts';
+import { applyAccountBalanceDelta } from '../account-balance.ts';
 
 export interface TelegramCallbackQuery {
   id: string;
@@ -107,7 +108,7 @@ export async function handleTelegramCallbackQuery(
     // Validasi keberadaan & status transaksi
     const { data: currentTx, error: fetchErr } = await supabase
       .from('transactions')
-      .select('id, status, amount, merchant, categories(name), accounts(name)')
+      .select('id, status, amount, direction, account_id, merchant, categories(name), accounts(name)')
       .eq('id', txId)
       .eq('household_id', householdId)
       .maybeSingle();
@@ -136,6 +137,12 @@ export async function handleTelegramCallbackQuery(
       console.error('[Telegram Callback tx_ok Update Error]:', updateErr);
       await answerCallbackQuery(cq.id, '⚠️ Gagal menyimpan status verifikasi.', true);
       return;
+    }
+
+    // Sinkronisasi saldo akun saat status bertransisi ke reconciled
+    if (currentTx.account_id) {
+      const delta = currentTx.direction === 'in' ? Number(currentTx.amount || 0) : -Number(currentTx.amount || 0);
+      await applyAccountBalanceDelta(supabase, currentTx.account_id, delta);
     }
 
     await answerCallbackQuery(cq.id, '✅ Transaksi diverifikasi!');
@@ -253,7 +260,7 @@ export async function handleTelegramCallbackQuery(
 
     const { data: targetTx, error: fetchErr } = await supabase
       .from('transactions')
-      .select('id, merchant, amount, raw_notification')
+      .select('id, merchant, amount, direction, account_id, status, raw_notification')
       .eq('id', txId)
       .eq('household_id', householdId)
       .maybeSingle();
@@ -276,6 +283,12 @@ export async function handleTelegramCallbackQuery(
       console.error('[Telegram Callback tx_rej_promo Update Error]:', updateErr);
       await answerCallbackQuery(cq.id, '⚠️ Gagal memperbarui status transaksi.', true);
       return;
+    }
+
+    // Jika transaksi sebelumnya reconciled, pulihkan saldo akun
+    if (targetTx.status === 'reconciled' && targetTx.account_id && targetTx.amount) {
+      const revertDelta = targetTx.direction === 'in' ? -Number(targetTx.amount) : Number(targetTx.amount);
+      await applyAccountBalanceDelta(supabase, targetTx.account_id, revertDelta);
     }
 
     await answerCallbackQuery(cq.id, 'Pola promo dipelajari oleh AI.');
@@ -321,7 +334,7 @@ export async function handleTelegramCallbackQuery(
 
     const { data: targetTx, error: fetchErr } = await supabase
       .from('transactions')
-      .select('id, merchant, amount')
+      .select('id, merchant, amount, direction, account_id, status')
       .eq('id', txId)
       .eq('household_id', householdId)
       .maybeSingle();
@@ -344,6 +357,12 @@ export async function handleTelegramCallbackQuery(
       console.error('[Telegram Callback tx_rej_dup Update Error]:', updateErr);
       await answerCallbackQuery(cq.id, '⚠️ Gagal memperbarui status transaksi.', true);
       return;
+    }
+
+    // Jika transaksi sebelumnya reconciled, pulihkan saldo akun
+    if (targetTx.status === 'reconciled' && targetTx.account_id && targetTx.amount) {
+      const revertDelta = targetTx.direction === 'in' ? -Number(targetTx.amount) : Number(targetTx.amount);
+      await applyAccountBalanceDelta(supabase, targetTx.account_id, revertDelta);
     }
 
     await answerCallbackQuery(cq.id, 'Ditandai transaksi dobel.');
