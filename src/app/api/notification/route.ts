@@ -15,6 +15,7 @@ import { isTelegramConfigured, broadcastToAllowedChats } from '@/lib/telegram/bo
 import {
   formatOverbudgetAlert,
   formatExpenseAlertMessage,
+  formatIncomeAlertMessage,
   formatInternalTransferAlertMessage,
 } from '@/lib/telegram/formatters';
 import { applyAccountBalanceDelta } from '@/lib/account-balance';
@@ -341,7 +342,7 @@ export async function POST(req: NextRequest) {
       // Cari kategori
       const { data: categories } = await supabase
         .from('categories')
-        .select('id, name')
+        .select('id, name, type')
         .eq('household_id', householdId);
 
       const suggestedCategoryId = categories ? suggestCategoryForMerchant(merchant, categories) : null;
@@ -562,12 +563,46 @@ export async function POST(req: NextRequest) {
           await applyAccountBalanceDelta(supabase, accountId, delta);
         }
 
+        // 1. Kirim Notifikasi Pemasukan Realtime ke Telegram (Gaji, Bonus, Transfer Masuk dari Luar)
+        if (direction === 'in' && amount > 0 && !isInternalTransfer) {
+          const catName = categories?.find(c => c.type === 'income' || c.name.toLowerCase().includes('pemasukan') || c.name.toLowerCase().includes('gaji'))?.name || 'Gaji/Pemasukan';
+          const accName = accounts?.find(a => a.id === accountId)?.name || 'Akun Keluarga';
+
+          if (isTelegramConfigured() && newTransaction?.id) {
+            const alertMsg = formatIncomeAlertMessage({
+              merchant: finalMerchant,
+              amount,
+              categoryName: catName,
+              accountName: accName,
+              sourceDevice,
+              isAutoReconciled: isFixFormat,
+            });
+
+            const replyMarkup = {
+              inline_keyboard: [
+                [
+                  { text: '✏️ Koreksi Mutasi', callback_data: `tx_edit:${newTransaction.id}` },
+                  { text: '❌ Batalkan', callback_data: `tx_wrong_menu:${newTransaction.id}` },
+                ],
+              ],
+            };
+
+            try {
+              await broadcastToAllowedChats(alertMsg, {
+                reply_markup: replyMarkup,
+              });
+            } catch (tErr) {
+              console.warn('[Telegram Broadcast Income Alert Warn]:', tErr);
+            }
+          }
+        }
+
         // Evaluasi ambang batas anggaran jika pengeluaran riil (bukan transfer internal)
         if (direction === 'out' && amount > 0 && !isInternalTransfer) {
           const catName = categories?.find(c => c.id === suggestedCategoryId)?.name || merchant || 'Lainnya';
           const accName = accounts?.find(a => a.id === accountId)?.name || 'Akun Keluarga';
 
-          // 1. Kirim Notifikasi Pengeluaran Realtime ke Telegram (Hanya untuk Uang Keluar Sah)
+          // 2. Kirim Notifikasi Pengeluaran Realtime ke Telegram (Hanya untuk Uang Keluar Sah)
           if (isTelegramConfigured() && newTransaction?.id) {
             const alertMsg = formatExpenseAlertMessage({
               merchant: finalMerchant,
@@ -582,7 +617,7 @@ export async function POST(req: NextRequest) {
               ? {
                   inline_keyboard: [
                     [
-                      { text: '🔄 Itu Transfer Sendiri', callback_data: `tx_mark_transfer:${newTransaction.id}` },
+                      { text: '✏️ Koreksi Mutasi', callback_data: `tx_edit:${newTransaction.id}` },
                       { text: '❌ Batalkan / Promo', callback_data: `tx_wrong_menu:${newTransaction.id}` },
                     ],
                   ],
@@ -591,7 +626,8 @@ export async function POST(req: NextRequest) {
                   inline_keyboard: [
                     [
                       { text: '✅ Benar & Sesuai', callback_data: `tx_ok:${newTransaction.id}` },
-                      { text: '❌ Salah / Bukan Belanja', callback_data: `tx_wrong_menu:${newTransaction.id}` },
+                      { text: '✏️ Koreksi', callback_data: `tx_edit:${newTransaction.id}` },
+                      { text: '❌ Salah', callback_data: `tx_wrong_menu:${newTransaction.id}` },
                     ],
                   ],
                 };
@@ -605,7 +641,7 @@ export async function POST(req: NextRequest) {
             }
           }
 
-          // 2. Evaluasi Ambang Batas Anggaran
+          // 3. Evaluasi Ambang Batas Anggaran
           try {
             budgetAlert = await evaluateBudgetAlert(supabase, householdId, catName, transactionDate, monthStartDay);
 

@@ -32,6 +32,11 @@ export type NLPProcessResult =
       replyText: string;
     }
   | {
+      type: 'set_balance_intent';
+      accountName: string;
+      amount: number;
+    }
+  | {
       type: 'chat_answer';
       replyText: string;
     }
@@ -72,20 +77,43 @@ export function parseNominal(raw: string): number {
 }
 
 /**
- * Mendeteksi perintah atur saldo rekening
- * Contoh: "set saldo gopay 38rb", "ubah saldo jago 2jt", "/setsaldo bca 1500000"
+ * Mendeteksi perintah atur saldo rekening atau penyesuaian total kas
+ * Contoh: "set saldo gopay 38rb", "ubah saldo jago 2jt", "ganti saldo dana suami 1jt", "total kas ganti 1jt"
  */
 export function parseSetSaldoCommand(rawText: string): { accountName: string; amount: number } | null {
   const clean = rawText.trim();
-  const pattern = /^(?:\/setsaldo|(?:set|ubah|atur)\s+saldo)\s+([a-zA-Z0-9\s]+?)\s+(?:menjadi|=|\:)?\s*([0-9.,]+(?:\s*(?:rb|ribu|k|jt|juta))?)$/i;
-  const match = clean.match(pattern);
-  if (!match) return null;
 
-  const accountName = match[1].trim();
-  const amount = parseNominal(match[2].trim());
-  if (amount <= 0 || !accountName) return null;
+  // 1. Pola atur saldo akun spesifik ("set/ubah/ganti/koreksi saldo [akun] [nominal]")
+  const specificPattern = /^(?:\/setsaldo|(?:set|ubah|atur|ganti|koreksi)\s+saldo)\s+([a-zA-Z0-9\s]+?)\s+(?:menjadi|=|\:|jadi)?\s*([0-9.,]+(?:\s*(?:rb|ribu|k|jt|juta))?)$/i;
+  const matchSpecific = clean.match(specificPattern);
+  if (matchSpecific) {
+    const accountName = matchSpecific[1].trim();
+    const amount = parseNominal(matchSpecific[2].trim());
+    if (amount >= 0 && accountName) {
+      return { accountName, amount };
+    }
+  }
 
-  return { accountName, amount };
+  // 2. Pola ubah total kas / kas keluarga ("total kas ganti 1jt", "ganti total kas 2jt")
+  const totalKasPattern1 = /^(?:total\s+kas|kas\s+total|kas\s+keluarga)\s+(?:ganti|ubah|atur|set|koreksi|menjadi|=|\:|jadi)\s*([0-9.,]+(?:\s*(?:rb|ribu|k|jt|juta))?)$/i;
+  const matchTotal1 = clean.match(totalKasPattern1);
+  if (matchTotal1) {
+    const amount = parseNominal(matchTotal1[1].trim());
+    if (amount >= 0) {
+      return { accountName: 'total_kas', amount };
+    }
+  }
+
+  const totalKasPattern2 = /^(?:ganti|ubah|atur|set|koreksi)\s+(?:total\s+kas|kas\s+total|kas\s+keluarga)\s+(?:menjadi|=|\:|jadi)?\s*([0-9.,]+(?:\s*(?:rb|ribu|k|jt|juta))?)$/i;
+  const matchTotal2 = clean.match(totalKasPattern2);
+  if (matchTotal2) {
+    const amount = parseNominal(matchTotal2[1].trim());
+    if (amount >= 0) {
+      return { accountName: 'total_kas', amount };
+    }
+  }
+
+  return null;
 }
 
 /**
@@ -136,15 +164,21 @@ function buildSystemPrompt(context: FinancialContext): string {
   return `Anda adalah asisten keuangan keluarga Indonesia cerdas, ramah, dan teliti untuk keluarga Ajian.
 Tugas Anda:
 1. PENCATATAN TRANSAKSI (type: "transaction"):
-   Jika pesan pengguna mencatat pengeluaran atau pemasukan (contoh: "tadi beli martabak 35rb pake gopay", "isi bensin motor 30rb jago", "gaji masuk 10jt di bank jago").
+   Jika pesan pengguna mencatat pengeluaran atau pemasukan (contoh: "tadi beli martabak 35rb pake gopay", "isi bensin motor 30rb jago", "gaji masuk 10jt di bank jago", "bonus kantor 700rb", "terima transfer 500rb").
+   PENTING:
+   - Pemasukan (gaji, bonus, honor, terima transfer, komisi, dapat uang): direction = "in", categoryName = "Gaji/Pemasukan".
+   - Pengeluaran (beli, bayar, jajan, belanja, makan, langganan): direction = "out".
    Ekstrak: amount, merchant, categoryName, accountName, direction ("out" atau "in").
-2. PERTANYAAN & KONSULTASI KEUANGAN (type: "chat_answer"):
+2. PERMINTAAN KOREKSI SALDO / TOTAL KAS (type: "set_balance_intent"):
+   Jika pengguna ingin mengubah atau mengoreksi saldo rekening atau total kas (contoh: "total kas ganti 1jt", "atur saldo jago jadi 2jt", "ganti saldo dana suami 500rb"):
+   Ekstrak: accountName (nama akun spesifik atau "total_kas") dan amount (angka nominal target).
+3. PERTANYAAN & KONSULTASI KEUANGAN (type: "chat_answer"):
    Jika pesan pengguna menanyakan data keuangan keluarga (saldo, pengeluaran, sisa pagu, safe daily spend) ATAU konsultasi keuangan keluarga (tips menabung, evaluasi belanja, dana darurat, investasi, utang, perencanaan keuangan).
    Jawab langsung berbasis data riil keluarga di bawah ini secara ringkas, to-the-point, dan santun (maksimal 2-3 kalimat).
-3. DI LUAR TOPIK KEUANGAN / NON-FINANSIAL (type: "off_topic"):
+4. DI LUAR TOPIK KEUANGAN / NON-FINANSIAL (type: "off_topic"):
    Jika pesan pengguna TIDAK ADA HUBUNGANNYA SAMA SEKALI DENGAN KEUANGAN (contoh: tanya cuaca, resep masakan, politik, coding, kesehatan umum non-biaya, tugas sekolah umum, gosip, atau topik di luar finansial).
    Tolak secara santun dan ramah: jelaskan bahwa Anda adalah asisten khusus keuangan keluarga Ajian, dan undang mereka untuk menanyakan seputar catatan transaksi, saldo, pagu belanja, atau perencanaan finansial keluarga.
-4. SALAM & SAPAAN (type: "chat_answer"):
+5. SALAM & SAPAAN (type: "chat_answer"):
    Jika pengguna menyapa (halo, selamat pagi, assalamu'alaikum), balas ramah dan ingatkan bahwa Anda siap membantu mencatat mutasi atau mengecek kondisi finansial keluarga.
 
 KONTEKS FINANSIAL KELUARGA BULAN INI (${context.periodLabel}):
@@ -164,7 +198,7 @@ Belanja Dapur, Makan & Jajan, Transportasi/Bensin, Tagihan & Utilitas, Kebutuhan
 
 Keluarkan HANYA JSON valid tanpa markdown wrapper:
 {
-  "type": "transaction" | "chat_answer" | "off_topic",
+  "type": "transaction" | "set_balance_intent" | "chat_answer" | "off_topic",
   "transaction": {
     "amount": 35000,
     "merchant": "Martabak",
@@ -172,6 +206,8 @@ Keluarkan HANYA JSON valid tanpa markdown wrapper:
     "accountName": "GoPay",
     "direction": "out"
   },
+  "accountName": "Dana Suami",
+  "amount": 1000000,
   "answer": "Jawaban finansial berbasis data riil keluarga",
   "rejectionReason": "Penolakan santun jika di luar topik keuangan"
 }`;
@@ -268,6 +304,14 @@ export async function processFinancialChatWithAI(
       };
     }
 
+    if (parsed.type === 'set_balance_intent' && Number(parsed.amount) >= 0) {
+      return {
+        type: 'set_balance_intent',
+        accountName: String(parsed.accountName || 'total_kas').trim(),
+        amount: Number(parsed.amount),
+      };
+    }
+
     if (parsed.type === 'off_topic') {
       const rejection =
         parsed.rejectionReason ||
@@ -298,6 +342,16 @@ export async function processFinancialChatWithAI(
  */
 export function handleLocalDeterministicFallback(userText: string, context: FinancialContext): NLPProcessResult {
   const lower = userText.toLowerCase().trim();
+
+  // 0. Cek apakah ada instruksi koreksi saldo / ganti total kas
+  const setSaldoCmd = parseSetSaldoCommand(userText);
+  if (setSaldoCmd) {
+    return {
+      type: 'set_balance_intent',
+      accountName: setSaldoCmd.accountName,
+      amount: setSaldoCmd.amount,
+    };
+  }
 
   // 1. Cek pola tanya saldo
   if (lower.includes('saldo')) {

@@ -9,6 +9,7 @@ import { isChatIdAllowed, sendTelegramMessage } from '@/lib/telegram/bot.ts';
 import {
   formatHelpMessage,
   formatExpenseAlertMessage,
+  formatIncomeAlertMessage,
 } from '@/lib/telegram/formatters.ts';
 import { formatRupiah } from '@/lib/utils.ts';
 import { matchTargetCategory } from '@/lib/budget/budget-guard.ts';
@@ -35,6 +36,7 @@ import {
   handleSetGajianFlow,
   shouldProcessChat,
   stripBotMentions,
+  type TelegramMessage,
 } from '@/lib/telegram/settings-commands.ts';
 import { applyAccountBalanceDelta } from '@/lib/account-balance.ts';
 import { generateScreenshotDedupeHash, suggestCategoryForMerchant } from '@/lib/vision/gemini.ts';
@@ -46,28 +48,6 @@ function getServiceSupabase(): SupabaseClient | null {
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
   if (!url || !serviceKey) return null;
   return createServiceClient(url, serviceKey);
-}
-
-interface TelegramMessage {
-  message_id: number;
-  from?: {
-    id: number;
-    first_name?: string;
-    username?: string;
-    is_bot?: boolean;
-  };
-  chat: {
-    id: number | string;
-    title?: string;
-    type: string;
-  };
-  date: number;
-  text?: string;
-  photo?: TelegramPhotoItem[];
-  reply_to_message?: {
-    message_id: number;
-    text?: string;
-  };
 }
 
 interface TelegramUpdate {
@@ -160,6 +140,22 @@ async function handleNaturalLanguageFlow(
   const context = await buildFinancialContext(supabase, householdId, monthStartDay);
   const nlpResult = await processFinancialChatWithAI(rawText, context);
 
+  // 1. Intent Ubah Saldo / Total Kas (Dua Langkah dengan Konfirmasi)
+  if (nlpResult.type === 'set_balance_intent') {
+    const rawCmd = nlpResult.accountName === 'total_kas'
+      ? `total kas ganti ${nlpResult.amount}`
+      : `ganti saldo ${nlpResult.accountName} ${nlpResult.amount}`;
+    await handleSetSaldoFlow(
+      rawCmd,
+      message.chat.id,
+      message.message_id,
+      supabase,
+      householdId
+    );
+    return;
+  }
+
+  // 2. Transaksi Finansial (Pengeluaran atau Pemasukan)
   if (nlpResult.type === 'transaction') {
     const tx = nlpResult.data;
 
@@ -192,15 +188,27 @@ async function handleNaturalLanguageFlow(
 
     const { data: categories } = await supabase
       .from('categories')
-      .select('id, name')
+      .select('id, name, type')
       .eq('household_id', householdId);
 
-    const targetCat = matchTargetCategory(tx.categoryName);
-    const suggestedCategoryId = categories
-      ? suggestCategoryForMerchant(tx.merchant, categories)
-      : null;
+    let categoryName = 'Gaji/Pemasukan';
+    let suggestedCategoryId: string | null = null;
 
-    const categoryName = targetCat.name || 'Lainnya';
+    if (tx.direction === 'in') {
+      const incomeCat = categories?.find(
+        (c) => c.type === 'income' || c.name.toLowerCase().includes('pemasukan') || c.name.toLowerCase().includes('gaji')
+      );
+      if (incomeCat) {
+        categoryName = incomeCat.name;
+        suggestedCategoryId = incomeCat.id;
+      }
+    } else {
+      const targetCat = matchTargetCategory(tx.categoryName);
+      categoryName = targetCat.name || 'Lainnya';
+      suggestedCategoryId = categories
+        ? suggestCategoryForMerchant(tx.merchant, categories)
+        : null;
+    }
 
     const dedupeHash = await generateScreenshotDedupeHash(
       accountOwner,
@@ -239,26 +247,35 @@ async function handleNaturalLanguageFlow(
       return;
     }
 
-    // Sinkronisasi saldo akun secara instan di level aplikasi
+    // Sinkronisasi saldo akun secara instan dan idempoten di level aplikasi
     if (accountId) {
       const delta = tx.direction === 'in' ? tx.amount : -tx.amount;
       await applyAccountBalanceDelta(supabase, accountId, delta);
     }
 
-    const alertText = formatExpenseAlertMessage({
-      merchant: tx.merchant,
-      amount: tx.amount,
-      categoryName,
-      accountName,
-      isAutoReconciled: true,
-    });
+    const isIncome = tx.direction === 'in';
+    const alertText = isIncome
+      ? formatIncomeAlertMessage({
+          merchant: tx.merchant,
+          amount: tx.amount,
+          categoryName,
+          accountName,
+          isAutoReconciled: true,
+        })
+      : formatExpenseAlertMessage({
+          merchant: tx.merchant,
+          amount: tx.amount,
+          categoryName,
+          accountName,
+          isAutoReconciled: true,
+        });
 
     const replyMarkup = newTx?.id
       ? {
           inline_keyboard: [
             [
-              { text: '🔄 Itu Transfer Sendiri', callback_data: `tx_mark_transfer:${newTx.id}` },
-              { text: '❌ Batalkan / Salah', callback_data: `tx_wrong_menu:${newTx.id}` },
+              { text: '✏️ Koreksi Mutasi', callback_data: `tx_edit:${newTx.id}` },
+              { text: '❌ Batalkan', callback_data: `tx_wrong_menu:${newTx.id}` },
             ],
           ],
         }

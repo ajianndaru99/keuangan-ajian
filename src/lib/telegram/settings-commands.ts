@@ -33,6 +33,13 @@ export interface TelegramMessage {
   };
   date: number;
   text?: string;
+  photo?: Array<{
+    file_id: string;
+    file_unique_id: string;
+    file_size?: number;
+    width: number;
+    height: number;
+  }>;
   reply_to_message?: {
     message_id: number;
     text?: string;
@@ -159,7 +166,7 @@ export async function handleCustomRejectionReply(
 }
 
 /**
- * Handler Sinkronisasi Saldo dengan Transaksi Koreksi Resmi
+ * Handler Alur Konfirmasi Dua Langkah Penyesuaian Saldo / Total Kas
  */
 export async function handleSetSaldoFlow(
   rawText: string,
@@ -177,14 +184,37 @@ export async function handleSetSaldoFlow(
     .eq('household_id', householdId)
     .eq('is_active', true);
 
-  if (accErr) {
-    console.error('[SetSaldo Account Fetch Error]:', accErr.message);
+  if (accErr || !accounts || accounts.length === 0) {
+    console.error('[SetSaldo Account Fetch Error]:', accErr?.message);
     await sendTelegramMessage(chatId, '⚠️ Gagal memuat daftar rekening dari database.', { reply_to_message_id: messageId });
     return true;
   }
 
+  // Kasus A: Penyesuaian Total Kas (tanpa nama akun spesifik)
+  if (setSaldoCmd.accountName === 'total_kas') {
+    const totalKas = accounts.reduce((sum, a) => sum + Number(a.balance || 0), 0);
+    const targetAmount = setSaldoCmd.amount;
+
+    const buttons = accounts.map((a) => [
+      {
+        text: `🏦 ${a.name} (${a.owner === 'istri' ? 'Istri' : 'Suami'}) ➔ ${formatRupiah(targetAmount)}`,
+        callback_data: `sok:${a.id}:${targetAmount}`,
+      },
+    ]);
+    buttons.push([{ text: '❌ Batalkan', callback_data: 'scancel' }]);
+
+    const text = `💼 *PENYESUAIAN TOTAL KAS KELUARGA*\n\nTotal kas siap pakai saat ini: \`${formatRupiah(totalKas)}\`\nTarget nominal baru: \`${formatRupiah(targetAmount)}\`\n\n_Pilih rekening mana yang ingin disesuaikan saldonya untuk mencapai nominal ini:_`;
+
+    await sendTelegramMessage(chatId, text, {
+      reply_to_message_id: messageId,
+      reply_markup: { inline_keyboard: buttons },
+    });
+    return true;
+  }
+
+  // Kasus B: Penyesuaian Akun Spesifik
   const targetAccount = findMatchingAccount(
-    (accounts || []).map((a) => ({
+    accounts.map((a) => ({
       id: a.id,
       name: a.name,
       owner: a.owner,
@@ -194,10 +224,10 @@ export async function handleSetSaldoFlow(
   );
 
   if (!targetAccount) {
-    const list = (accounts || []).map((a) => `• *${a.name}* (${a.owner === 'istri' ? 'Istri' : 'Suami'}) — Saldo: \`${formatRupiah(Number(a.balance || 0))}\``).join('\n');
+    const list = accounts.map((a) => `• *${a.name}* (${a.owner === 'istri' ? 'Istri' : 'Suami'}) — Saldo: \`${formatRupiah(Number(a.balance || 0))}\``).join('\n');
     await sendTelegramMessage(
       chatId,
-      `⚠️ Akun *${setSaldoCmd.accountName}* tidak ditemukan di dasbor.\n\nRekening aktif yang terdaftar saat ini:\n${list || 'Belum ada rekening'}\n\n_Contoh perintah:_ \`set saldo dana suami 2jt\``,
+      `⚠️ Akun *${setSaldoCmd.accountName}* tidak ditemukan di dasbor.\n\nRekening aktif yang terdaftar saat ini:\n${list || 'Belum ada rekening'}\n\n_Contoh perintah:_ \`set saldo dana suami 2jt\` atau \`total kas ganti 1jt\``,
       { reply_to_message_id: messageId }
     );
     return true;
@@ -207,35 +237,24 @@ export async function handleSetSaldoFlow(
   const targetBalance = setSaldoCmd.amount;
   const diff = targetBalance - currentBalance;
 
-  // Catat transaksi koreksi saldo jika ada selisih nominal (dikecualikan dari beban belanja keluarga)
-  if (diff !== 0) {
-    const owner = targetAccount.owner === 'istri' ? 'istri' : 'suami';
-    await supabase.from('transactions').insert({
-      household_id: householdId,
-      account_id: targetAccount.id,
-      amount: Math.abs(diff),
-      direction: diff > 0 ? 'in' : 'out',
-      merchant: `Koreksi Saldo: ${targetAccount.name}`,
-      raw_notification: `Penyesuaian saldo manual via Telegram: ${targetAccount.name} menjadi ${formatRupiah(targetBalance)} (Selisih: ${formatRupiah(diff)})`,
-      source_device: owner,
-      transaction_date: new Date().toISOString(),
-      status: 'reconciled',
-      dedupe_hash: `adj_${targetAccount.id}_${Date.now()}`,
-      needs_review: false,
-    });
-  }
+  const confirmText = `⚠️ *KONFIRMASI PERUBAHAN SALDO REKENING*\n\n` +
+    `🏦 *Akun:* ${targetAccount.name} (${targetAccount.owner === 'istri' ? 'Istri' : 'Suami'})\n` +
+    `💰 *Saldo Saat Ini:* \`${formatRupiah(currentBalance)}\`\n` +
+    `🎯 *Saldo Baru:* \`${formatRupiah(targetBalance)}\`\n` +
+    `📉 *Selisih Koreksi:* \`${diff >= 0 ? '+' : ''}${formatRupiah(diff)}\`\n\n` +
+    `_Tindakan ini akan mempengaruhi total kas siap pakai keluarga. Pastikan angka sudah benar sebelum konfirmasi._`;
 
-  // Update nilai saldo akun
-  await supabase
-    .from('accounts')
-    .update({ balance: targetBalance })
-    .eq('id', targetAccount.id);
-
-  await sendTelegramMessage(
-    chatId,
-    `💰 *Saldo Berhasil Diperbarui*\n\nAkun: *${targetAccount.name}* (${targetAccount.owner === 'istri' ? 'Istri' : 'Suami'})\nSaldo Sekarang: \`${formatRupiah(targetBalance)}\`\nSelisih Tercatat: \`${diff >= 0 ? '+' : ''}${formatRupiah(diff)}\``,
-    { reply_to_message_id: messageId }
-  );
+  await sendTelegramMessage(chatId, confirmText, {
+    reply_to_message_id: messageId,
+    reply_markup: {
+      inline_keyboard: [
+        [
+          { text: '✅ Ya, Perbarui Saldo', callback_data: `sok:${targetAccount.id}:${targetBalance}` },
+          { text: '❌ Batalkan', callback_data: 'scancel' },
+        ],
+      ],
+    },
+  });
   return true;
 }
 

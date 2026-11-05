@@ -14,6 +14,7 @@ import {
   formatMidMonthNudge,
   formatOverbudgetAlert,
   formatExpenseAlertMessage,
+  formatIncomeAlertMessage,
   formatExpenseVerifiedMessage,
   formatExpenseRejectedMessage,
   formatReceiptScanSuccessMessage,
@@ -43,7 +44,7 @@ import {
 } from '../src/lib/telegram/nlp-chat.ts';
 import type { FinancialContext } from '../src/lib/telegram/nlp-chat.ts';
 import { isSafePromoKeyword } from '../src/lib/ai/adaptive-rules.ts';
-import { applyAccountBalanceDelta } from '../src/lib/account-balance.ts';
+import { syncAccountBalance, applyAccountBalanceDelta } from '../src/lib/account-balance.ts';
 
 describe('Telegram Bot: Visual Formatters & Tipografi Finansial', () => {
   it('generateProgressBar membentuk visual progress bar karakter monospaced dengan tepat', () => {
@@ -548,48 +549,111 @@ describe('Telegram Bot: NLP Parser & Perintah Cepat', () => {
     assert.strictEqual(isSafePromoKeyword('superindo'), false);
   });
 
-  it('applyAccountBalanceDelta menyesuaikan saldo akun dengan akurat', async () => {
-    // Mock Supabase client
-    let updatedBalance: number | null = null;
+  it('syncAccountBalance & applyAccountBalanceDelta menghitung saldo idempoten dengan akurat', async () => {
+    let currentAccount = { id: 'acc-1', initial_balance: 500000, balance: 500000 };
+    const mockTxs = [
+      { amount: 150000, direction: 'in', account_id: 'acc-1', status: 'reconciled' },
+      { amount: 50000, direction: 'out', account_id: 'acc-1', status: 'reconciled' },
+    ];
+
     const mockSupabase = {
-      from: (table: string) => ({
-        select: () => ({
-          eq: (col: string, val: string) => ({
-            maybeSingle: async () => {
-              if (val === 'acc-1') {
-                return { data: { id: 'acc-1', balance: 500000, initial_balance: 0 }, error: null };
-              }
-              return { data: null, error: { message: 'Not found' } };
-            },
-          }),
-        }),
-        update: (payload: { balance: number }) => ({
-          eq: async (col: string, val: string) => {
-            updatedBalance = payload.balance;
-            return { error: null };
-          },
-        }),
-      }),
+      from: (table: string) => {
+        if (table === 'accounts') {
+          return {
+            select: () => ({
+              eq: (_col: string, val: string) => ({
+                maybeSingle: async () => {
+                  if (val === 'acc-1') {
+                    return { data: currentAccount, error: null };
+                  }
+                  return { data: null, error: { message: 'Not found' } };
+                },
+              }),
+            }),
+            update: (payload: { balance: number }) => ({
+              eq: async (_col: string, val: string) => {
+                if (val === 'acc-1') {
+                  currentAccount.balance = payload.balance;
+                  return { error: null };
+                }
+                return { error: { message: 'Not found' } };
+              },
+            }),
+          };
+        }
+        if (table === 'transactions') {
+          return {
+            select: () => ({
+              eq: (_col1: string, val1: string) => ({
+                eq: (_col2: string, val2: string) => ({
+                  data: mockTxs.filter(t => t.account_id === val1 && t.status === val2),
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        }
+        return {};
+      },
     } as any;
 
-    // 1. Penambahan saldo (+ Rp 100.000)
-    const resAdd = await applyAccountBalanceDelta(mockSupabase, 'acc-1', 100000);
-    assert.strictEqual(resAdd.success, true);
-    assert.strictEqual(resAdd.newBalance, 600000);
-    assert.strictEqual(updatedBalance, 600000);
+    // 1. Sinkronisasi idempoten: initial (500rb) + in (150rb) - out (50rb) = 600rb
+    const res = await syncAccountBalance(mockSupabase, 'acc-1');
+    assert.strictEqual(res.success, true);
+    assert.strictEqual(res.newBalance, 600000);
+    assert.strictEqual(currentAccount.balance, 600000);
 
-    // 2. Pengurangan saldo (- Rp 50.000)
-    const resSub = await applyAccountBalanceDelta(mockSupabase, 'acc-1', -50000);
-    assert.strictEqual(resSub.success, true);
-    assert.strictEqual(resSub.newBalance, 450000);
+    // 2. applyAccountBalanceDelta sebagai wrapper yang kompatibel
+    const resDelta = await applyAccountBalanceDelta(mockSupabase, 'acc-1', 100000);
+    assert.strictEqual(resDelta.success, true);
+    assert.strictEqual(resDelta.newBalance, 600000);
 
-    // 3. Delta 0 -> return true tanpa update
-    const resZero = await applyAccountBalanceDelta(mockSupabase, 'acc-1', 0);
-    assert.strictEqual(resZero.success, true);
-
-    // 4. Akun tidak ditemukan
-    const resNotFound = await applyAccountBalanceDelta(mockSupabase, 'acc-missing', 50000);
+    // 3. Akun tidak ditemukan
+    const resNotFound = await syncAccountBalance(mockSupabase, 'acc-missing');
     assert.strictEqual(resNotFound.success, false);
+  });
+
+  it('formatIncomeAlertMessage menyajikan format alert pemasukan yang jelas dan tidak memotong pagu', () => {
+    const alertMsg = formatIncomeAlertMessage({
+      merchant: 'Bonus Kantor',
+      amount: 700000,
+      categoryName: 'Gaji/Pemasukan',
+      accountName: 'Dana Suami',
+      sourceDevice: 'suami',
+      isAutoReconciled: true,
+    });
+
+    assert.ok(alertMsg.includes('PEMASUKAN DICATAT OTOMATIS'));
+    assert.ok(alertMsg.includes('Bonus Kantor'));
+    assert.ok(alertMsg.includes('700.000'));
+    assert.ok(alertMsg.includes('Dana Suami'));
+    assert.ok(alertMsg.includes('Pemasukan menambah total kas keluarga dan tidak memotong pagu anggaran.'));
+  });
+
+  it('parseSetSaldoCommand mengenali variasi total kas ganti dan perubahan akun spesifik', () => {
+    // 1. Total kas variasi kata
+    const cmd1 = parseSetSaldoCommand('total kas ganti 1jt');
+    assert.deepStrictEqual(cmd1, { accountName: 'total_kas', amount: 1000000 });
+
+    const cmd2 = parseSetSaldoCommand('ganti total kas 2jt');
+    assert.deepStrictEqual(cmd2, { accountName: 'total_kas', amount: 2000000 });
+
+    const cmd3 = parseSetSaldoCommand('set total kas 500rb');
+    assert.deepStrictEqual(cmd3, { accountName: 'total_kas', amount: 500000 });
+
+    const cmd4 = parseSetSaldoCommand('total kas ganti 1.500.000');
+    assert.deepStrictEqual(cmd4, { accountName: 'total_kas', amount: 1500000 });
+
+    // 2. Akun spesifik
+    const cmd5 = parseSetSaldoCommand('ganti saldo dana suami 1jt');
+    assert.deepStrictEqual(cmd5, { accountName: 'dana suami', amount: 1000000 });
+  });
+
+  it('Batas 64 byte Telegram Callback Query terpenuhi untuk konfirmasi saldo sok:<accId>:<amt>', () => {
+    const mockUuid = '123e4567-e89b-12d3-a456-426614174000';
+    const amount = 100000000000; // 100 Milyar
+    const callbackData = `sok:${mockUuid}:${amount}`;
+    assert.ok(Buffer.byteLength(callbackData, 'utf8') <= 64, `Ukuran callback_data ${callbackData.length} byte melebihi batas 64 byte Telegram!`);
   });
 
   it('Prioritas pencocokan akun notifikasi mendahulukan device default daripada akun milik pasangan', () => {

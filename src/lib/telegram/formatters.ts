@@ -370,6 +370,35 @@ ${footer}`;
 }
 
 /**
+ * Format Pesan Real-time Alert Pemasukan Baru dengan Tombol Interaktif
+ */
+export function formatIncomeAlertMessage(tx: {
+  merchant: string;
+  amount: number;
+  categoryName: string;
+  accountName: string;
+  sourceDevice?: string;
+  isAutoReconciled?: boolean;
+}): string {
+  const deviceBadge = tx.sourceDevice ? (tx.sourceDevice.includes('istri') ? '(Istri)' : '(Suami)') : '';
+  const header = tx.isAutoReconciled
+    ? `📈 *PEMASUKAN DICATAT OTOMATIS* ✅`
+    : `📈 *PEMASUKAN BARU TERDETEKSI*`;
+  const footer = tx.isAutoReconciled
+    ? `_Format baku terverifikasi (Status: Reconciled). Saldo rekening telah diselaraskan._\n_Pemasukan menambah total kas keluarga dan tidak memotong pagu anggaran._`
+    : `_Apakah hasil pencatatan pemasukan ini sudah sesuai?_\n_Pemasukan menambah total kas keluarga dan tidak memotong pagu anggaran._`;
+
+  return `${header}
+
+💵 *Sumber:* ${tx.merchant}
+💰 *Nominal:* \`${formatRupiah(tx.amount)}\`
+📁 *Kategori:* ${tx.categoryName}
+🏦 *Masuk ke:* ${tx.accountName} ${deviceBadge}
+
+${footer}`;
+}
+
+/**
  * Format Pesan Real-time Alert Perpindahan Dana Internal / Top-Up E-Wallet
  */
 export function formatInternalTransferAlertMessage(tx: {
