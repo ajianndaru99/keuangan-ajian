@@ -656,6 +656,17 @@ describe('Telegram Bot: NLP Parser & Perintah Cepat', () => {
 
     const cmd7 = parseSetSaldoCommand('saldo dana suami ubah 2jt');
     assert.deepStrictEqual(cmd7, { accountName: 'dana suami', amount: 2000000 });
+
+    const cmd8 = parseSetSaldoCommand('jago ganti 500rb');
+    assert.deepStrictEqual(cmd8, { accountName: 'jago', amount: 500000 });
+
+    // 3. Pencegahan salah tangkap (guard) terhadap perintah anggaran, gajian, atau transaksi belanja
+    assert.strictEqual(parseSetSaldoCommand('set anggaran belanja dapur menjadi 1,5jt'), null);
+    assert.strictEqual(parseSetSaldoCommand('ubah anggaran makan 800rb'), null);
+    assert.strictEqual(parseSetSaldoCommand('beli baju ganti 150rb'), null);
+    assert.strictEqual(parseSetSaldoCommand('bayar tagihan listrik 200rb'), null);
+    assert.strictEqual(parseSetSaldoCommand('jajan bakso 25rb'), null);
+    assert.strictEqual(parseSetSaldoCommand('set gajian 25'), null);
   });
 
   it('Batas 64 byte Telegram Callback Query terpenuhi untuk konfirmasi sok, sask, dan tsa', () => {

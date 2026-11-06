@@ -68,8 +68,8 @@ export async function buildFinancialContext(
   const tqAny = txQuery as any;
   if (typeof tqAny.not === 'function') {
     txQuery = tqAny
-      .not('merchant', 'ilike', 'Koreksi Saldo:%')
-      .not('merchant', 'ilike', 'Transfer Internal:%');
+      .not('merchant', 'ilike', 'Koreksi Saldo%')
+      .not('merchant', 'ilike', 'Transfer Internal%');
   }
 
   const { data: txList, error: txErr } = await txQuery
@@ -81,7 +81,7 @@ export async function buildFinancialContext(
   }
 
   // Filter in-memory cadangan
-  const validTxs = (txList || []).filter((t: any) => !/^(koreksi saldo|transfer internal):/i.test(t.merchant || ''));
+  const validTxs = (txList || []).filter((t: any) => !/^(koreksi saldo|transfer internal)/i.test(t.merchant || ''));
   const totalSpentMonth = validTxs.reduce((sum, t) => sum + Number(t.amount || 0), 0);
 
   // Ambil transaksi pending untuk catatan konteks

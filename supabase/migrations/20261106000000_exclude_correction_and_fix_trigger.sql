@@ -43,8 +43,8 @@ BEGIN
           AND t.transaction_date <= p_end_date
           AND (p_owner IS NULL OR t.source_device = p_owner)
           AND (p_account_id IS NULL OR t.account_id = p_account_id)
-          AND t.merchant NOT ILIKE 'Koreksi Saldo:%'
-          AND t.merchant NOT ILIKE 'Transfer Internal:%'
+          AND t.merchant NOT ILIKE 'Koreksi Saldo%'
+          AND t.merchant NOT ILIKE 'Transfer Internal%'
     )
     SELECT
         COALESCE(SUM(amount) FILTER (WHERE status = 'reconciled' AND direction = 'out'), 0) AS total_expense,
@@ -102,8 +102,8 @@ BEGIN
           AND t.transaction_date <= p_end_date
           AND (p_owner IS NULL OR t.source_device = p_owner)
           AND (p_account_id IS NULL OR t.account_id = p_account_id)
-          AND t.merchant NOT ILIKE 'Koreksi Saldo:%'
-          AND t.merchant NOT ILIKE 'Transfer Internal:%'
+          AND t.merchant NOT ILIKE 'Koreksi Saldo%'
+          AND t.merchant NOT ILIKE 'Transfer Internal%'
         GROUP BY c.id, c.name, c.icon
     ),
     grand_total AS (
@@ -160,8 +160,8 @@ BEGIN
       AND t.transaction_date <= p_end_date
       AND (p_owner IS NULL OR t.source_device = p_owner)
       AND (p_account_id IS NULL OR t.account_id = p_account_id)
-      AND t.merchant NOT ILIKE 'Koreksi Saldo:%'
-      AND t.merchant NOT ILIKE 'Transfer Internal:%'
+      AND t.merchant NOT ILIKE 'Koreksi Saldo%'
+      AND t.merchant NOT ILIKE 'Transfer Internal%'
     GROUP BY date_trunc('day', t.transaction_date at time zone 'Asia/Jakarta')
     ORDER BY period_date ASC;
 END;
@@ -214,3 +214,4 @@ BEGIN
     RETURN NULL;
 END;
 $$;
+

@@ -82,6 +82,12 @@ export function parseNominal(raw: string): number {
  */
 export function parseSetSaldoCommand(rawText: string): { accountName: string; amount: number } | null {
   const clean = rawText.trim();
+  if (!clean) return null;
+
+  // 0. Guard: Jangan salah menangkap perintah anggaran, gajian, atau transaksi belanja
+  if (/\b(anggaran|pagu|budget|gajian|beli|bayar|jajan|belanja)\b/i.test(clean)) {
+    return null;
+  }
 
   // 1. Pola atur saldo akun spesifik ("set/ubah/ganti/koreksi saldo [akun] [nominal]")
   const specificPattern = /^(?:\/setsaldo|(?:set|ubah|atur|ganti|koreksi)\s+saldo)\s+([a-zA-Z0-9\s]+?)\s+(?:menjadi|=|\:|jadi)?\s*(?:(?:rp|idr)\.?\s*)?([0-9.,]+(?:\s*(?:rb|ribu|k|jt|juta))?)$/i;
@@ -114,15 +120,26 @@ export function parseSetSaldoCommand(rawText: string): { accountName: string; am
     }
   }
 
-  // 3. Pola akun di depan ("dana suami ganti 1jt", "saldo dana suami ubah 2jt", "jago ganti 500rb")
-  const leadingAccountPattern = /^(?:saldo\s+)?([a-zA-Z0-9\s]+?)\s+(?:ganti|ubah|atur|set|koreksi|jadi|menjadi)\s+(?:menjadi|=|\:|jadi)?\s*(?:(?:rp|idr)\.?\s*)?([0-9.,]+(?:\s*(?:rb|ribu|k|jt|juta))?)$/i;
-  const matchLeading = clean.match(leadingAccountPattern);
-  if (matchLeading) {
-    const accCandidate = matchLeading[1].trim();
-    const amount = parseNominal(matchLeading[2].trim());
+  // 3. Pola akun di depan dengan awalan kata saldo ("saldo dana suami ubah 2jt", "saldo jago ganti 500rb")
+  const leadingSaldoPattern = /^saldo\s+([a-zA-Z0-9\s]+?)\s+(?:ganti|ubah|atur|set|koreksi|jadi|menjadi)\s+(?:menjadi|=|\:|jadi)?\s*(?:(?:rp|idr)\.?\s*)?([0-9.,]+(?:\s*(?:rb|ribu|k|jt|juta))?)$/i;
+  const matchLeadingSaldo = clean.match(leadingSaldoPattern);
+  if (matchLeadingSaldo) {
+    const accCandidate = matchLeadingSaldo[1].trim();
+    const amount = parseNominal(matchLeadingSaldo[2].trim());
     if (amount >= 0 && accCandidate) {
       const isTotalKas = /^(total[\s_]*kas|kas[\s_]*(total|keluarga|siap\s*pakai))$/i.test(accCandidate);
       return { accountName: isTotalKas ? 'total_kas' : accCandidate, amount };
+    }
+  }
+
+  // 4. Pola akun di depan khusus nama bank/dompet terdaftar tanpa awalan saldo ("dana suami ganti 1jt", "jago ganti 500rb")
+  const knownAccountPrefixPattern = /^((?:dana|gopay|ovo|shopeepay|linkaja|bca|mandiri|bri|bni|bsi|jago|seabank|tabungan|rekening|dompet|kantong)(?:\s+[a-zA-Z0-9]+)*)\s+(?:ganti|ubah|atur|set|koreksi|jadi|menjadi)\s+(?:menjadi|=|\:|jadi)?\s*(?:(?:rp|idr)\.?\s*)?([0-9.,]+(?:\s*(?:rb|ribu|k|jt|juta))?)$/i;
+  const matchKnownAccount = clean.match(knownAccountPrefixPattern);
+  if (matchKnownAccount) {
+    const accCandidate = matchKnownAccount[1].trim();
+    const amount = parseNominal(matchKnownAccount[2].trim());
+    if (amount >= 0 && accCandidate) {
+      return { accountName: accCandidate, amount };
     }
   }
 
