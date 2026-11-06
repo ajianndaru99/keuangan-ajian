@@ -28,6 +28,11 @@ import {
   extractAmountFromBotAlertText,
   handleCustomRejectionReply,
 } from '../src/lib/telegram/settings-commands.ts';
+import {
+  formatSettingsHubMenuText,
+  getSettingsHubInlineKeyboard,
+  handleAccountTextCommands,
+} from '../src/lib/telegram/settings-hub.ts';
 import { getMonthlyRange, getBudgetPeriodKey } from '../src/lib/date-utils.ts';
 import {
   isChatIdAllowed,
@@ -784,24 +789,25 @@ describe('Telegram Bot: NLP Parser & Perintah Cepat', () => {
       raw_notification: '[Notifikasi DANA] Promo Voucher DANA Deals Rp 7.500',
     };
 
+    const createChain = () => {
+      const chain: any = {
+        eq: () => chain,
+        neq: () => chain,
+        order: () => chain,
+        limit: () => chain,
+        maybeSingle: async () => ({
+          data: mockTx,
+          error: null,
+        }),
+      };
+      return chain;
+    };
+
     const mockSupabase = {
       from: (table: string) => {
         if (table === 'transactions') {
           return {
-            select: () => ({
-              eq: () => ({
-                order: () => ({
-                  limit: () => ({
-                    eq: (_col: string, val: number) => ({
-                      maybeSingle: async () => ({
-                        data: val === 7500 ? mockTx : null,
-                        error: null,
-                      }),
-                    }),
-                  }),
-                }),
-              }),
-            }),
+            select: () => createChain(),
             update: (payload: { status: string; notes?: string }) => ({
               eq: () => ({
                 eq: async () => {
@@ -840,6 +846,25 @@ describe('Telegram Bot: NLP Parser & Perintah Cepat', () => {
       assert.strictEqual(handled, true);
       assert.strictEqual(updatedStatus, 'ignored');
       assert.ok(updatedNotes.includes('Ini salah'));
+
+      // Test Kasus 3: Balasan "Itu spam" ke pesan AI bot umum (bukan alert kartu transaksi)
+      updatedStatus = '';
+      updatedNotes = '';
+      const replyAiMessage = {
+        message_id: 204,
+        chat: { id: 987654321, type: 'private' },
+        date: 1700000010,
+        text: 'Itu spam',
+        reply_to_message: {
+          message_id: 203,
+          text: 'Maaf, saya asisten khusus keuangan keluarga Ajian. Saya hanya dapat membantu pencatatan transaksi belanja...',
+        },
+      };
+
+      const handledAiReply = await handleCustomRejectionReply(replyAiMessage, mockSupabase, 'hh-test');
+      assert.strictEqual(handledAiReply, true);
+      assert.strictEqual(updatedStatus, 'ignored');
+      assert.ok(updatedNotes.includes('Itu spam'));
     } finally {
       if (savedToken) process.env.TELEGRAM_BOT_TOKEN = savedToken;
     }
@@ -909,6 +934,104 @@ describe('Telegram Bot: NLP Parser & Perintah Cepat', () => {
     const resAnggaran = handleLocalDeterministicFallback('sisa anggaran belanja dapur berapa?', mockContext);
     assert.strictEqual(resAnggaran.type, 'chat_answer');
     assert.ok(resAnggaran.replyText.includes('450.000'));
+  });
+
+  it('Pusat Pengaturan Telegram (/pengaturan): Menu Hub, Batas 64 Byte Callback, & Manajemen Akun', async () => {
+    // 1. Validasi Format Menu Pengaturan
+    const menuText = formatSettingsHubMenuText();
+    assert.ok(menuText.includes('PUSAT PENGATURAN KEUANGAN KELUARGA'));
+    assert.ok(menuText.includes('Rekening & Saldo'));
+    assert.ok(menuText.includes('Pagu Anggaran'));
+    assert.ok(menuText.includes('Tanggal Gajian'));
+
+    // 2. Validasi Batas 64 Byte untuk Semua Tombol Menu Utama
+    const kb = getSettingsHubInlineKeyboard();
+    for (const row of kb.inline_keyboard) {
+      for (const btn of row) {
+        assert.ok(
+          Buffer.byteLength(btn.callback_data, 'utf8') <= 64,
+          `callback_data ${btn.callback_data} melebihi batas 64 byte!`
+        );
+      }
+    }
+
+    // 3. Validasi Batas 64 Byte Tombol Sub-Menu Dinamis
+    const sampleCatCallback = 'cfg:bset:b-dapur:1500000';
+    assert.ok(Buffer.byteLength(sampleCatCallback, 'utf8') <= 64);
+
+    const samplePaydayCallback = 'cfg:pset:25';
+    assert.ok(Buffer.byteLength(samplePaydayCallback, 'utf8') <= 64);
+
+    const sampleSpamDelCallback = 'cfg:sdel:12345678';
+    assert.ok(Buffer.byteLength(sampleSpamDelCallback, 'utf8') <= 64);
+
+    // 4. Pengujian Perintah Chat Tambah & Nonaktifkan Akun
+    let insertedAcc: any = null;
+    let deactivatedId: string | null = null;
+    const mockAccounts = [
+      { id: 'acc-1', name: 'Tabungan BRI', owner: 'suami', balance: 500000, is_active: true },
+    ];
+
+    const mockSupabase = {
+      from: (table: string) => {
+        if (table === 'accounts') {
+          return {
+            insert: (payload: any) => ({
+              select: () => ({
+                single: async () => {
+                  insertedAcc = payload;
+                  return { data: { id: 'new-acc', ...payload }, error: null };
+                },
+              }),
+            }),
+            select: () => ({
+              eq: () => ({
+                eq: async () => ({
+                  data: mockAccounts,
+                  error: null,
+                }),
+              }),
+            }),
+            update: (payload: any) => ({
+              eq: (col: string, val: string) => ({
+                eq: async () => {
+                  if (payload.is_active === false) {
+                    deactivatedId = val;
+                  }
+                  return { error: null };
+                },
+              }),
+            }),
+          };
+        }
+        return {};
+      },
+    } as any;
+
+    // Test tambah akun
+    const addRes = await handleAccountTextCommands(
+      'tambah akun Tabungan BCA suami 5jt',
+      987654321,
+      101,
+      mockSupabase,
+      'hh-test'
+    );
+    assert.strictEqual(addRes, true);
+    assert.ok(insertedAcc);
+    assert.strictEqual(insertedAcc.name, 'Tabungan BCA');
+    assert.strictEqual(insertedAcc.owner, 'suami');
+    assert.strictEqual(insertedAcc.initial_balance, 5000000);
+
+    // Test nonaktifkan akun
+    const deactRes = await handleAccountTextCommands(
+      'nonaktifkan akun BRI',
+      987654321,
+      102,
+      mockSupabase,
+      'hh-test'
+    );
+    assert.strictEqual(deactRes, true);
+    assert.strictEqual(deactivatedId, 'acc-1');
   });
 });
 

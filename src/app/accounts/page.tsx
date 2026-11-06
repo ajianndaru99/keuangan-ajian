@@ -2,25 +2,35 @@
 
 // ==============================================================================
 // ACCOUNTS PAGE: src/app/accounts/page.tsx
-// Halaman Overview Saldo Per Akun & Kelola Akun (My Wallet)
+// Desktop Financial Portfolio Monitor (Mode Monitor & Laptop)
+// Seluruh mutasi & pengaturan dipusatkan di Telegram Bot (/pengaturan)
 // ==============================================================================
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
 import AppShell from '@/components/layout/AppShell';
-import BalanceCard, { AccountBalanceItem } from '@/components/accounts/BalanceCard';
-import AdjustBalanceModal from '@/components/accounts/AdjustBalanceModal';
-import ManageAccountModal, { AccountData } from '@/components/accounts/ManageAccountModal';
 import { usePrivacy, formatMaskedRupiah } from '@/lib/privacy';
 import {
   Wallet,
-  Plus,
   RefreshCw,
   Eye,
   EyeOff,
-  Trash2,
-  Sparkles,
+  Building2,
+  Smartphone,
+  Bot,
+  CheckCircle2,
+  Sliders,
 } from 'lucide-react';
+
+export interface AccountBalanceItem {
+  id: string;
+  name: string;
+  type: 'bank' | 'ewallet';
+  owner: 'suami' | 'istri';
+  initial_balance: number;
+  current_balance: number;
+  is_active: boolean;
+}
 
 interface AccountBalanceRpcRow {
   account_id?: string;
@@ -50,11 +60,6 @@ export default function AccountsPage() {
   const [displayName, setDisplayName] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [filterOwner, setFilterOwner] = useState<'all' | 'suami' | 'istri'>('all');
-
-  // State Modal
-  const [adjustingAccount, setAdjustingAccount] = useState<AccountBalanceItem | null>(null);
-  const [editingAccount, setEditingAccount] = useState<AccountBalanceItem | null>(null);
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   // Ambil saldo akun dari database Supabase
   const fetchAccounts = useCallback(async () => {
@@ -130,244 +135,6 @@ export default function AccountsPage() {
     fetchAccounts();
   }, [fetchAccounts]);
 
-  // Handler Koreksi Saldo
-  const handleAdjustBalance = async (
-    accountId: string,
-    targetBalance: number,
-    notes: string
-  ) => {
-    setAccounts((prev) =>
-      prev.map((a) =>
-        a.id === accountId ? { ...a, current_balance: targetBalance } : a
-      )
-    );
-
-    if (isSupabaseConfigured()) {
-      const supabase = createClient();
-      try {
-        await supabase.rpc('adjust_account_balance', {
-          p_account_id: accountId,
-          p_target_balance: targetBalance,
-          p_notes: notes,
-        });
-      } catch (e) {
-        console.warn('Gagal RPC koreksi saldo:', e);
-      }
-    }
-    fetchAccounts();
-  };
-
-  // Handler Tambah / Edit Akun
-  const handleSaveAccount = async (data: AccountData) => {
-    if (!isSupabaseConfigured()) return;
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('household_id')
-      .eq('id', user.id)
-      .maybeSingle();
-
-    if (!profile) return;
-
-    if (data.id) {
-      // Edit Akun
-      await supabase
-        .from('accounts')
-        .update({
-          name: data.name,
-          type: data.type,
-          owner: data.owner,
-          initial_balance: data.initial_balance,
-          is_active: data.is_active,
-        })
-        .eq('id', data.id);
-    } else {
-      // Tambah Akun Baru
-      await supabase.from('accounts').insert({
-        household_id: profile.household_id,
-        name: data.name,
-        type: data.type,
-        owner: data.owner,
-        initial_balance: data.initial_balance,
-        balance: data.initial_balance,
-        is_active: true,
-      });
-    }
-
-    fetchAccounts();
-  };
-
-  // Sederhanakan Akun: Cukup Dana Suami dan Dana Istri
-  const [isSimplifying, setIsSimplifying] = useState(false);
-
-  const handleSimplifyToDanaSuamiIstri = async () => {
-    if (
-      !confirm(
-        'Sederhanakan seluruh akun menjadi cukup "Dana Suami" dan "Dana Istri"?\n\n' +
-        'Semua saldo awal dan riwayat transaksi akan otomatis disatukan ke kedua akun ini tanpa ada data yang hilang.'
-      )
-    ) {
-      return;
-    }
-
-    if (!isSupabaseConfigured()) return;
-    setIsSimplifying(true);
-    const supabase = createClient();
-
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        setIsSimplifying(false);
-        return;
-      }
-
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('household_id')
-        .eq('id', user.id)
-        .maybeSingle();
-
-      if (!profile?.household_id) {
-        setIsSimplifying(false);
-        return;
-      }
-
-      const householdId = profile.household_id;
-
-      // 1. Ambil seluruh akun saat ini
-      const { data: currentAccs } = await supabase
-        .from('accounts')
-        .select('*')
-        .eq('household_id', householdId);
-
-      let totalSuami = 0;
-      let totalIstri = 0;
-      (currentAccs || []).forEach((acc) => {
-        const bal = Number(acc.initial_balance ?? acc.balance ?? 0);
-        if (acc.owner === 'suami') totalSuami += bal;
-        else if (acc.owner === 'istri') totalIstri += bal;
-      });
-
-      if (totalSuami === 0) totalSuami = 8946000;
-      if (totalIstri === 0) totalIstri = 7700000;
-
-      // 2. Buat atau perbarui akun "Dana Suami"
-      let accSuami = (currentAccs || []).find((a) => a.name === 'Dana Suami' && a.owner === 'suami');
-      if (!accSuami) {
-        const { data: newSuami } = await supabase
-          .from('accounts')
-          .insert({
-            household_id: householdId,
-            name: 'Dana Suami',
-            type: 'bank',
-            owner: 'suami',
-            initial_balance: totalSuami,
-            balance: totalSuami,
-            is_active: true,
-          })
-          .select()
-          .single();
-        accSuami = newSuami;
-      } else {
-        await supabase
-          .from('accounts')
-          .update({ initial_balance: totalSuami, balance: totalSuami, is_active: true })
-          .eq('id', accSuami.id);
-      }
-
-      // 3. Buat atau perbarui akun "Dana Istri"
-      let accIstri = (currentAccs || []).find((a) => a.name === 'Dana Istri' && a.owner === 'istri');
-      if (!accIstri) {
-        const { data: newIstri } = await supabase
-          .from('accounts')
-          .insert({
-            household_id: householdId,
-            name: 'Dana Istri',
-            type: 'bank',
-            owner: 'istri',
-            initial_balance: totalIstri,
-            balance: totalIstri,
-            is_active: true,
-          })
-          .select()
-          .single();
-        accIstri = newIstri;
-      } else {
-        await supabase
-          .from('accounts')
-          .update({ initial_balance: totalIstri, balance: totalIstri, is_active: true })
-          .eq('id', accIstri.id);
-      }
-
-      if (accSuami && accIstri) {
-        // 4. Alihkan transaksi ke akun baru
-        const oldSuamiAccIds = (currentAccs || [])
-          .filter((a) => a.owner === 'suami' && a.id !== accSuami!.id)
-          .map((a) => a.id);
-        if (oldSuamiAccIds.length > 0) {
-          await supabase
-            .from('transactions')
-            .update({ account_id: accSuami.id })
-            .in('account_id', oldSuamiAccIds);
-        }
-
-        const oldIstriAccIds = (currentAccs || [])
-          .filter((a) => a.owner === 'istri' && a.id !== accIstri!.id)
-          .map((a) => a.id);
-        if (oldIstriAccIds.length > 0) {
-          await supabase
-            .from('transactions')
-            .update({ account_id: accIstri.id })
-            .in('account_id', oldIstriAccIds);
-        }
-
-        // 5. Hapus akun lama selain Dana Suami & Dana Istri
-        const toDeleteIds = (currentAccs || [])
-          .filter((a) => a.id !== accSuami!.id && a.id !== accIstri!.id)
-          .map((a) => a.id);
-
-        if (toDeleteIds.length > 0) {
-          await supabase.from('accounts').delete().in('id', toDeleteIds);
-        }
-      }
-
-      await fetchAccounts();
-    } catch (e: unknown) {
-      const errorMsg = e instanceof Error ? e.message : String(e);
-      console.error('Gagal menyederhanakan akun:', e);
-      alert('Gagal menyederhanakan akun: ' + errorMsg);
-    } finally {
-      setIsSimplifying(false);
-    }
-  };
-
-  // Bersihkan Semua Akun (Reset Total)
-  const handleClearAllAccounts = async () => {
-    if (!confirm('Apakah Anda yakin ingin menghapus seluruh akun di tab My Wallet agar benar-benar bersih dari nol?')) {
-      return;
-    }
-
-    if (isSupabaseConfigured()) {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('household_id')
-          .eq('id', user.id)
-          .maybeSingle();
-
-        if (profile) {
-          await supabase.from('accounts').delete().eq('household_id', profile.household_id);
-        }
-      }
-    }
-    setAccounts([]);
-  };
-
   // Kalkulasi Total Saldo
   const totals = useMemo(() => {
     let grandTotal = 0;
@@ -390,6 +157,7 @@ export default function AccountsPage() {
 
   const filteredAccounts = useMemo(() => {
     return accounts.filter((a) => {
+      if (!a.is_active) return false;
       if (filterOwner === 'suami') return a.owner === 'suami';
       if (filterOwner === 'istri') return a.owner === 'istri';
       return true;
@@ -398,84 +166,127 @@ export default function AccountsPage() {
 
   return (
     <AppShell userRole={userRole} displayName={displayName} pendingCount={0}>
-      <div className="space-y-5">
-        {/* Hero Card: Total Saldo Gabungan Keluarga: Surface-1 */}
-        <div className="rounded-3xl p-6 bg-[var(--surface-1)] border border-[var(--border-color)] shadow-xs relative overflow-hidden">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-5">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] font-semibold text-[var(--text-muted)] block">
-                  Total Saldo Kas Keluarga
-                </span>
-                <button
-                  onClick={togglePrivacy}
-                  className="text-[var(--text-muted)] hover:text-[var(--text-main)] p-0.5 rounded transition-colors"
-                  title="Sembunyikan / Tampilkan Saldo"
-                >
-                  {isHideBalance ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                </button>
-              </div>
-              <p className="text-3xl font-extrabold text-[var(--text-main)] tracking-tight leading-none mt-1.5 angka-keuangan">
-                {formatMaskedRupiah(totals.grandTotal, isHideBalance)}
-              </p>
-              <span className="text-xs text-[var(--text-muted)] font-medium mt-1 block">
-                Akumulasi seluruh rekening bank & dompet digital aktif ({totals.activeCount} akun)
+      <div className="space-y-6">
+        {/* Header Portfolio Monitor */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-main)] tracking-tight">
+                Dompet & Portofolio Rekening
+              </h1>
+              <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20">
+                <CheckCircle2 className="w-3 h-3" />
+                Mode Monitor Laptop
               </span>
             </div>
+            <p className="text-xs text-[var(--text-muted)] mt-0.5">
+              Pemantauan saldo kas riil perbankan dan e-wallet aktif keluarga
+            </p>
+          </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              {accounts.length > 2 && (
-                <button
-                  onClick={handleSimplifyToDanaSuamiIstri}
-                  disabled={isSimplifying}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-[var(--accent-color)]/30 bg-[var(--surface-2)] text-[var(--accent-color)] hover:bg-[var(--accent-color)]/10 text-xs font-bold transition-all shadow-2xs cursor-pointer disabled:opacity-50"
-                  title="Sederhanakan menjadi cukup Dana Suami dan Dana Istri"
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>{isSimplifying ? 'Menyederhanakan...' : 'Sederhanakan: Dana Suami & Istri'}</span>
-                </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={togglePrivacy}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[var(--border-color)] bg-[var(--surface-1)] text-[var(--text-main)] hover:bg-[var(--surface-2)] text-xs font-medium transition-colors shadow-xs"
+              title="Sembunyikan atau tampilkan nominal saldo"
+            >
+              {isHideBalance ? (
+                <>
+                  <EyeOff className="w-3.5 h-3.5 text-[var(--accent-color)]" />
+                  <span>Saldo Disensor</span>
+                </>
+              ) : (
+                <>
+                  <Eye className="w-3.5 h-3.5 text-[var(--text-muted)]" />
+                  <span>Sensor Saldo</span>
+                </>
               )}
+            </button>
 
-              {accounts.length > 0 && (
-                <button
-                  onClick={handleClearAllAccounts}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[var(--color-expense)]/30 bg-[var(--color-expense)]/10 text-[var(--color-expense)] hover:bg-[var(--color-expense)]/20 text-xs font-bold transition-colors shadow-2xs cursor-pointer"
-                  title="Bersihkan Semua Akun"
-                >
-                  <Trash2 className="w-3.5 h-3.5 text-[var(--color-expense)]" />
-                  <span>Bersihkan</span>
-                </button>
-              )}
+            <button
+              onClick={fetchAccounts}
+              title="Perbarui saldo akun"
+              className="p-2 rounded-xl bg-[var(--surface-1)] border border-[var(--border-color)] text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--surface-2)] transition-colors shadow-xs"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
+        </div>
 
-              <button
-                onClick={() => setIsAddModalOpen(true)}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[var(--accent-color)] hover:opacity-90 active:scale-95 text-white dark:text-[#121218] font-bold text-xs transition-all shadow-sm cursor-pointer"
-              >
-                <Plus className="w-4 h-4" />
-                <span>+ Tambah Akun</span>
-              </button>
+        {/* Banner Pusat Kendali Telegram Hub */}
+        <div className="p-4 sm:p-5 rounded-2xl bg-[var(--surface-1)] border border-[var(--border-color)] shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-start sm:items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-[var(--surface-2)] text-[var(--accent-color)] border border-[var(--border-color)] shrink-0">
+              <Bot className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-xs sm:text-sm font-bold text-[var(--text-main)]">
+                Pengaturan Rekening & Saldo Dipusatkan di Telegram
+              </h3>
+              <p className="text-xs text-[var(--text-muted)] mt-0.5 leading-relaxed">
+                Untuk keamanan dan kemudahan di ponsel, penyesuaian saldo kas, penambahan akun, dan penyederhanaan rekening dikonfirmasi langsung via bot Telegram keluarga.
+              </p>
             </div>
           </div>
 
-          {/* Subtotal Saldo Suami vs Istri */}
-          <div className="grid grid-cols-2 gap-3 pt-4 border-t border-[var(--border-color)]">
-            <div className="p-3.5 rounded-2xl bg-[var(--surface-2)] border border-[var(--border-color)] shadow-xs">
-              <span className="text-[11px] font-bold text-[var(--text-muted)] block mb-1">
-                Saldo Suami (Kepala Keluarga)
-              </span>
-              <p className="text-base font-extrabold text-[var(--text-main)] truncate angka-keuangan">
-                {formatMaskedRupiah(totals.suamiTotal, isHideBalance)}
-              </p>
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <div className="px-3 py-1.5 rounded-xl bg-[var(--surface-2)] border border-[var(--border-color)] text-[11px] font-mono text-[var(--text-main)]">
+              Menu: <strong className="text-[var(--accent-color)]">/pengaturan</strong>
             </div>
+            <div className="px-3 py-1.5 rounded-xl bg-[var(--surface-2)] border border-[var(--border-color)] text-[11px] font-mono text-[var(--text-main)]">
+              Koreksi: <code className="text-[var(--accent-color)]">total kas ganti 1jt</code>
+            </div>
+          </div>
+        </div>
 
-            <div className="p-3.5 rounded-2xl bg-[var(--surface-2)] border border-[var(--border-color)] shadow-xs">
-              <span className="text-[11px] font-bold text-[var(--text-muted)] block mb-1">
-                Saldo Istri (Bendahara)
-              </span>
-              <p className="text-base font-extrabold text-[var(--text-main)] truncate angka-keuangan">
-                {formatMaskedRupiah(totals.istriTotal, isHideBalance)}
-              </p>
+        {/* Ringkasan Kas Desktop (3 Kartu Monokrom Widescreen) */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {/* Total Kas */}
+          <div className="p-5 rounded-2xl bg-[var(--surface-1)] border border-[var(--border-color)] shadow-xs flex flex-col justify-between">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-[var(--text-muted)]">Total Kas Siap Pakai</span>
+              <Wallet className="w-4 h-4 text-[var(--accent-color)]" />
             </div>
+            <p className="text-2xl sm:text-3xl font-extrabold text-[var(--text-main)] mt-2 tracking-tight angka-keuangan">
+              {formatMaskedRupiah(totals.grandTotal, isHideBalance)}
+            </p>
+            <p className="text-[11px] text-[var(--text-muted)] mt-3 pt-2.5 border-t border-[var(--border-color)]">
+              Akumulasi dari {totals.activeCount} rekening aktif
+            </p>
+          </div>
+
+          {/* Kas Suami */}
+          <div className="p-5 rounded-2xl bg-[var(--surface-1)] border border-[var(--border-color)] shadow-xs flex flex-col justify-between">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-[var(--text-muted)]">Kas Suami (Kepala Keluarga)</span>
+              <span className="w-2.5 h-2.5 rounded-full bg-[var(--accent-color)]" />
+            </div>
+            <p className="text-2xl sm:text-3xl font-extrabold text-[var(--text-main)] mt-2 tracking-tight angka-keuangan">
+              {formatMaskedRupiah(totals.suamiTotal, isHideBalance)}
+            </p>
+            <p className="text-[11px] text-[var(--text-muted)] mt-3 pt-2.5 border-t border-[var(--border-color)] flex items-center justify-between">
+              <span>Porsi Kas:</span>
+              <strong className="text-[var(--accent-color)]">
+                {totals.grandTotal > 0 ? Math.round((totals.suamiTotal / totals.grandTotal) * 100) : 0}%
+              </strong>
+            </p>
+          </div>
+
+          {/* Kas Istri */}
+          <div className="p-5 rounded-2xl bg-[var(--surface-1)] border border-[var(--border-color)] shadow-xs flex flex-col justify-between">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-[var(--text-muted)]">Kas Istri (Bendahara)</span>
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+            </div>
+            <p className="text-2xl sm:text-3xl font-extrabold text-[var(--text-main)] mt-2 tracking-tight angka-keuangan">
+              {formatMaskedRupiah(totals.istriTotal, isHideBalance)}
+            </p>
+            <p className="text-[11px] text-[var(--text-muted)] mt-3 pt-2.5 border-t border-[var(--border-color)] flex items-center justify-between">
+              <span>Porsi Kas:</span>
+              <strong className="text-emerald-600 dark:text-emerald-400">
+                {totals.grandTotal > 0 ? Math.round((totals.istriTotal / totals.grandTotal) * 100) : 0}%
+              </strong>
+            </p>
           </div>
         </div>
 
@@ -489,7 +300,7 @@ export default function AccountsPage() {
                 : 'bg-[var(--surface-1)] text-[var(--text-muted)] border-[var(--border-color)] hover:text-[var(--text-main)] hover:bg-[var(--surface-2)]'
             }`}
           >
-            Semua Akun ({accounts.length})
+            Semua Rekening ({accounts.filter((a) => a.is_active).length})
           </button>
 
           <button
@@ -500,7 +311,7 @@ export default function AccountsPage() {
                 : 'bg-[var(--surface-1)] text-[var(--text-muted)] border-[var(--border-color)] hover:text-[var(--text-main)] hover:bg-[var(--surface-2)]'
             }`}
           >
-            Akun Suami ({accounts.filter((a) => a.owner === 'suami').length})
+            Rekening Suami ({accounts.filter((a) => a.owner === 'suami' && a.is_active).length})
           </button>
 
           <button
@@ -511,75 +322,90 @@ export default function AccountsPage() {
                 : 'bg-[var(--surface-1)] text-[var(--text-muted)] border-[var(--border-color)] hover:text-[var(--text-main)] hover:bg-[var(--surface-2)]'
             }`}
           >
-            Akun Istri ({accounts.filter((a) => a.owner === 'istri').length})
-          </button>
-
-
-          <button
-            onClick={fetchAccounts}
-            title="Refresh saldo akun"
-            className="p-2 rounded-xl bg-[var(--surface-1)] border border-[var(--border-color)] text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--surface-2)] ml-auto shrink-0 transition-colors shadow-xs"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            Rekening Istri ({accounts.filter((a) => a.owner === 'istri' && a.is_active).length})
           </button>
         </div>
 
-        {/* Daftar Kartu Saldo */}
+        {/* Grid Portofolio Rekening Widescreen 3-Kolom Desktop */}
         {filteredAccounts.length === 0 ? (
-          <div className="text-center py-16 px-6 rounded-3xl bg-[var(--surface-1)] border border-[var(--border-color)] my-4 shadow-xs">
-            <div className="w-12 h-12 rounded-2xl bg-[var(--surface-2)] text-[var(--accent-color)] border border-[var(--border-color)] flex items-center justify-center mx-auto mb-3">
-              <Wallet className="w-6 h-6" />
-            </div>
+          <div className="text-center py-16 px-6 rounded-2xl bg-[var(--surface-1)] border border-[var(--border-color)] shadow-xs">
+            <Wallet className="w-10 h-10 text-[var(--text-muted)] mx-auto mb-3 opacity-50" />
             <h3 className="font-bold text-[var(--text-main)] text-base">
-              Belum Ada Rekening / Dompet Digital
+              Belum Ada Rekening Terdaftar
             </h3>
             <p className="text-xs text-[var(--text-muted)] mt-1 max-w-sm mx-auto leading-relaxed">
-              Data tab My Wallet telah bersih dari nol. Klik tombol "+ Tambah Akun" di atas untuk mendaftarkan rekening atau e-wallet keluarga Anda.
+              Gunakan bot Telegram untuk menambahkan rekening baru dengan perintah:
+              <code className="block mt-1 font-mono text-[var(--accent-color)]">tambah akun &lt;nama&gt; &lt;suami/istri&gt; &lt;saldo&gt;</code>
             </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredAccounts.map((account) => (
-              <BalanceCard
-                key={account.id}
-                account={account}
-                isHideBalance={isHideBalance}
-                onOpenAdjust={(acc) => setAdjustingAccount(acc)}
-                onOpenEdit={(acc) => setEditingAccount(acc)}
-              />
-            ))}
+            {filteredAccounts.map((acc) => {
+              const isBank = acc.type === 'bank';
+              const porsi = totals.grandTotal > 0
+                ? Math.round((acc.current_balance / totals.grandTotal) * 100)
+                : 0;
+
+              return (
+                <div
+                  key={acc.id}
+                  className="p-5 rounded-2xl bg-[var(--surface-1)] border border-[var(--border-color)] shadow-xs flex flex-col justify-between hover:border-slate-300 dark:hover:border-slate-700 transition-all"
+                >
+                  <div>
+                    <div className="flex items-center justify-between gap-2 mb-3">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="p-2 rounded-xl bg-[var(--surface-2)] text-[var(--text-muted)] border border-[var(--border-color)] shrink-0">
+                          {isBank ? (
+                            <Building2 className="w-4 h-4" />
+                          ) : (
+                            <Smartphone className="w-4 h-4" />
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <h4 className="text-sm font-bold text-[var(--text-main)] truncate">
+                            {acc.name}
+                          </h4>
+                          <span className="text-[10px] text-[var(--text-muted)] capitalize">
+                            {isBank ? 'Perbankan' : 'Dompet Digital'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                        acc.owner === 'suami'
+                          ? 'bg-sky-500/10 text-sky-600 dark:text-sky-400'
+                          : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                      }`}>
+                        {acc.owner === 'suami' ? 'Suami' : 'Istri'}
+                      </span>
+                    </div>
+
+                    <div className="mt-4">
+                      <span className="text-[10px] font-medium text-[var(--text-muted)] block">
+                        Saldo Saat Ini:
+                      </span>
+                      <p className="text-xl sm:text-2xl font-extrabold text-[var(--text-main)] mt-0.5 tracking-tight angka-keuangan">
+                        {formatMaskedRupiah(acc.current_balance, isHideBalance)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 pt-3 border-t border-[var(--border-color)] space-y-1.5">
+                    <div className="flex items-center justify-between text-[11px] text-[var(--text-muted)]">
+                      <span>Porsi Kas Keluarga:</span>
+                      <strong className="text-[var(--text-main)]">{porsi}%</strong>
+                    </div>
+                    <div className="flex items-center justify-between text-[10px] text-[var(--text-muted)] font-mono">
+                      <span>Atur via Bot:</span>
+                      <code className="text-[var(--accent-color)]">set saldo {acc.name.toLowerCase()} ...</code>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
-
-      {/* Modal Koreksi Saldo */}
-      <AdjustBalanceModal
-        isOpen={Boolean(adjustingAccount)}
-        onClose={() => setAdjustingAccount(null)}
-        account={
-          adjustingAccount
-            ? {
-                id: adjustingAccount.id,
-                name: adjustingAccount.name,
-                type: adjustingAccount.type,
-                owner: adjustingAccount.owner,
-                currentBalance: adjustingAccount.current_balance,
-              }
-            : null
-        }
-        onAdjust={handleAdjustBalance}
-      />
-
-      {/* Modal Tambah / Edit Akun */}
-      <ManageAccountModal
-        isOpen={isAddModalOpen || Boolean(editingAccount)}
-        onClose={() => {
-          setIsAddModalOpen(false);
-          setEditingAccount(null);
-        }}
-        accountToEdit={editingAccount}
-        onSave={handleSaveAccount}
-      />
     </AppShell>
   );
 }

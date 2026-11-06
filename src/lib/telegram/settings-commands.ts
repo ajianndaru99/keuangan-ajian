@@ -292,6 +292,7 @@ export async function handleCustomRejectionReply(
       .from('transactions')
       .select('id, merchant, amount, direction, account_id, status, raw_notification')
       .eq('household_id', householdId)
+      .neq('status', 'ignored')
       .order('created_at', { ascending: false })
       .limit(1);
 
@@ -305,13 +306,14 @@ export async function handleCustomRejectionReply(
     }
   }
 
-  // Kasus 3: Pesan komplain singkat tanpa reply ("Itu spam", "Ini salah", "Itu promo") untuk transaksi terbaru
-  const isStandaloneSpamComplaint = /^(?:itu|ini|yg\s+tadi|yang\s+barusan)?\s*(?:salah|spam|promo|iklan|bukan\s+transaksi|hapus|batalkan)\s*[.!?]*$/i.test(userReason);
-  if (!replyText && isStandaloneSpamComplaint) {
+  // Kasus 3: Pesan komplain ("Itu spam", "Ini salah", "Itu promo", "Batalkan") baik tanpa reply atau reply ke pesan bot umum (mis. fallback AI)
+  const isComplaint = isDirectRejectionFeedback(userReason) || /^(?:itu|ini|yg\s+tadi|yang\s+barusan)?\s*(?:salah|spam|promo|iklan|bukan\s+transaksi|hapus|batalkan)\s*[.!?]*$/i.test(userReason);
+  if (isComplaint) {
     const { data: latestTx } = await supabase
       .from('transactions')
       .select('id, merchant, amount, direction, account_id, status, raw_notification')
       .eq('household_id', householdId)
+      .neq('status', 'ignored')
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();

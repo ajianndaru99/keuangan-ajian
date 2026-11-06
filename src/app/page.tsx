@@ -33,6 +33,10 @@ import {
   ChevronRight,
   RefreshCw,
   TrendingUp,
+  Wallet,
+  Bot,
+  Sliders,
+  CheckCircle2,
 } from 'lucide-react';
 
 interface AccountSummary {
@@ -308,21 +312,27 @@ export default function DashboardPage() {
       pendingCount={pendingCount}
     >
       <div className="space-y-6">
-        {/* Header Ringkasan & Tanggal */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        {/* Header Ringkasan & Waktu */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-main)] tracking-tight">
-              Ringkasan Finansial
-            </h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-main)] tracking-tight">
+                Ringkasan Eksekutif Finansial
+              </h1>
+              <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                <CheckCircle2 className="w-3 h-3" />
+                Live Sync
+              </span>
+            </div>
             <p className="text-xs text-[var(--text-muted)] mt-0.5">
-              {formatFullWIB(new Date())}
+              {formatFullWIB(new Date())} • Mode Tampilan Monitor / Laptop
             </p>
           </div>
 
           <div className="flex items-center gap-2">
             <button
               onClick={togglePrivacy}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--border-color)] bg-[var(--surface-1)] text-[var(--text-main)] hover:bg-[var(--surface-2)] text-xs font-medium transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[var(--border-color)] bg-[var(--surface-1)] text-[var(--text-main)] hover:bg-[var(--surface-2)] text-xs font-medium transition-colors shadow-xs"
               title="Sembunyikan atau tampilkan nominal saldo"
             >
               {isHideBalance ? (
@@ -341,276 +351,349 @@ export default function DashboardPage() {
             <button
               onClick={fetchData}
               title="Muat ulang data"
-              className="p-2 rounded-lg bg-[var(--surface-1)] border border-[var(--border-color)] text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--surface-2)] transition-colors"
+              className="p-2 rounded-xl bg-[var(--surface-1)] border border-[var(--border-color)] text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--surface-2)] transition-colors shadow-xs"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
             </button>
           </div>
         </div>
 
-        {/* Notifikasi Pending Minimalis (Hanya Muncul Jika Ada Transaksi Pending) */}
+        {/* Notifikasi Transaksi Pending Jika Ada */}
         {pendingCount > 0 && (
-          <div className="flex items-center justify-between p-3.5 px-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-300">
+          <div className="flex items-center justify-between p-3.5 px-5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-300">
             <div className="flex items-center gap-2.5 text-xs font-medium">
-              <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
               <span>
-                Ada <strong className="font-semibold">{pendingCount} transaksi</strong> di Inbox menunggu verifikasi kategori.
+                Terdapat <strong className="font-bold">{pendingCount} transaksi</strong> di Inbox membutuhkan verifikasi atau pengelompokan.
               </span>
             </div>
             <Link
               href="/inbox"
-              className="text-xs font-semibold text-amber-800 dark:text-amber-200 hover:underline flex items-center gap-1 shrink-0 ml-3"
+              className="text-xs font-bold text-amber-800 dark:text-amber-200 hover:underline flex items-center gap-1 shrink-0 ml-3"
             >
-              <span>Verifikasi</span>
+              <span>Verifikasi di Inbox</span>
               <ChevronRight className="w-3.5 h-3.5" />
             </Link>
           </div>
         )}
 
         {/* =========================================================================
-            KARTU UTAMA: SALDO TOTAL KAS KELUARGA & ARUS KAS BULAN INI
+            BARIS 1: 4 KARTU KPI SEJAJAR DI DESKTOP (WIDESCREEN 4-COL GRID)
             ========================================================================= */}
-        <div className="rounded-2xl p-6 bg-[var(--surface-1)] border border-[var(--border-color)] shadow-xs">
-          {/* Baris Atas: Total Saldo Kas & Pembagian Suami / Istri */}
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* KPI 1: Total Kas Siap Pakai */}
+          <div className="p-5 rounded-2xl bg-[var(--surface-1)] border border-[var(--border-color)] shadow-xs flex flex-col justify-between">
             <div>
-              <span className="text-xs font-medium text-[var(--text-muted)] block">
-                Total Kas Keluarga
-              </span>
-              <div className="flex items-baseline gap-3 mt-1">
-                <span className="text-3xl sm:text-4xl font-extrabold text-[var(--text-main)] tracking-tight angka-keuangan">
-                  {formatMaskedRupiah(balanceSummary.totalAll, isHideBalance)}
-                </span>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-[var(--text-muted)]">Total Kas Siap Pakai</span>
+                <Wallet className="w-4 h-4 text-[var(--accent-color)]" />
               </div>
-              <p className="text-[11px] text-[var(--text-muted)] mt-1">
-                Akumulasi seluruh rekening bank & dompet digital aktif
+              <p className="text-2xl sm:text-3xl font-extrabold text-[var(--text-main)] mt-2 tracking-tight angka-keuangan">
+                {formatMaskedRupiah(balanceSummary.totalAll, isHideBalance)}
               </p>
             </div>
 
-            {/* Sub-alokasi Kas Suami & Istri */}
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3 pt-2 lg:pt-0">
-              <div className="px-3.5 py-2 rounded-xl bg-[var(--surface-2)] flex items-center gap-2.5">
-                <span className="w-2 h-2 rounded-full bg-[var(--accent-color)] shrink-0" />
-                <div>
-                  <span className="text-[10px] text-[var(--text-muted)] block font-medium">
-                    Kas Suami
-                  </span>
-                  <span className="text-xs sm:text-sm font-bold text-[var(--text-main)] angka-keuangan">
-                    {formatMaskedRupiah(balanceSummary.totalSuami, isHideBalance)}
-                  </span>
-                </div>
+            {/* Split Bar Proporsi Kas Suami & Istri */}
+            <div className="mt-4 pt-3 border-t border-[var(--border-color)]">
+              <div className="w-full h-1.5 rounded-full bg-[var(--surface-2)] overflow-hidden flex">
+                <div
+                  className="bg-[var(--accent-color)] h-full transition-all"
+                  style={{
+                    width: `${balanceSummary.totalAll > 0 ? (balanceSummary.totalSuami / balanceSummary.totalAll) * 100 : 50}%`,
+                  }}
+                  title="Porsi Kas Suami"
+                />
+                <div
+                  className="bg-emerald-500 h-full transition-all"
+                  style={{
+                    width: `${balanceSummary.totalAll > 0 ? (balanceSummary.totalIstri / balanceSummary.totalAll) * 100 : 50}%`,
+                  }}
+                  title="Porsi Kas Istri"
+                />
               </div>
-
-              <div className="px-3.5 py-2 rounded-xl bg-[var(--surface-2)] flex items-center gap-2.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
-                <div>
-                  <span className="text-[10px] text-[var(--text-muted)] block font-medium">
-                    Kas Istri
-                  </span>
-                  <span className="text-xs sm:text-sm font-bold text-[var(--text-main)] angka-keuangan">
-                    {formatMaskedRupiah(balanceSummary.totalIstri, isHideBalance)}
-                  </span>
-                </div>
+              <div className="flex items-center justify-between text-[11px] text-[var(--text-muted)] mt-1.5 font-medium">
+                <span className="flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-color)]" />
+                  Suami: <strong className="angka-keuangan text-[var(--text-main)]">{formatMaskedRupiah(balanceSummary.totalSuami, isHideBalance)}</strong>
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  Istri: <strong className="angka-keuangan text-[var(--text-main)]">{formatMaskedRupiah(balanceSummary.totalIstri, isHideBalance)}</strong>
+                </span>
               </div>
             </div>
           </div>
 
-          {/* Garis Pemisah Halus */}
-          <div className="my-5 border-t border-[var(--border-color)]" />
-
-          {/* Arus Kas Bulan Ini (Inline 3 Kolom Bersih) */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-            <div className="p-3.5 rounded-xl bg-[var(--surface-2)]">
-              <span className="text-xs text-[var(--text-muted)] flex items-center gap-1.5 font-medium">
-                <ArrowDownLeft className="w-3.5 h-3.5 text-[var(--color-income)]" />
-                <span>Pemasukan Bulan Ini</span>
-              </span>
-              <p className="text-base sm:text-lg font-bold text-[var(--color-income)] mt-1 angka-keuangan">
+          {/* KPI 2: Pemasukan Bulan Ini */}
+          <div className="p-5 rounded-2xl bg-[var(--surface-1)] border border-[var(--border-color)] shadow-xs flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-[var(--text-muted)]">Pemasukan Bulan Ini</span>
+                <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                  <ArrowDownLeft className="w-4 h-4" />
+                </div>
+              </div>
+              <p className="text-2xl sm:text-3xl font-extrabold text-[var(--color-income)] mt-2 tracking-tight angka-keuangan">
                 +{formatMaskedRupiah(cashflowSummary.monthlyIn, isHideBalance)}
               </p>
             </div>
+            <p className="text-[11px] text-[var(--text-muted)] mt-4 pt-3 border-t border-[var(--border-color)]">
+              Gaji, bonus kantor, dan transfer luar terverifikasi
+            </p>
+          </div>
 
-            <div className="p-3.5 rounded-xl bg-[var(--surface-2)]">
-              <span className="text-xs text-[var(--text-muted)] flex items-center gap-1.5 font-medium">
-                <ArrowUpRight className="w-3.5 h-3.5 text-[var(--color-expense)]" />
-                <span>Pengeluaran Bulan Ini</span>
-              </span>
-              <p className="text-base sm:text-lg font-bold text-[var(--color-expense)] mt-1 angka-keuangan">
+          {/* KPI 3: Pengeluaran Bulan Ini */}
+          <div className="p-5 rounded-2xl bg-[var(--surface-1)] border border-[var(--border-color)] shadow-xs flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-[var(--text-muted)]">Pengeluaran Bulan Ini</span>
+                <div className="p-1.5 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400">
+                  <ArrowUpRight className="w-4 h-4" />
+                </div>
+              </div>
+              <p className="text-2xl sm:text-3xl font-extrabold text-[var(--color-expense)] mt-2 tracking-tight angka-keuangan">
                 -{formatMaskedRupiah(cashflowSummary.monthlyOut, isHideBalance)}
               </p>
             </div>
+            <p className="text-[11px] text-[var(--text-muted)] mt-4 pt-3 border-t border-[var(--border-color)]">
+              Total belanja riil (di luar perpindahan kas internal)
+            </p>
+          </div>
 
-            <div className="p-3.5 rounded-xl bg-[var(--surface-2)]">
-              <span className="text-xs text-[var(--text-muted)] flex items-center gap-1.5 font-medium">
-                <TrendingUp className="w-3.5 h-3.5 text-[var(--accent-color)]" />
-                <span>Arus Kas Bersih (Net)</span>
-              </span>
-              <p className={`text-base sm:text-lg font-bold mt-1 angka-keuangan ${
+          {/* KPI 4: Arus Kas Bersih (Net Cash Flow) */}
+          <div className="p-5 rounded-2xl bg-[var(--surface-1)] border border-[var(--border-color)] shadow-xs flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-[var(--text-muted)]">Arus Kas Bersih (Net)</span>
+                <div className="p-1.5 rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400">
+                  <TrendingUp className="w-4 h-4" />
+                </div>
+              </div>
+              <p className={`text-2xl sm:text-3xl font-extrabold mt-2 tracking-tight angka-keuangan ${
                 cashflowSummary.net >= 0 ? 'text-[var(--color-income)]' : 'text-[var(--color-expense)]'
               }`}>
                 {cashflowSummary.net >= 0 ? '+' : ''}{formatMaskedRupiah(cashflowSummary.net, isHideBalance)}
               </p>
             </div>
+            <p className="text-[11px] text-[var(--text-muted)] mt-4 pt-3 border-t border-[var(--border-color)] flex items-center justify-between">
+              <span>Status Arus Kas:</span>
+              <strong className={cashflowSummary.net >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}>
+                {cashflowSummary.net >= 0 ? 'Surplus Terkendali' : 'Defisit Anggaran'}
+              </strong>
+            </p>
           </div>
         </div>
 
         {/* =========================================================================
-            BAGIAN: REKENING & DOMPET DIGITAL
+            BARIS 2: 12-KOLOM BENTO GRID (8 KOLOM KIRI + 4 KOLOM KANAN)
             ========================================================================= */}
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <h2 className="text-sm font-bold text-[var(--text-main)]">
-                Rekening & Dompet Digital
-              </h2>
-              <p className="text-xs text-[var(--text-muted)]">
-                Saldo aktif di perbankan dan e-wallet
-              </p>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* KOLOM KIRI (8 Kolom): Tabel Mutasi Terkini Widescreen */}
+          <div className="lg:col-span-8 rounded-2xl p-5 sm:p-6 bg-[var(--surface-1)] border border-[var(--border-color)] shadow-xs">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-base font-bold text-[var(--text-main)] tracking-tight">
+                  Riwayat Mutasi Terkini
+                </h2>
+                <p className="text-xs text-[var(--text-muted)]">
+                  10 transaksi terakhir yang dicatat otomatis oleh sistem
+                </p>
+              </div>
+
+              <Link
+                href="/inbox"
+                className="inline-flex items-center gap-1 text-xs font-bold text-[var(--accent-color)] hover:opacity-80 transition-opacity"
+              >
+                <span>Buka Ledger Penuh</span>
+                <ChevronRight className="w-4 h-4" />
+              </Link>
             </div>
-            <Link
-              href="/accounts"
-              className="text-xs font-semibold text-[var(--accent-color)] hover:opacity-80 flex items-center gap-0.5"
-            >
-              <span>Kelola Akun</span>
-              <ChevronRight className="w-3.5 h-3.5" />
-            </Link>
+
+            {recentTransactions.length === 0 ? (
+              <div className="text-center py-12 px-4 rounded-xl bg-[var(--surface-2)]">
+                <Clock className="w-8 h-8 text-[var(--text-muted)] mx-auto mb-2 opacity-50" />
+                <h4 className="text-xs font-semibold text-[var(--text-main)]">
+                  Belum Ada Riwayat Transaksi
+                </h4>
+                <p className="text-xs text-[var(--text-muted)] mt-1 max-w-sm mx-auto leading-relaxed">
+                  Setiap mutasi yang masuk dari notifikasi HP akan langsung terpampang rapi di tabel ini secara realtime.
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-[var(--border-color)] text-[11px] font-bold text-[var(--text-muted)] uppercase tracking-wider">
+                      <th className="py-2.5 px-3">Transaksi / Merchant</th>
+                      <th className="py-2.5 px-3">Rekening</th>
+                      <th className="py-2.5 px-3">Waktu</th>
+                      <th className="py-2.5 px-3 text-center">Status</th>
+                      <th className="py-2.5 px-3 text-right">Nominal</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[var(--border-color)] text-xs">
+                    {recentTransactions.map((tx) => {
+                      const isIncome = tx.direction === 'in';
+                      const accountName = tx.accounts?.name || 'Rekening';
+                      const ownerLabel = tx.source_device === 'suami' ? 'Suami' : 'Istri';
+
+                      return (
+                        <tr
+                          key={tx.id}
+                          onClick={() => {
+                            setDetailTransaction(tx);
+                            setIsDetailModalOpen(true);
+                          }}
+                          className="hover:bg-[var(--surface-2)] cursor-pointer transition-colors group"
+                        >
+                          <td className="py-3 px-3">
+                            <div className="flex items-center gap-2.5">
+                              <div
+                                className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                                  isIncome
+                                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                                    : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
+                                }`}
+                              >
+                                {isIncome ? (
+                                  <ArrowDownLeft className="w-3.5 h-3.5" />
+                                ) : (
+                                  <ArrowUpRight className="w-3.5 h-3.5" />
+                                )}
+                              </div>
+                              <span className="font-semibold text-[var(--text-main)] group-hover:text-[var(--accent-color)] transition-colors">
+                                {tx.merchant || 'Transaksi Digital'}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="py-3 px-3 text-[var(--text-muted)]">
+                            <span>{accountName}</span>
+                            <span className="text-[10px] ml-1.5 px-1.5 py-0.5 rounded bg-[var(--surface-2)]">
+                              {ownerLabel}
+                            </span>
+                          </td>
+                          <td className="py-3 px-3 text-[var(--text-muted)]">
+                            {formatRelativeWIB(tx.transaction_date)}
+                          </td>
+                          <td className="py-3 px-3 text-center">
+                            <span
+                              className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                tx.status === 'pending'
+                                  ? 'bg-amber-500/15 text-amber-600 dark:text-amber-300'
+                                  : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                              }`}
+                            >
+                              {tx.status === 'pending' ? 'Pending' : 'Reconciled'}
+                            </span>
+                          </td>
+                          <td className="py-3 px-3 text-right">
+                            <span
+                              className={`font-bold tracking-tight angka-keuangan ${
+                                isIncome ? 'text-[var(--color-income)]' : 'text-[var(--color-expense)]'
+                              }`}
+                            >
+                              {isIncome ? '+' : '-'}{formatMaskedRupiah(tx.amount, isHideBalance)}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-            {accounts.map((acc) => {
-              const isBank = acc.type === 'bank';
-
-              return (
-                <div
-                  key={acc.id}
-                  className="p-3.5 rounded-xl bg-[var(--surface-1)] border border-[var(--border-color)] hover:border-slate-300 dark:hover:border-slate-700 transition-colors"
+          {/* KOLOM KANAN (4 Kolom): Status Dompet & Pusat Kendali Telegram */}
+          <div className="lg:col-span-4 space-y-4">
+            {/* Panel 1: Saldo Rekening & Dompet */}
+            <div className="rounded-2xl p-5 bg-[var(--surface-1)] border border-[var(--border-color)] shadow-xs">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                  Rekening & Dompet
+                </h3>
+                <Link
+                  href="/accounts"
+                  className="text-xs font-bold text-[var(--accent-color)] hover:underline"
                 >
-                  <div className="flex items-center justify-between gap-2 mb-1.5">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      {isBank ? (
-                        <Building2 className="w-3.5 h-3.5 shrink-0 text-[var(--text-muted)]" />
-                      ) : (
-                        <Smartphone className="w-3.5 h-3.5 shrink-0 text-[var(--text-muted)]" />
-                      )}
-                      <span className="text-xs font-semibold text-[var(--text-main)] truncate">
-                        {acc.name}
-                      </span>
-                    </div>
-                    <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-[var(--surface-2)] text-[var(--text-muted)]">
-                      {acc.owner === 'suami' ? 'Suami' : 'Istri'}
-                    </span>
-                  </div>
+                  Detail
+                </Link>
+              </div>
 
-                  <p className="text-sm font-bold text-[var(--text-main)] tracking-tight angka-keuangan">
-                    {formatMaskedRupiah(acc.current_balance, isHideBalance)}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+              <div className="space-y-2.5">
+                {accounts.map((acc) => {
+                  const isBank = acc.type === 'bank';
+                  const porsi = balanceSummary.totalAll > 0
+                    ? Math.round((acc.current_balance / balanceSummary.totalAll) * 100)
+                    : 0;
 
-        {/* =========================================================================
-            BAGIAN: RIWAYAT TRANSAKSI TERKINI
-            ========================================================================= */}
-        <div className="rounded-2xl p-5 sm:p-6 bg-[var(--surface-1)] border border-[var(--border-color)] shadow-xs">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-sm font-bold text-[var(--text-main)]">
-                Riwayat Transaksi Terkini
-              </h2>
-              <p className="text-xs text-[var(--text-muted)]">
-                Catatan aktivitas finansial terbaru
-              </p>
-            </div>
-
-            <Link
-              href="/inbox"
-              className="text-xs font-semibold text-[var(--accent-color)] hover:opacity-80 flex items-center gap-0.5"
-            >
-              <span>Lihat Semua</span>
-              <ChevronRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-
-          {recentTransactions.length === 0 ? (
-            <div className="text-center py-10 px-4 rounded-xl bg-[var(--surface-2)]">
-              <Clock className="w-7 h-7 text-[var(--text-muted)] mx-auto mb-2 opacity-60" />
-              <h4 className="text-xs font-semibold text-[var(--text-main)]">
-                Belum Ada Riwayat Transaksi
-              </h4>
-              <p className="text-xs text-[var(--text-muted)] mt-1 max-w-sm mx-auto leading-relaxed">
-                Saat transaksi tercatat dari HP, aktivitas terbaru akan otomatis tampil di sini.
-              </p>
-            </div>
-          ) : (
-            <div className="divide-y divide-[var(--border-color)]">
-              {recentTransactions.map((tx) => {
-                const isIncome = tx.direction === 'in';
-                const accountName = tx.accounts?.name || 'Rekening';
-                const ownerLabel = tx.source_device === 'suami' ? 'Suami' : 'Istri';
-
-                return (
-                  <div
-                    key={tx.id}
-                    onClick={() => {
-                      setDetailTransaction(tx);
-                      setIsDetailModalOpen(true);
-                    }}
-                    className="py-3 px-2 flex items-center justify-between gap-3 hover:bg-[var(--surface-2)] rounded-lg transition-colors cursor-pointer"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div
-                        className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                          isIncome
-                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                            : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
-                        }`}
-                      >
-                        {isIncome ? (
-                          <ArrowDownLeft className="w-4 h-4" />
+                  return (
+                    <div
+                      key={acc.id}
+                      className="p-3 rounded-xl bg-[var(--surface-2)] border border-[var(--border-color)] flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        {isBank ? (
+                          <Building2 className="w-4 h-4 text-[var(--text-muted)] shrink-0" />
                         ) : (
-                          <ArrowUpRight className="w-4 h-4" />
+                          <Smartphone className="w-4 h-4 text-[var(--text-muted)] shrink-0" />
                         )}
-                      </div>
-
-                      <div className="min-w-0">
-                        <h4 className="text-xs sm:text-sm font-semibold text-[var(--text-main)] truncate">
-                          {tx.merchant || 'Transaksi Digital'}
-                        </h4>
-                        <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-[var(--text-muted)]">
-                          <span>{accountName} ({ownerLabel})</span>
-                          <span>•</span>
-                          <span>{formatRelativeWIB(tx.transaction_date)}</span>
+                        <div className="min-w-0">
+                          <span className="text-xs font-bold text-[var(--text-main)] block truncate">
+                            {acc.name}
+                          </span>
+                          <span className="text-[10px] text-[var(--text-muted)]">
+                            {acc.owner === 'suami' ? 'Suami' : 'Istri'} • {porsi}% dari kas
+                          </span>
                         </div>
                       </div>
-                    </div>
 
-                    <div className="text-right shrink-0">
-                      <p
-                        className={`text-xs sm:text-sm font-bold tracking-tight angka-keuangan ${
-                          isIncome
-                            ? 'text-[var(--color-income)]'
-                            : 'text-[var(--color-expense)]'
-                        }`}
-                      >
-                        {isIncome ? '+' : '-'}{formatMaskedRupiah(tx.amount, isHideBalance)}
-                      </p>
-                      <span
-                        className={`inline-block text-[10px] font-medium px-2 py-0.5 rounded-full mt-0.5 ${
-                          tx.status === 'pending'
-                            ? 'bg-amber-500/15 text-amber-600 dark:text-amber-300'
-                            : 'bg-[var(--surface-2)] text-[var(--text-muted)]'
-                        }`}
-                      >
-                        {tx.status === 'pending' ? 'Pending' : 'Tervalidasi'}
+                      <span className="text-xs font-bold text-[var(--text-main)] angka-keuangan shrink-0">
+                        {formatMaskedRupiah(acc.current_balance, isHideBalance)}
                       </span>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
-          )}
+
+            {/* Panel 2: Pusat Kendali Pengaturan Telegram */}
+            <div className="rounded-2xl p-5 bg-[var(--surface-1)] border border-[var(--border-color)] shadow-xs space-y-3">
+              <div className="flex items-center gap-2 text-[var(--accent-color)]">
+                <Bot className="w-5 h-5 shrink-0" />
+                <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-main)]">
+                  Pusat Pengaturan Telegram
+                </h3>
+              </div>
+
+              <p className="text-xs text-[var(--text-muted)] leading-relaxed">
+                Seluruh konfigurasi saldo, pagu anggaran, dan rekening dipusatkan di Telegram untuk kemudahan dan konfirmasi aman langsung dari HP:
+              </p>
+
+              <div className="p-3 rounded-xl bg-[var(--surface-2)] border border-[var(--border-color)] space-y-1.5 text-xs font-mono">
+                <div className="flex items-center justify-between">
+                  <span className="text-[var(--text-muted)]">Menu Lengkap:</span>
+                  <code className="font-bold text-[var(--accent-color)]">/pengaturan</code>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[var(--text-muted)]">Ubah Kas:</span>
+                  <code className="text-[var(--text-main)]">total kas ganti 1jt</code>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[var(--text-muted)]">Ubah Saldo:</span>
+                  <code className="text-[var(--text-main)]">set saldo dana 2jt</code>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[var(--text-muted)]">Pagu Anggaran:</span>
+                  <code className="text-[var(--text-main)]">set anggaran dapur 1jt</code>
+                </div>
+              </div>
+
+              <p className="text-[11px] text-[var(--text-muted)] italic">
+                *Dasbor web ini berfungsi sebagai pemantau monitor penuh (Desktop Monitor) yang otomatis terupdate.
+              </p>
+            </div>
+          </div>
         </div>
       </div>
 

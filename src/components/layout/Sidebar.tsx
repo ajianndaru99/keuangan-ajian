@@ -17,6 +17,8 @@ import {
   PiggyBank,
   PieChart,
   Smartphone,
+  Bot,
+  Sliders,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -154,8 +156,19 @@ export default function Sidebar({
         </div>
       </div>
 
-      {/* Footer: Tombol Keluar */}
-      <div className="p-3 border-t border-[var(--border-color)]">
+      {/* Footer: Pusat Kendali Telegram & Tombol Keluar */}
+      <div className="p-3 border-t border-[var(--border-color)] space-y-2">
+        <div className="p-3 rounded-2xl bg-[var(--surface-2)] border border-[var(--border-color)] text-[var(--text-main)]">
+          <div className="flex items-center gap-2 mb-1">
+            <Bot className="w-4 h-4 text-[var(--accent-color)] shrink-0" />
+            <span className="text-[11px] font-bold">Pusat Kendali Bot</span>
+          </div>
+          <p className="text-[10px] text-[var(--text-muted)] leading-relaxed">
+            Seluruh saldo, pagu, dan akun dikelola via Telegram:
+            <code className="block mt-1 font-mono font-bold text-[10px] text-[var(--accent-color)]">/pengaturan</code>
+          </p>
+        </div>
+
         <button
           onClick={handleLogout}
           className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-[var(--color-expense)] hover:bg-[var(--color-expense)]/10 transition-colors"

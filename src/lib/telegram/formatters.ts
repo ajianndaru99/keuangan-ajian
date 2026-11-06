@@ -249,6 +249,7 @@ Halo! Saya bot asisten keuangan yang terhubung langsung ke dasbor keluarga Anda.
 📋 \`/anggaran\` — Kuota belanja 8 kategori (lengkap dengan status pos diset / belum)
 📈 \`/rekap\` — Pengeluaran 7 hari & tren vs minggu lalu
 📥 \`/inbox\` — Cek mutasi gantung yang butuh konfirmasi
+⚙️ \`/pengaturan\` — Pusat kendali rekening, saldo, pagu, gajian & spam
 💡 \`/help\` — Panduan bantuan perintah ini
 
 ⚙️ *Pengaturan Langsung via Chat:*

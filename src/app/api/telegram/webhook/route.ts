@@ -39,6 +39,7 @@ import {
 } from '@/lib/telegram/settings-commands.ts';
 import { applyAccountBalanceDelta } from '@/lib/account-balance.ts';
 import { generateScreenshotDedupeHash, suggestCategoryForMerchant } from '@/lib/vision/gemini.ts';
+import { sendSettingsHubMenu, handleAccountTextCommands } from '@/lib/telegram/settings-hub.ts';
 
 export const dynamic = 'force-dynamic';
 
@@ -114,6 +115,13 @@ async function handleSlashCommands(
     }
     case '/inbox': {
       await handleInboxCommand(chatId, supabase, householdId);
+      break;
+    }
+    case '/pengaturan':
+    case '/settings':
+    case '/atur':
+    case '/hub': {
+      await sendSettingsHubMenu(chatId);
       break;
     }
     default: {
@@ -406,6 +414,18 @@ export async function POST(req: NextRequest) {
     // 10. Handler Perintah Set Tanggal Gajian
     const wasHandledAsSetGajian = await handleSetGajianFlow(cleanedText, chatId, message.message_id, supabase, householdId);
     if (wasHandledAsSetGajian) {
+      return NextResponse.json({ ok: true });
+    }
+
+    // 10.5. Handler Perintah Manajemen Akun / Rekening via Chat (tambah akun, nonaktifkan akun)
+    const wasHandledAsAccCmd = await handleAccountTextCommands(cleanedText, chatId, message.message_id, supabase, householdId);
+    if (wasHandledAsAccCmd) {
+      return NextResponse.json({ ok: true });
+    }
+
+    // 10.6. Buka Pusat Pengaturan jika menyebut kata kunci pengaturan
+    if (/^(?:buka\s+)?(?:menu\s+)?pengaturan$/i.test(cleanedText) || /^(?:buka\s+)?settings$/i.test(cleanedText)) {
+      await sendSettingsHubMenu(chatId, message.message_id);
       return NextResponse.json({ ok: true });
     }
 

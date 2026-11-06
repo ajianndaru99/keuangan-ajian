@@ -27,6 +27,7 @@ import { TransactionItem } from '@/components/inbox/TransactionCard';
 import { Category } from '@/components/inbox/CategoryChipList';
 import { extractNominal, extractMerchant, detectAccountInfo, extractNotificationDate } from '@/lib/ai/notification-parser';
 import { extractPromoKeywordsFromText } from '@/lib/ai/adaptive-rules';
+import { formatRupiah } from '@/lib/utils';
 import { CheckCircle2, Smartphone, AlertTriangle, Trash2, Clock, X } from 'lucide-react';
 
 const defaultCategories: Category[] = [
@@ -345,6 +346,31 @@ export default function InboxTransactionsPage() {
         parse_method: tx.parse_method,
       }));
   }, [transactions, flowFilter, searchQuery]);
+
+  // Ringkasan Finansial Ribbon Widescreen Desktop
+  const transactionSummary = useMemo(() => {
+    let totalIn = 0;
+    let totalOut = 0;
+    let pendingCount = 0;
+
+    for (const tx of filteredTransactions) {
+      if (tx.status === 'ignored') continue;
+      if (tx.status === 'pending') pendingCount++;
+      if (tx.direction === 'in') {
+        totalIn += tx.amount;
+      } else if (tx.direction === 'out') {
+        totalOut += tx.amount;
+      }
+    }
+
+    return {
+      totalIn,
+      totalOut,
+      net: totalIn - totalOut,
+      count: filteredTransactions.length,
+      pendingCount,
+    };
+  }, [filteredTransactions]);
 
   // Deteksi transaksi promo / chat / non-finansial yang sempat lolos ke tabel transaksi
   const promoTransactions = useMemo(() => {
@@ -745,6 +771,52 @@ export default function InboxTransactionsPage() {
               </button>
             </div>
           )}
+
+          {/* Summary Ribbon Widescreen Desktop */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+            <div className="p-3.5 rounded-2xl bg-[var(--surface-1)] border border-[var(--border-color)]">
+              <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider block mb-1">
+                Pemasukan (Filter)
+              </span>
+              <p className="text-sm sm:text-base font-bold text-[var(--color-income)] tabular-nums">
+                +{formatRupiah(transactionSummary.totalIn)}
+              </p>
+            </div>
+            <div className="p-3.5 rounded-2xl bg-[var(--surface-1)] border border-[var(--border-color)]">
+              <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider block mb-1">
+                Pengeluaran (Filter)
+              </span>
+              <p className="text-sm sm:text-base font-bold text-[var(--color-expense)] tabular-nums">
+                -{formatRupiah(transactionSummary.totalOut)}
+              </p>
+            </div>
+            <div className="p-3.5 rounded-2xl bg-[var(--surface-1)] border border-[var(--border-color)]">
+              <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider block mb-1">
+                Selisih Bersih (Net)
+              </span>
+              <p
+                className={`text-sm sm:text-base font-bold tabular-nums ${
+                  transactionSummary.net >= 0 ? 'text-[var(--color-income)]' : 'text-[var(--color-expense)]'
+                }`}
+              >
+                {transactionSummary.net >= 0 ? '+' : ''}
+                {formatRupiah(transactionSummary.net)}
+              </p>
+            </div>
+            <div className="p-3.5 rounded-2xl bg-[var(--surface-1)] border border-[var(--border-color)]">
+              <span className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wider block mb-1">
+                Volume Transaksi
+              </span>
+              <p className="text-sm sm:text-base font-bold text-[var(--text-main)] tabular-nums">
+                {transactionSummary.count} <span className="text-xs font-normal text-[var(--text-muted)]">item</span>
+                {transactionSummary.pendingCount > 0 && (
+                  <span className="ml-2 px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                    {transactionSummary.pendingCount} pending
+                  </span>
+                )}
+              </p>
+            </div>
+          </div>
 
           <TableToolbar
             currentFlow={flowFilter}

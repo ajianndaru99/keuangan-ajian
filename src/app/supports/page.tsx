@@ -202,7 +202,7 @@ export default function SupportsPage() {
 
   return (
     <AppShell userRole={userRole} displayName={displayName} pendingCount={0}>
-      <div className="space-y-6 max-w-4xl pb-12">
+      <div className="space-y-6 w-full max-w-[1400px] pb-12">
         {/* Header Supports */}
         <div>
           <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-[var(--text-main)] font-heading">

@@ -2,20 +2,18 @@
 
 // ==============================================================================
 // BUDGET PAGE: src/app/budget/page.tsx
-// Halaman Atur Budget & Sisa Budget (Savings) - 8 Kategori Spesifik
+// Desktop Budget & Savings Monitor (Mode Monitor & Laptop)
+// Seluruh konfigurasi pagu anggaran dikelola via Telegram (/pengaturan)
 // ==============================================================================
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import AppShell from '@/components/layout/AppShell';
 import RemainingBudgetDonut from '@/components/budget/RemainingBudgetDonut';
 import CategoryBudgetCard, { CategoryBudgetItem } from '@/components/budget/CategoryBudgetCard';
-import CurvedDonutBreakdown, { BudgetSegment } from '@/components/budget/CurvedDonutBreakdown';
-import SetBudgetModal from '@/components/budget/SetBudgetModal';
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
 import { getMonthlyRange, getBudgetPeriodKey } from '@/lib/date-utils';
-import { Plus, Sliders, PieChart, RefreshCw } from 'lucide-react';
+import { RefreshCw, Bot, CheckCircle2 } from 'lucide-react';
 
-// 8 Kategori spesifik yang ditentukan pengguna
 const targetCategories = [
   { id: 'b-dapur', name: 'Belanja Dapur', emoji: '🛒' },
   { id: 'b-makan', name: 'Makan & Jajan', emoji: '🍔' },
@@ -29,19 +27,17 @@ const targetCategories = [
 
 export default function BudgetPage() {
   const [budgets, setBudgets] = useState<CategoryBudgetItem[]>([]);
-  const [activeTab, setActiveTab] = useState<'cards' | 'donut'>('cards');
-  const [selectedForEdit, setSelectedForEdit] = useState<CategoryBudgetItem | null>(null);
   const [userRole, setUserRole] = useState<'suami' | 'istri'>('suami');
   const [displayName, setDisplayName] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
+  const [paydayDate, setPaydayDate] = useState<number>(1);
+  const [cycleLabel, setCycleLabel] = useState<string>('');
 
-  // Ambil data pengeluaran riil bulan berjalan dari database
   const fetchBudgetData = useCallback(async () => {
     const now = new Date();
     const periodMonthName = now.toLocaleString('id-ID', { month: 'long', year: 'numeric' });
 
-    // Load saved limits from localStorage
     let savedLimits: Record<string, number> = {};
     try {
       const stored = localStorage.getItem('budget_limits_v2');
@@ -82,18 +78,21 @@ export default function BudgetPage() {
       setUserRole(profile.role);
       setDisplayName(profile.display_name);
 
-      // Ambil tanggal siklus gajian dari settings
       const { data: settingData } = await supabase
         .from('settings')
         .select('month_start_day')
         .eq('household_id', profile.household_id)
         .maybeSingle();
+
       const monthStartDay = settingData?.month_start_day || 1;
+      setPaydayDate(monthStartDay);
+
       const dateRange = getMonthlyRange(0, monthStartDay);
+      setCycleLabel(dateRange.label);
+
       const startOfCycle = dateRange.startDate.toISOString();
       const endOfCycle = dateRange.endDate.toISOString();
 
-      // Ambil transaksi pengeluaran siklus ini yang sudah direkonsiliasi (hanya belanja riil)
       const { data: txList } = await supabase
         .from('transactions')
         .select(`
@@ -108,7 +107,6 @@ export default function BudgetPage() {
         .gte('transaction_date', startOfCycle)
         .lte('transaction_date', endOfCycle);
 
-      // Ambil budget limit dari Supabase jika ada
       const periodMonthKey = getBudgetPeriodKey(now, monthStartDay);
       const { data: dbBudgets } = await supabase
         .from('category_budgets')
@@ -122,7 +120,6 @@ export default function BudgetPage() {
         });
       }
 
-      // Hitung pengeluaran per kategori berdasarkan pencocokan nama
       const spentByNameMap: Record<string, number> = {};
       if (txList) {
         interface TxBudgetRow {
@@ -132,10 +129,12 @@ export default function BudgetPage() {
         (txList as unknown as TxBudgetRow[]).forEach((tx) => {
           const catName = tx.categories?.name || '';
           if (catName) {
-            // Cocokkan ke salah satu dari 8 kategori
             let matchedKey = 'Lainnya';
             for (const tc of targetCategories) {
-              if (catName.toLowerCase().includes(tc.name.toLowerCase()) || tc.name.toLowerCase().includes(catName.toLowerCase())) {
+              if (
+                catName.toLowerCase().includes(tc.name.toLowerCase()) ||
+                tc.name.toLowerCase().includes(catName.toLowerCase())
+              ) {
                 matchedKey = tc.name;
                 break;
               }
@@ -182,79 +181,12 @@ export default function BudgetPage() {
     return budgets.reduce((acc, b) => acc + b.spentAmount, 0);
   }, [budgets]);
 
-  const donutSegments: BudgetSegment[] = useMemo(() => {
-    const palette = ['#10b981', '#f59e0b', '#0ea5e9', '#eab308', '#6366f1', '#a855f7', '#f43f5e', '#64748b'];
-    return budgets.map((b, idx) => ({
-      id: b.id,
-      name: b.name,
-      amount: b.spentAmount > 0 ? b.spentAmount : b.budgetLimit,
-      color: palette[idx % palette.length],
-      icon: b.emoji,
-    }));
-  }, [budgets]);
-
-  const handleSaveBudget = async (id: string, newLimit: number) => {
-    const targetItem = budgets.find((b) => b.id === id);
-    const catName = targetItem?.name || id;
-
-    setBudgets((prev) => {
-      const updated = prev.map((item) => (item.id === id ? { ...item, budgetLimit: newLimit } : item));
-      try {
-        const limitsMap = updated.reduce((acc, item) => {
-          acc[item.id] = item.budgetLimit;
-          return acc;
-        }, {} as Record<string, number>);
-        localStorage.setItem('budget_limits_v2', JSON.stringify(limitsMap));
-      } catch (e) {
-        console.warn('Gagal menyimpan budget limit:', e);
-      }
-      return updated;
-    });
-
-    if (isSupabaseConfigured()) {
-      try {
-        const supabase = createClient();
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('household_id')
-            .eq('id', user.id)
-            .maybeSingle();
-
-          if (profile?.household_id) {
-            const now = new Date();
-            const { data: settingData } = await supabase
-              .from('settings')
-              .select('month_start_day')
-              .eq('household_id', profile.household_id)
-              .maybeSingle();
-            const monthStartDay = settingData?.month_start_day || 1;
-            const periodMonthKey = getBudgetPeriodKey(now, monthStartDay);
-
-            await supabase.from('category_budgets').upsert({
-              household_id: profile.household_id,
-              category_id: id,
-              category_name: catName,
-              limit_amount: newLimit,
-              period_month: periodMonthKey,
-              updated_at: new Date().toISOString(),
-            }, {
-              onConflict: 'household_id,category_id,period_month',
-            });
-          }
-        }
-      } catch (err) {
-        console.warn('Gagal sinkron budget ke database:', err);
-      }
-    }
-  };
-
-  const currentMonthPeriod = useMemo(() => {
+  const daysRemaining = useMemo(() => {
     const now = new Date();
-    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    return `1 ${now.toLocaleString('id-ID', { month: 'short' })} - ${end.getDate()} ${now.toLocaleString('id-ID', { month: 'short', year: 'numeric' })}`;
-  }, []);
+    const range = getMonthlyRange(0, paydayDate);
+    const diffMs = range.endDate.getTime() - now.getTime();
+    return Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+  }, [paydayDate]);
 
   return (
     <AppShell
@@ -262,107 +194,109 @@ export default function BudgetPage() {
       displayName={displayName}
       pendingCount={pendingCount}
     >
-      <div className="space-y-5">
-        {/* Header Title & Segment Switcher */}
-        <div className="flex items-center justify-between">
+      <div className="space-y-6">
+        {/* Header Title Widescreen */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-xl font-bold text-[var(--text-main)] tracking-tight">
-              Batas Anggaran & Tabungan
-            </h1>
-            <p className="text-xs text-[var(--text-muted)]">
-              Pengawasan batas kuota pengeluaran untuk 8 kategori utama keluarga
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl sm:text-2xl font-bold text-[var(--text-main)] tracking-tight">
+                Batas Anggaran & Tabungan
+              </h1>
+              <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20">
+                <CheckCircle2 className="w-3 h-3" />
+                Mode Monitor Laptop
+              </span>
+            </div>
+            <p className="text-xs text-[var(--text-muted)] mt-0.5">
+              Pengawasan batas kuota pengeluaran untuk 8 kategori utama keluarga • Siklus: {cycleLabel || 'Bulan Berjalan'}
             </p>
           </div>
 
           <div className="flex items-center gap-2">
             <button
               onClick={fetchBudgetData}
-              title="Muat ulang budget"
+              title="Muat ulang data anggaran"
               className="p-2 rounded-xl bg-[var(--surface-1)] border border-[var(--border-color)] text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--surface-2)] transition-colors shadow-xs"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
             </button>
+          </div>
+        </div>
 
-            {/* Segmented Switcher */}
-            <div className="p-1 rounded-2xl bg-[var(--surface-1)] border border-[var(--border-color)] flex items-center gap-1 shadow-xs">
-              <button
-                onClick={() => setActiveTab('cards')}
-                className={`p-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                  activeTab === 'cards'
-                    ? 'bg-[var(--accent-color)] text-white dark:text-[#121218] shadow-xs'
-                    : 'text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--surface-2)]'
-                }`}
-              >
-                <Sliders className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Daftar Kartu</span>
-              </button>
-              <button
-                onClick={() => setActiveTab('donut')}
-                className={`p-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                  activeTab === 'donut'
-                    ? 'bg-[var(--accent-color)] text-white dark:text-[#121218] shadow-xs'
-                    : 'text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--surface-2)]'
-                }`}
-              >
-                <PieChart className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Donut Breakdown</span>
-              </button>
+        {/* Banner Pusat Kendali Telegram Hub */}
+        <div className="p-4 sm:p-5 rounded-2xl bg-[var(--surface-1)] border border-[var(--border-color)] shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-start sm:items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-[var(--surface-2)] text-[var(--accent-color)] border border-[var(--border-color)] shrink-0">
+              <Bot className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-xs sm:text-sm font-bold text-[var(--text-main)]">
+                Pengaturan Pagu Anggaran Dipusatkan di Telegram
+              </h3>
+              <p className="text-xs text-[var(--text-muted)] mt-0.5 leading-relaxed">
+                Setel pagu pos belanja kapan saja via bot Telegram tanpa form bertumpuk di web. Cukup ketik perintah atau buka menu pengaturan interaktif:
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <div className="px-3 py-1.5 rounded-xl bg-[var(--surface-2)] border border-[var(--border-color)] text-[11px] font-mono text-[var(--text-main)]">
+              Menu: <strong className="text-[var(--accent-color)]">/pengaturan</strong>
+            </div>
+            <div className="px-3 py-1.5 rounded-xl bg-[var(--surface-2)] border border-[var(--border-color)] text-[11px] font-mono text-[var(--text-main)]">
+              Pagu: <code className="text-[var(--accent-color)]">set anggaran dapur 1,5jt</code>
             </div>
           </div>
         </div>
 
-        {/* 1. Sisa Budget Circular Donut Gauge */}
-        <RemainingBudgetDonut
-          totalBudget={totalBudget}
-          spentAmount={totalSpent}
-          periodText={currentMonthPeriod}
-          daysRemaining={Math.max(1, new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate() - new Date().getDate())}
-        />
+        {/* Side-by-Side Grid Desktop (4 Kolom Donut + 8 Kolom Kartu Kategori) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* Kolom Kiri (4 Kolom): Donut Gauge & Ringkasan */}
+          <div className="lg:col-span-4 space-y-4 sticky top-20">
+            <RemainingBudgetDonut
+              totalBudget={totalBudget}
+              spentAmount={totalSpent}
+              periodText={cycleLabel || 'Bulan Finansial'}
+              daysRemaining={daysRemaining}
+            />
 
-        {/* 2. Donut Breakdown Kapsul Melengkung */}
-        {activeTab === 'donut' ? (
-          <CurvedDonutBreakdown
-            totalBudget={totalBudget}
-            segments={donutSegments}
-            onViewAnalytics={() => setActiveTab('cards')}
-          />
-        ) : (
-          /* 3. Daftar Kartu 8 Kategori Bersih */
-          <div className="space-y-3">
-            <div className="flex items-center justify-between pt-1">
-              <h2 className="text-sm font-bold text-[var(--text-main)] flex items-center gap-1.5">
-                <span>8 Kategori Anggaran Keluarga</span>
+            <div className="p-4 rounded-2xl bg-[var(--surface-1)] border border-[var(--border-color)] text-xs text-[var(--text-muted)] space-y-2 shadow-xs">
+              <div className="flex items-center justify-between font-medium">
+                <span>Tanggal Gajian:</span>
+                <strong className="text-[var(--text-main)]">Tanggal {paydayDate}</strong>
+              </div>
+              <div className="flex items-center justify-between font-medium">
+                <span>Total Pagu Diset:</span>
+                <strong className="text-[var(--text-main)]">{budgets.filter((b) => b.budgetLimit > 0).length} / 8 Pos</strong>
+              </div>
+              <p className="text-[11px] text-[var(--text-muted)] pt-2 border-t border-[var(--border-color)] leading-relaxed">
+                Jika kuota pos mencapai 100%, sistem bot Telegram otomatis mengirim peringatan darurat.
+              </p>
+            </div>
+          </div>
+
+          {/* Kolom Kanan (8 Kolom): Grid 8 Pos Anggaran Widescreen */}
+          <div className="lg:col-span-8 space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-bold text-[var(--text-main)] tracking-tight">
+                8 Pos Pengeluaran Keluarga
               </h2>
-
-              <button
-                onClick={() => setSelectedForEdit(budgets[0])}
-                className="text-xs font-bold text-[#007a33] hover:text-[#004d00] flex items-center gap-1"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Atur Limit Target</span>
-              </button>
+              <span className="text-xs text-[var(--text-muted)]">
+                Terpakai vs Batas Pagu
+              </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {budgets.map((item) => (
                 <CategoryBudgetCard
                   key={item.id}
                   item={item}
-                  onEdit={(b) => setSelectedForEdit(b)}
                 />
               ))}
             </div>
           </div>
-        )}
+        </div>
       </div>
-
-      {/* Modal Edit Alokasi Budget */}
-      <SetBudgetModal
-        isOpen={selectedForEdit !== null}
-        onClose={() => setSelectedForEdit(null)}
-        item={selectedForEdit}
-        onSave={handleSaveBudget}
-      />
     </AppShell>
   );
 }

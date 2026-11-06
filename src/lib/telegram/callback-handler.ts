@@ -16,6 +16,7 @@ import {
 import { formatRupiah } from '../utils.ts';
 import { extractPromoKeywordsFromText } from '../ai/adaptive-rules.ts';
 import { syncAccountBalance } from '../account-balance.ts';
+import { handleSettingsHubCallback } from './settings-hub.ts';
 
 export interface TelegramCallbackQuery {
   id: string;
@@ -101,7 +102,13 @@ export async function handleTelegramCallbackQuery(
   const messageId = message.message_id;
   const originalText = message.text || '';
 
-  // 0. Konfirmasi Perubahan Saldo Rekening / Total Kas via Tombol
+  // 0. Pusat Pengaturan Komando Hub Telegram (/pengaturan)
+  if (data.startsWith('cfg:')) {
+    await handleSettingsHubCallback(cq, supabase, householdId);
+    return;
+  }
+
+  // 0.1. Konfirmasi Perubahan Saldo Rekening / Total Kas via Tombol
   if (data.startsWith('sok:')) {
     const parts = data.replace('sok:', '').split(':');
     const accId = parts[0];
