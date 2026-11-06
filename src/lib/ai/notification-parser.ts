@@ -48,6 +48,9 @@ const PROMO_PATTERNS = [
   /\bngopi\s*hemat\b/i,
   /\b(?:asuransi(?:\s+penipuan|\s+digital)?|perlindungan\s+dari|aktifkan\s+asuransi|cuma\s+bayar\s+\d+\s+bulan)\b/i,
   /\bcuma\s+(?:dengan\s+)?(?:rp|idr)?\.?\s*\d+/i,
+  /\b(?:top\s*up|isi\s*saldo|isi\s*ulang|bayar\s*tagihan|beli\s*pulsa)\s+.*?\b(?:dapat|dapetin|bonus|untung|hemat|diskon|cashback|hadiah|gratis|cuma|hanya|pakai\s+kode)\b/i,
+  /\b(?:dapat|dapetin|klaim|serbu|nikmati|ambil)\s+.*?\b(?:voucher|kupon|saldo\s+dana|dana\s+kaget|hadiah|cashback|diskon|potongan|reward)\b/i,
+  /\b(?:dana\s*kaget|a\+\s*rewards?|dana\s*deals?|dana\s*points?|dana\s*surprize|danamon\s*promo)\b/i,
 ];
 
 // Pola bukti transaksi sah yang SUDAH SELESAI / BERHASIL (Past-Tense Confirmation)

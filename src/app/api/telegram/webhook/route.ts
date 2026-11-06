@@ -11,7 +11,6 @@ import {
   formatExpenseAlertMessage,
   formatIncomeAlertMessage,
 } from '@/lib/telegram/formatters.ts';
-import { formatRupiah } from '@/lib/utils.ts';
 import { matchTargetCategory } from '@/lib/budget/budget-guard.ts';
 import {
   handleStatusCommand,
@@ -26,7 +25,6 @@ import {
 } from '@/lib/telegram/callback-handler.ts';
 import {
   handleTelegramPhotoMessage,
-  TelegramPhotoItem,
 } from '@/lib/telegram/photo-handler.ts';
 import { processFinancialChatWithAI } from '@/lib/telegram/nlp-chat.ts';
 import {
@@ -139,7 +137,11 @@ async function handleNaturalLanguageFlow(
   monthStartDay: number
 ): Promise<void> {
   const context = await buildFinancialContext(supabase, householdId, monthStartDay);
-  const nlpResult = await processFinancialChatWithAI(rawText, context);
+  const repliedText = message.reply_to_message?.text?.trim();
+  const promptInput = repliedText
+    ? `[Konteks pesan yang dibalas: "${repliedText.slice(0, 300)}"]\nBalasan pengguna: ${rawText}`
+    : rawText;
+  const nlpResult = await processFinancialChatWithAI(promptInput, context);
 
   // 1. Intent Ubah Saldo / Total Kas (Dua Langkah dengan Konfirmasi)
   if (nlpResult.type === 'set_balance_intent') {

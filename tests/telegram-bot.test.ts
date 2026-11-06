@@ -24,6 +24,9 @@ import {
   findMatchingAccount,
   shouldProcessChat,
   stripBotMentions,
+  isDirectRejectionFeedback,
+  extractAmountFromBotAlertText,
+  handleCustomRejectionReply,
 } from '../src/lib/telegram/settings-commands.ts';
 import { getMonthlyRange, getBudgetPeriodKey } from '../src/lib/date-utils.ts';
 import {
@@ -718,21 +721,128 @@ describe('Telegram Bot: NLP Parser & Perintah Cepat', () => {
     assert.strictEqual(resolvedAccountId, 'acc-dana-istri');
   });
 
-  it('Deteksi kata kunci Top-Up dan perpindahan dana bank ke e-wallet', () => {
-    const checkTopUp = (title: string, content: string, merchant: string, direction: 'in' | 'out') => {
+  it('Deteksi kata kunci Top-Up dan pencegahan false-positive transfer ke akun yang sama (Dari: DANA -> Ke: DANA)', () => {
+    const checkTopUp = (accountName: string, title: string, content: string, merchant: string, direction: 'in' | 'out') => {
+      const currentSourceName = accountName.trim().toLowerCase();
+      const cleanMerchantLower = merchant.trim().toLowerCase();
+      const isSelfAccountMerchant =
+        Boolean(currentSourceName) &&
+        Boolean(cleanMerchantLower) &&
+        (currentSourceName === cleanMerchantLower ||
+          currentSourceName.includes(cleanMerchantLower) ||
+          cleanMerchantLower.includes(currentSourceName));
+
       const textToScan = `${title} ${content} ${merchant}`.toLowerCase();
+      const walletMatches = textToScan.match(/\b(gopay|dana|ovo|shopeepay|linkaja|kantong|jago|bca|mandiri|bri|bni|bsi|seabank)\b/gi) || [];
+      const hasDistinctTargetWallet = walletMatches.some((w) => !currentSourceName.includes(w.toLowerCase()));
+
       return (
-        /\b(top\s*up|isi\s*saldo|isi\s*ulang)\b/i.test(textToScan) ||
-        (/\b(transfer\s*(?:ke)?|trsf)\b/i.test(textToScan) && /\b(gopay|dana|ovo|shopeepay|linkaja|kantong)/i.test(textToScan)) ||
-        (/\b(gopay|dana|ovo|shopeepay|linkaja)\b/i.test(merchant) && direction === 'out')
+        !isSelfAccountMerchant &&
+        ((/\b(top\s*up|isi\s*saldo|isi\s*ulang)\b/i.test(textToScan) && (hasDistinctTargetWallet || !/\b(gopay|dana|ovo|shopeepay|linkaja)\b/i.test(currentSourceName))) ||
+          (/\b(transfer\s*(?:ke)?|trsf)\b/i.test(textToScan) && /\b(gopay|dana|ovo|shopeepay|linkaja|kantong)/i.test(textToScan) && hasDistinctTargetWallet) ||
+          (/\b(gopay|dana|ovo|shopeepay|linkaja)\b/i.test(merchant) && direction === 'out'))
       );
     };
 
-    assert.strictEqual(checkTopUp('BCA Mobile', 'm-Transfer berhasil ke GOPAY 081234567890', 'GOPAY', 'out'), true);
-    assert.strictEqual(checkTopUp('Bank Jago', 'Kamu berhasil top up Saldo DANA', 'DANA', 'out'), true);
-    assert.strictEqual(checkTopUp('Mandiri Livin', 'Transfer TRSF E-BANKING DB OVO', 'OVO', 'out'), true);
-    assert.strictEqual(checkTopUp('GoPay', 'Isi saldo dari Bank BCA sebesar 50.000 berhasil', 'BCA', 'in'), true);
-    assert.strictEqual(checkTopUp('BCA Mobile', 'm-Transfer ke Rekening 12345678 Bapak Joko', 'Bapak Joko', 'out'), false);
+    // Valid bank -> e-wallet top-ups
+    assert.strictEqual(checkTopUp('BCA', 'BCA Mobile', 'm-Transfer berhasil ke GOPAY 081234567890', 'GOPAY', 'out'), true);
+    assert.strictEqual(checkTopUp('Jago', 'Bank Jago', 'Kamu berhasil top up Saldo DANA', 'DANA', 'out'), true);
+    assert.strictEqual(checkTopUp('Mandiri', 'Mandiri Livin', 'Transfer TRSF E-BANKING DB OVO', 'OVO', 'out'), true);
+    assert.strictEqual(checkTopUp('GoPay', 'GoPay', 'Isi saldo dari Bank BCA sebesar 50.000 berhasil', 'BCA', 'in'), true);
+
+    // Bukan top-up (transfer ke orang lain)
+    assert.strictEqual(checkTopUp('BCA', 'BCA Mobile', 'm-Transfer ke Rekening 12345678 Bapak Joko', 'Bapak Joko', 'out'), false);
+
+    // Pencegahan False-Positive: Dari DANA -> Ke DANA (ketika merchant fallback ke DANA atau notif promo internal DANA)
+    assert.strictEqual(checkTopUp('DANA', 'DANA', 'Pembayaran Rp 7.500 berhasil', 'DANA', 'out'), false);
+    assert.strictEqual(checkTopUp('DANA', 'DANA', 'Yuk isi saldo DANA sekarang Rp 7.500', 'DANA', 'out'), false);
+  });
+
+  it('Reply langsung "Ini salah" / "Itu spam" pada pesan alert bot otomatis membatalkan transaksi dan menyelaraskan saldo', async () => {
+    assert.strictEqual(isDirectRejectionFeedback('Ini salah'), true);
+    assert.strictEqual(isDirectRejectionFeedback('Itu spam'), true);
+    assert.strictEqual(isDirectRejectionFeedback('promo iklan'), true);
+    assert.strictEqual(isDirectRejectionFeedback('batalkan'), true);
+    assert.strictEqual(isDirectRejectionFeedback('halo berapa saldo saya'), false);
+
+    const sampleAlert =
+      '🔄 *PERPINDAHAN DANA TERDETEKSI* ✅\n\n' +
+      '💰 *Nominal:* `Rp 7.500`\n' +
+      '📤 *Dari:* DANA\n' +
+      '📥 *Ke:* DANA';
+    assert.strictEqual(extractAmountFromBotAlertText(sampleAlert), 7500);
+
+    let updatedStatus = '';
+    let updatedNotes = '';
+    const mockTx = {
+      id: 'tx-dana-7500',
+      merchant: 'Transfer Internal: Top Up DANA',
+      amount: 7500,
+      direction: 'out',
+      account_id: null,
+      status: 'reconciled',
+      raw_notification: '[Notifikasi DANA] Promo Voucher DANA Deals Rp 7.500',
+    };
+
+    const mockSupabase = {
+      from: (table: string) => {
+        if (table === 'transactions') {
+          return {
+            select: () => ({
+              eq: () => ({
+                order: () => ({
+                  limit: () => ({
+                    eq: (_col: string, val: number) => ({
+                      maybeSingle: async () => ({
+                        data: val === 7500 ? mockTx : null,
+                        error: null,
+                      }),
+                    }),
+                  }),
+                }),
+              }),
+            }),
+            update: (payload: { status: string; notes?: string }) => ({
+              eq: () => ({
+                eq: async () => {
+                  updatedStatus = payload.status;
+                  updatedNotes = payload.notes || '';
+                  return { error: null };
+                },
+              }),
+            }),
+          };
+        }
+        if (table === 'learned_promo_rules') {
+          return {
+            upsert: async () => ({ error: null }),
+          };
+        }
+        return {};
+      },
+    } as any;
+
+    const savedToken = process.env.TELEGRAM_BOT_TOKEN;
+    delete process.env.TELEGRAM_BOT_TOKEN;
+    try {
+      const replyMessage = {
+        message_id: 202,
+        chat: { id: 987654321, type: 'private' },
+        date: 1700000000,
+        text: 'Ini salah',
+        reply_to_message: {
+          message_id: 201,
+          text: sampleAlert,
+        },
+      };
+
+      const handled = await handleCustomRejectionReply(replyMessage, mockSupabase, 'hh-test');
+      assert.strictEqual(handled, true);
+      assert.strictEqual(updatedStatus, 'ignored');
+      assert.ok(updatedNotes.includes('Ini salah'));
+    } finally {
+      if (savedToken) process.env.TELEGRAM_BOT_TOKEN = savedToken;
+    }
   });
 
   it('Kebijakan Tagging Grup: shouldProcessChat hanya aktif jika ditag, reply, slash, atau chat privat', () => {

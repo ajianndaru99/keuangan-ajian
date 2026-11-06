@@ -416,6 +416,7 @@ export function handleLocalDeterministicFallback(userText: string, context: Fina
     'investasi', 'tabungan', 'darurat', 'hutang', 'utang', 'cicilan', 'budget', 'tagihan',
     'dapur', 'makan', 'bensin', 'transport', 'pulsa', 'listrik', 'wifi', 'bpjs',
     'keuangan', 'finansial', 'inflasi', 'reksa dana', 'saham', 'aset', 'dana',
+    'mutasi', 'transfer', 'transaksi', 'koreksi', 'salah', 'spam', 'promo', 'iklan', 'batal', 'hapus',
     'halo', 'hai', 'pagi', 'siang', 'sore', 'malam', 'assalamu', 'bantuan', 'bisa apa',
   ];
 

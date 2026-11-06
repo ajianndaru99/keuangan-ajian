@@ -420,15 +420,30 @@ export async function POST(req: NextRequest) {
         .limit(1)
         .maybeSingle();
 
+      const currentSourceName = (accountName || app_name || '').trim().toLowerCase();
+      const cleanMerchantLower = (merchant || '').trim().toLowerCase();
+      const isSelfAccountMerchant =
+        Boolean(currentSourceName) &&
+        Boolean(cleanMerchantLower) &&
+        (currentSourceName === cleanMerchantLower ||
+          currentSourceName.includes(cleanMerchantLower) ||
+          cleanMerchantLower.includes(currentSourceName));
+
       const textToScan = `${safeTitle} ${safeContent} ${merchant}`.toLowerCase();
+      // Cari apakah ada penyebutan dompet/bank lain yang berbeda dari akun asal
+      const walletMatches = textToScan.match(/\b(gopay|dana|ovo|shopeepay|linkaja|kantong|jago|bca|mandiri|bri|bni|bsi|seabank)\b/gi) || [];
+      const hasDistinctTargetWallet = walletMatches.some((w) => !currentSourceName.includes(w.toLowerCase()));
+
       const isTopUpKeyword =
-        /\b(top\s*up|isi\s*saldo|isi\s*ulang)\b/i.test(textToScan) ||
-        (/\b(transfer\s*(?:ke)?|trsf)\b/i.test(textToScan) && /\b(gopay|dana|ovo|shopeepay|linkaja|kantong)/i.test(textToScan)) ||
-        (/\b(gopay|dana|ovo|shopeepay|linkaja)\b/i.test(merchant) && direction === 'out');
+        !isSelfAccountMerchant &&
+        ((/\b(top\s*up|isi\s*saldo|isi\s*ulang)\b/i.test(textToScan) && (hasDistinctTargetWallet || !/\b(gopay|dana|ovo|shopeepay|linkaja)\b/i.test(currentSourceName))) ||
+          (/\b(transfer\s*(?:ke)?|trsf)\b/i.test(textToScan) && /\b(gopay|dana|ovo|shopeepay|linkaja|kantong)/i.test(textToScan) && hasDistinctTargetWallet) ||
+          (/\b(gopay|dana|ovo|shopeepay|linkaja)\b/i.test(merchant) && direction === 'out'));
 
       let isInternalTransfer = false;
       let finalMerchant = merchant;
       let finalNotes = '';
+      let internalTransferAlertPayload: { fromAccount: string; toAccount: string; amount: number } | null = null;
 
       if (pairedTransferTx) {
         isInternalTransfer = true;
@@ -459,35 +474,18 @@ export async function POST(req: NextRequest) {
         // Cek apakah leg pertama sudah mengirim broadcast Telegram (hindari dobel notif)
         const alreadyBroadcasted = typeof pairedTransferTx.merchant === 'string' && pairedTransferTx.merchant.startsWith('Transfer Internal:');
 
-        if (!alreadyBroadcasted && isTelegramConfigured()) {
-          const transferAlert = formatInternalTransferAlertMessage({
-            fromAccount,
-            toAccount,
-            amount,
-          });
-          try {
-            await broadcastToAllowedChats(transferAlert);
-          } catch (tErr) {
-            console.warn('[Telegram Broadcast Paired Transfer Alert Warn]:', tErr);
-          }
+        if (!alreadyBroadcasted) {
+          internalTransferAlertPayload = { fromAccount, toAccount, amount };
         }
       } else if (isTopUpKeyword) {
         isInternalTransfer = true;
         finalMerchant = `Transfer Internal: Top Up ${merchant || 'E-Wallet'}`;
         finalNotes = 'Terdeteksi top-up dompet digital / perpindahan internal';
-
-        if (isTelegramConfigured()) {
-          const transferAlert = formatInternalTransferAlertMessage({
-            fromAccount: accountName || app_name || 'Bank',
-            toAccount: merchant || 'E-Wallet',
-            amount,
-          });
-          try {
-            await broadcastToAllowedChats(transferAlert);
-          } catch (tErr) {
-            console.warn('[Telegram Broadcast TopUp Alert Warn]:', tErr);
-          }
-        }
+        internalTransferAlertPayload = {
+          fromAccount: accountName || app_name || 'Bank',
+          toAccount: merchant || 'E-Wallet',
+          amount,
+        };
       }
 
       // Penentuan status otomatis: jika format baku regex atau transfer internal -> langsung 'reconciled'
@@ -568,6 +566,25 @@ export async function POST(req: NextRequest) {
         if (initialStatus === 'reconciled' && accountId) {
           const delta = direction === 'in' ? amount : -amount;
           await applyAccountBalanceDelta(supabase, accountId, delta);
+        }
+
+        // 0. Kirim Notifikasi Transfer Internal / Top-Up ke Telegram lengkap dengan Tombol Koreksi & Batalkan
+        if (isInternalTransfer && internalTransferAlertPayload && isTelegramConfigured() && newTransaction?.id) {
+          const transferAlert = formatInternalTransferAlertMessage(internalTransferAlertPayload);
+          try {
+            await broadcastToAllowedChats(transferAlert, {
+              reply_markup: {
+                inline_keyboard: [
+                  [
+                    { text: '✏️ Koreksi Mutasi', callback_data: `tx_edit:${newTransaction.id}` },
+                    { text: '❌ Batalkan / Promo', callback_data: `tx_wrong_menu:${newTransaction.id}` },
+                  ],
+                ],
+              },
+            });
+          } catch (tErr) {
+            console.warn('[Telegram Broadcast Internal Transfer Alert Warn]:', tErr);
+          }
         }
 
         // 1. Kirim Notifikasi Pemasukan Realtime ke Telegram (Gaji, Bonus, Transfer Masuk dari Luar)
