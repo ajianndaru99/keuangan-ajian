@@ -494,12 +494,19 @@ export async function POST(req: NextRequest) {
       const isFixFormat = parsed.parseMethod === 'regex' && !isSensitive && amount > 0;
       const initialStatus = (isInternalTransfer || isFixFormat) ? 'reconciled' : 'pending';
 
+      const incomeCategory = categories?.find(
+        (c) => c.type === 'income' || c.name.toLowerCase().includes('pemasukan') || c.name.toLowerCase().includes('gaji')
+      );
+      const effectiveCategoryId = isInternalTransfer
+        ? null
+        : (direction === 'in' ? (incomeCategory?.id || null) : suggestedCategoryId);
+
       let { data: tx, error: txError } = await supabase
         .from('transactions')
         .insert({
           household_id: householdId,
           account_id: accountId,
-          category_id: isInternalTransfer ? null : suggestedCategoryId,
+          category_id: effectiveCategoryId,
           amount,
           direction,
           merchant: finalMerchant,
@@ -522,7 +529,7 @@ export async function POST(req: NextRequest) {
           .insert({
             household_id: householdId,
             account_id: accountId,
-            category_id: isInternalTransfer ? null : suggestedCategoryId,
+            category_id: effectiveCategoryId,
             amount,
             direction,
             merchant: finalMerchant,
@@ -578,14 +585,24 @@ export async function POST(req: NextRequest) {
               isAutoReconciled: isFixFormat,
             });
 
-            const replyMarkup = {
-              inline_keyboard: [
-                [
-                  { text: '✏️ Koreksi Mutasi', callback_data: `tx_edit:${newTransaction.id}` },
-                  { text: '❌ Batalkan', callback_data: `tx_wrong_menu:${newTransaction.id}` },
-                ],
-              ],
-            };
+            const replyMarkup = isFixFormat
+              ? {
+                  inline_keyboard: [
+                    [
+                      { text: '✏️ Koreksi Mutasi', callback_data: `tx_edit:${newTransaction.id}` },
+                      { text: '❌ Batalkan', callback_data: `tx_wrong_menu:${newTransaction.id}` },
+                    ],
+                  ],
+                }
+              : {
+                  inline_keyboard: [
+                    [
+                      { text: '✅ Benar & Sesuai', callback_data: `tx_ok:${newTransaction.id}` },
+                      { text: '✏️ Koreksi', callback_data: `tx_edit:${newTransaction.id}` },
+                      { text: '❌ Salah', callback_data: `tx_wrong_menu:${newTransaction.id}` },
+                    ],
+                  ],
+                };
 
             try {
               await broadcastToAllowedChats(alertMsg, {

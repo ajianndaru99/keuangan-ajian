@@ -631,7 +631,7 @@ describe('Telegram Bot: NLP Parser & Perintah Cepat', () => {
   });
 
   it('parseSetSaldoCommand mengenali variasi total kas ganti dan perubahan akun spesifik', () => {
-    // 1. Total kas variasi kata
+    // 1. Total kas variasi kata dan awalan Rp
     const cmd1 = parseSetSaldoCommand('total kas ganti 1jt');
     assert.deepStrictEqual(cmd1, { accountName: 'total_kas', amount: 1000000 });
 
@@ -644,16 +644,36 @@ describe('Telegram Bot: NLP Parser & Perintah Cepat', () => {
     const cmd4 = parseSetSaldoCommand('total kas ganti 1.500.000');
     assert.deepStrictEqual(cmd4, { accountName: 'total_kas', amount: 1500000 });
 
-    // 2. Akun spesifik
+    const cmdRp = parseSetSaldoCommand('total kas ganti Rp 1jt');
+    assert.deepStrictEqual(cmdRp, { accountName: 'total_kas', amount: 1000000 });
+
+    // 2. Akun spesifik (baik awalan set saldo maupun nama akun di depan)
     const cmd5 = parseSetSaldoCommand('ganti saldo dana suami 1jt');
     assert.deepStrictEqual(cmd5, { accountName: 'dana suami', amount: 1000000 });
+
+    const cmd6 = parseSetSaldoCommand('dana suami ganti 1jt');
+    assert.deepStrictEqual(cmd6, { accountName: 'dana suami', amount: 1000000 });
+
+    const cmd7 = parseSetSaldoCommand('saldo dana suami ubah 2jt');
+    assert.deepStrictEqual(cmd7, { accountName: 'dana suami', amount: 2000000 });
   });
 
-  it('Batas 64 byte Telegram Callback Query terpenuhi untuk konfirmasi saldo sok:<accId>:<amt>', () => {
-    const mockUuid = '123e4567-e89b-12d3-a456-426614174000';
+  it('Batas 64 byte Telegram Callback Query terpenuhi untuk konfirmasi sok, sask, dan tsa', () => {
+    const mockTxUuid = '123e4567-e89b-12d3-a456-426614174000';
+    const mockAccUuid = '987e6543-e21b-34d5-c678-543210987000';
     const amount = 100000000000; // 100 Milyar
-    const callbackData = `sok:${mockUuid}:${amount}`;
-    assert.ok(Buffer.byteLength(callbackData, 'utf8') <= 64, `Ukuran callback_data ${callbackData.length} byte melebihi batas 64 byte Telegram!`);
+
+    // 1. sok:<accId>:<amt> (Konfirmasi eksekusi saldo)
+    const sokData = `sok:${mockAccUuid}:${amount}`;
+    assert.ok(Buffer.byteLength(sokData, 'utf8') <= 64, `Ukuran sok ${sokData.length} byte melebihi batas 64 byte!`);
+
+    // 2. sask:<accId>:<amt> (Pilihan rekening total kas dua langkah)
+    const saskData = `sask:${mockAccUuid}:${amount}`;
+    assert.ok(Buffer.byteLength(saskData, 'utf8') <= 64, `Ukuran sask ${saskData.length} byte melebihi batas 64 byte!`);
+
+    // 3. tsa:<txId>:<shortAccId> (Pilihan pindah rekening ringkas)
+    const tsaData = `tsa:${mockTxUuid}:${mockAccUuid.slice(0, 8)}`;
+    assert.ok(Buffer.byteLength(tsaData, 'utf8') <= 64, `Ukuran tsa ${tsaData.length} byte melebihi batas 64 byte!`);
   });
 
   it('Prioritas pencocokan akun notifikasi mendahulukan device default daripada akun milik pasangan', () => {

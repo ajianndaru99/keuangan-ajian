@@ -166,18 +166,16 @@ export async function handleCustomRejectionReply(
 }
 
 /**
- * Handler Alur Konfirmasi Dua Langkah Penyesuaian Saldo / Total Kas
+ * Menampilkan Kartu Konfirmasi atau Pemilihan Rekening Penyesuaian Saldo
  */
-export async function handleSetSaldoFlow(
-  rawText: string,
+export async function promptSetSaldoConfirmation(
+  accountName: string,
+  targetAmount: number,
   chatId: number | string,
   messageId: number,
   supabase: SupabaseClient,
   householdId: string
 ): Promise<boolean> {
-  const setSaldoCmd = parseSetSaldoCommand(rawText);
-  if (!setSaldoCmd) return false;
-
   const { data: accounts, error: accErr } = await supabase
     .from('accounts')
     .select('id, name, owner, balance')
@@ -190,20 +188,22 @@ export async function handleSetSaldoFlow(
     return true;
   }
 
-  // Kasus A: Penyesuaian Total Kas (tanpa nama akun spesifik)
-  if (setSaldoCmd.accountName === 'total_kas') {
+  // Kasus A: Penyesuaian Total Kas (tampilkan pilihan rekening dengan konfirmasi perantara sask:)
+  if (accountName === 'total_kas') {
     const totalKas = accounts.reduce((sum, a) => sum + Number(a.balance || 0), 0);
-    const targetAmount = setSaldoCmd.amount;
 
     const buttons = accounts.map((a) => [
       {
-        text: `🏦 ${a.name} (${a.owner === 'istri' ? 'Istri' : 'Suami'}) ➔ ${formatRupiah(targetAmount)}`,
-        callback_data: `sok:${a.id}:${targetAmount}`,
+        text: `🏦 ${a.name} (Saldo: ${formatRupiah(Number(a.balance || 0))}) ➔ ${formatRupiah(targetAmount)}`,
+        callback_data: `sask:${a.id}:${targetAmount}`,
       },
     ]);
     buttons.push([{ text: '❌ Batalkan', callback_data: 'scancel' }]);
 
-    const text = `💼 *PENYESUAIAN TOTAL KAS KELUARGA*\n\nTotal kas siap pakai saat ini: \`${formatRupiah(totalKas)}\`\nTarget nominal baru: \`${formatRupiah(targetAmount)}\`\n\n_Pilih rekening mana yang ingin disesuaikan saldonya untuk mencapai nominal ini:_`;
+    const text = `💼 *PENYESUAIAN TOTAL KAS KELUARGA*\n\n` +
+      `Total kas siap pakai saat ini: \`${formatRupiah(totalKas)}\`\n` +
+      `Target nominal baru: \`${formatRupiah(targetAmount)}\`\n\n` +
+      `_Pilih rekening mana yang ingin disesuaikan saldonya ke nominal ini (akan ada layar konfirmasi):_`;
 
     await sendTelegramMessage(chatId, text, {
       reply_to_message_id: messageId,
@@ -220,28 +220,32 @@ export async function handleSetSaldoFlow(
       owner: a.owner,
       balance: Number(a.balance || 0),
     })),
-    setSaldoCmd.accountName
+    accountName
   );
 
   if (!targetAccount) {
     const list = accounts.map((a) => `• *${a.name}* (${a.owner === 'istri' ? 'Istri' : 'Suami'}) — Saldo: \`${formatRupiah(Number(a.balance || 0))}\``).join('\n');
     await sendTelegramMessage(
       chatId,
-      `⚠️ Akun *${setSaldoCmd.accountName}* tidak ditemukan di dasbor.\n\nRekening aktif yang terdaftar saat ini:\n${list || 'Belum ada rekening'}\n\n_Contoh perintah:_ \`set saldo dana suami 2jt\` atau \`total kas ganti 1jt\``,
+      `⚠️ Akun *${accountName}* tidak ditemukan di dasbor.\n\nRekening aktif yang terdaftar saat ini:\n${list || 'Belum ada rekening'}\n\n_Contoh perintah:_ \`set saldo dana suami 2jt\` atau \`total kas ganti 1jt\``,
       { reply_to_message_id: messageId }
     );
     return true;
   }
 
   const currentBalance = Number(targetAccount.balance || 0);
-  const targetBalance = setSaldoCmd.amount;
-  const diff = targetBalance - currentBalance;
+  const diff = targetAmount - currentBalance;
+  const otherAccountsTotal = accounts
+    .filter((a) => a.id !== targetAccount.id)
+    .reduce((sum, a) => sum + Number(a.balance || 0), 0);
+  const projectedTotalKas = otherAccountsTotal + targetAmount;
 
   const confirmText = `⚠️ *KONFIRMASI PERUBAHAN SALDO REKENING*\n\n` +
     `🏦 *Akun:* ${targetAccount.name} (${targetAccount.owner === 'istri' ? 'Istri' : 'Suami'})\n` +
     `💰 *Saldo Saat Ini:* \`${formatRupiah(currentBalance)}\`\n` +
-    `🎯 *Saldo Baru:* \`${formatRupiah(targetBalance)}\`\n` +
-    `📉 *Selisih Koreksi:* \`${diff >= 0 ? '+' : ''}${formatRupiah(diff)}\`\n\n` +
+    `🎯 *Saldo Baru:* \`${formatRupiah(targetAmount)}\`\n` +
+    `📉 *Selisih Koreksi:* \`${diff >= 0 ? '+' : ''}${formatRupiah(diff)}\`\n` +
+    `💼 *Proyeksi Total Kas:* \`${formatRupiah(projectedTotalKas)}\`\n\n` +
     `_Tindakan ini akan mempengaruhi total kas siap pakai keluarga. Pastikan angka sudah benar sebelum konfirmasi._`;
 
   await sendTelegramMessage(chatId, confirmText, {
@@ -249,13 +253,28 @@ export async function handleSetSaldoFlow(
     reply_markup: {
       inline_keyboard: [
         [
-          { text: '✅ Ya, Perbarui Saldo', callback_data: `sok:${targetAccount.id}:${targetBalance}` },
+          { text: '✅ Ya, Perbarui Saldo', callback_data: `sok:${targetAccount.id}:${targetAmount}` },
           { text: '❌ Batalkan', callback_data: 'scancel' },
         ],
       ],
     },
   });
   return true;
+}
+
+/**
+ * Handler Alur Konfirmasi Dua Langkah Penyesuaian Saldo / Total Kas
+ */
+export async function handleSetSaldoFlow(
+  rawText: string,
+  chatId: number | string,
+  messageId: number,
+  supabase: SupabaseClient,
+  householdId: string
+): Promise<boolean> {
+  const setSaldoCmd = parseSetSaldoCommand(rawText);
+  if (!setSaldoCmd) return false;
+  return promptSetSaldoConfirmation(setSaldoCmd.accountName, setSaldoCmd.amount, chatId, messageId, supabase, householdId);
 }
 
 /**

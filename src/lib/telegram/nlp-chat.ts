@@ -57,8 +57,8 @@ export function parseNominal(raw: string): number {
   if (!raw) return 0;
   const clean = raw.trim().toLowerCase();
 
-  // 1. Shorthand rupiah (rb, ribu, k, jt, juta)
-  const shorthandMatch = clean.match(/(\d+(?:[.,]\d+)?)\s*(rb|ribu|k|jt|juta)\b/i);
+  // 1. Shorthand rupiah (rb, ribu, k, jt, juta) dengan atau tanpa awalan rp/idr
+  const shorthandMatch = clean.match(/(?:(?:rp|idr)\.?\s*)?(\d+(?:[.,]\d+)?)\s*(rb|ribu|k|jt|juta)\b/i);
   if (shorthandMatch) {
     const num = parseFloat(shorthandMatch[1].replace(',', '.'));
     const unit = shorthandMatch[2].toLowerCase();
@@ -84,18 +84,19 @@ export function parseSetSaldoCommand(rawText: string): { accountName: string; am
   const clean = rawText.trim();
 
   // 1. Pola atur saldo akun spesifik ("set/ubah/ganti/koreksi saldo [akun] [nominal]")
-  const specificPattern = /^(?:\/setsaldo|(?:set|ubah|atur|ganti|koreksi)\s+saldo)\s+([a-zA-Z0-9\s]+?)\s+(?:menjadi|=|\:|jadi)?\s*([0-9.,]+(?:\s*(?:rb|ribu|k|jt|juta))?)$/i;
+  const specificPattern = /^(?:\/setsaldo|(?:set|ubah|atur|ganti|koreksi)\s+saldo)\s+([a-zA-Z0-9\s]+?)\s+(?:menjadi|=|\:|jadi)?\s*(?:(?:rp|idr)\.?\s*)?([0-9.,]+(?:\s*(?:rb|ribu|k|jt|juta))?)$/i;
   const matchSpecific = clean.match(specificPattern);
   if (matchSpecific) {
     const accountName = matchSpecific[1].trim();
     const amount = parseNominal(matchSpecific[2].trim());
     if (amount >= 0 && accountName) {
-      return { accountName, amount };
+      const isTotalKas = /^(total[\s_]*kas|kas[\s_]*(total|keluarga|siap\s*pakai))$/i.test(accountName);
+      return { accountName: isTotalKas ? 'total_kas' : accountName, amount };
     }
   }
 
-  // 2. Pola ubah total kas / kas keluarga ("total kas ganti 1jt", "ganti total kas 2jt")
-  const totalKasPattern1 = /^(?:total\s+kas|kas\s+total|kas\s+keluarga)\s+(?:ganti|ubah|atur|set|koreksi|menjadi|=|\:|jadi)\s*([0-9.,]+(?:\s*(?:rb|ribu|k|jt|juta))?)$/i;
+  // 2. Pola ubah total kas / kas keluarga ("total kas ganti 1jt", "ganti total kas 2jt", "total kas ganti Rp 1jt")
+  const totalKasPattern1 = /^(?:total\s+kas|kas\s+total|kas\s+keluarga)\s+(?:ganti|ubah|atur|set|koreksi|menjadi|=|\:|jadi)\s*(?:(?:rp|idr)\.?\s*)?([0-9.,]+(?:\s*(?:rb|ribu|k|jt|juta))?)$/i;
   const matchTotal1 = clean.match(totalKasPattern1);
   if (matchTotal1) {
     const amount = parseNominal(matchTotal1[1].trim());
@@ -104,12 +105,24 @@ export function parseSetSaldoCommand(rawText: string): { accountName: string; am
     }
   }
 
-  const totalKasPattern2 = /^(?:ganti|ubah|atur|set|koreksi)\s+(?:total\s+kas|kas\s+total|kas\s+keluarga)\s+(?:menjadi|=|\:|jadi)?\s*([0-9.,]+(?:\s*(?:rb|ribu|k|jt|juta))?)$/i;
+  const totalKasPattern2 = /^(?:ganti|ubah|atur|set|koreksi)\s+(?:total\s+kas|kas\s+total|kas\s+keluarga)\s+(?:menjadi|=|\:|jadi)?\s*(?:(?:rp|idr)\.?\s*)?([0-9.,]+(?:\s*(?:rb|ribu|k|jt|juta))?)$/i;
   const matchTotal2 = clean.match(totalKasPattern2);
   if (matchTotal2) {
     const amount = parseNominal(matchTotal2[1].trim());
     if (amount >= 0) {
       return { accountName: 'total_kas', amount };
+    }
+  }
+
+  // 3. Pola akun di depan ("dana suami ganti 1jt", "saldo dana suami ubah 2jt", "jago ganti 500rb")
+  const leadingAccountPattern = /^(?:saldo\s+)?([a-zA-Z0-9\s]+?)\s+(?:ganti|ubah|atur|set|koreksi|jadi|menjadi)\s+(?:menjadi|=|\:|jadi)?\s*(?:(?:rp|idr)\.?\s*)?([0-9.,]+(?:\s*(?:rb|ribu|k|jt|juta))?)$/i;
+  const matchLeading = clean.match(leadingAccountPattern);
+  if (matchLeading) {
+    const accCandidate = matchLeading[1].trim();
+    const amount = parseNominal(matchLeading[2].trim());
+    if (amount >= 0 && accCandidate) {
+      const isTotalKas = /^(total[\s_]*kas|kas[\s_]*(total|keluarga|siap\s*pakai))$/i.test(accCandidate);
+      return { accountName: isTotalKas ? 'total_kas' : accCandidate, amount };
     }
   }
 

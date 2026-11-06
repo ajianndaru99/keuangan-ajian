@@ -15,7 +15,7 @@ import {
 } from './formatters.ts';
 import { formatRupiah } from '../utils.ts';
 import { extractPromoKeywordsFromText } from '../ai/adaptive-rules.ts';
-import { syncAccountBalance, applyAccountBalanceDelta } from '../account-balance.ts';
+import { syncAccountBalance } from '../account-balance.ts';
 
 export interface TelegramCallbackQuery {
   id: string;
@@ -124,7 +124,7 @@ export async function handleTelegramCallbackQuery(
 
     if (diff !== 0) {
       const owner = targetAccount.owner === 'istri' ? 'istri' : 'suami';
-      await supabase.from('transactions').insert({
+      const { error: insErr } = await supabase.from('transactions').insert({
         household_id: householdId,
         account_id: targetAccount.id,
         amount: Math.abs(diff),
@@ -137,6 +137,12 @@ export async function handleTelegramCallbackQuery(
         dedupe_hash: `adj_${targetAccount.id}_${Date.now()}`,
         needs_review: false,
       });
+
+      if (insErr) {
+        console.error('[Callback sok Insert Error]:', insErr.message);
+        await answerCallbackQuery(cq.id, '⚠️ Gagal menyimpan transaksi koreksi saldo.', true);
+        return;
+      }
     }
 
     await syncAccountBalance(supabase, targetAccount.id);
@@ -150,6 +156,59 @@ export async function handleTelegramCallbackQuery(
 
     await editTelegramMessageText(chatId, messageId, successText, {
       reply_markup: { inline_keyboard: [] },
+    });
+    return;
+  }
+
+  // 0.1. Pemilihan Rekening untuk Total Kas (Dua Langkah)
+  if (data.startsWith('sask:')) {
+    const parts = data.replace('sask:', '').split(':');
+    const accId = parts[0];
+    const targetAmount = Number(parts[1] || 0);
+
+    const { data: accounts, error: accErr } = await supabase
+      .from('accounts')
+      .select('id, name, owner, balance')
+      .eq('household_id', householdId)
+      .eq('is_active', true);
+
+    if (accErr || !accounts) {
+      await answerCallbackQuery(cq.id, '⚠️ Gagal memuat data rekening.', true);
+      return;
+    }
+
+    const targetAccount = accounts.find((a) => a.id === accId || a.id.startsWith(accId));
+    if (!targetAccount) {
+      await answerCallbackQuery(cq.id, '⚠️ Rekening tidak ditemukan.', true);
+      return;
+    }
+
+    await answerCallbackQuery(cq.id);
+
+    const currentBalance = Number(targetAccount.balance || 0);
+    const diff = targetAmount - currentBalance;
+    const otherAccountsTotal = accounts
+      .filter((a) => a.id !== targetAccount.id)
+      .reduce((sum, a) => sum + Number(a.balance || 0), 0);
+    const projectedTotalKas = otherAccountsTotal + targetAmount;
+
+    const confirmText = `⚠️ *KONFIRMASI PERUBAHAN SALDO REKENING*\n\n` +
+      `🏦 *Akun Terpilih:* ${targetAccount.name} (${targetAccount.owner === 'istri' ? 'Istri' : 'Suami'})\n` +
+      `💰 *Saldo Saat Ini:* \`${formatRupiah(currentBalance)}\`\n` +
+      `🎯 *Saldo Baru:* \`${formatRupiah(targetAmount)}\`\n` +
+      `📉 *Selisih Koreksi:* \`${diff >= 0 ? '+' : ''}${formatRupiah(diff)}\`\n` +
+      `💼 *Proyeksi Total Kas:* \`${formatRupiah(projectedTotalKas)}\`\n\n` +
+      `_Tindakan ini akan mempengaruhi total kas siap pakai keluarga. Pastikan angka sudah benar sebelum konfirmasi._`;
+
+    await editTelegramMessageText(chatId, messageId, confirmText, {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: '✅ Ya, Perbarui Saldo', callback_data: `sok:${targetAccount.id}:${targetAmount}` },
+            { text: '❌ Batalkan', callback_data: 'scancel' },
+          ],
+        ],
+      },
     });
     return;
   }
@@ -212,13 +271,21 @@ export async function handleTelegramCallbackQuery(
     await answerCallbackQuery(cq.id, '✅ Transaksi diverifikasi!');
 
     const tx = currentTx as unknown as TxWithRelations;
-    const text = formatExpenseVerifiedMessage({
-      merchant: tx.merchant || 'Transaksi',
-      amount: Number(tx.amount || 0),
-      categoryName: tx.categories?.name || 'Lainnya',
-      accountName: tx.accounts?.name || 'Utama',
-      verifiedBy: cq.from.first_name || 'Keluarga',
-    });
+    const text = currentTx.direction === 'in'
+      ? `📈 *PEMASUKAN TERVERIFIKASI* ✅\n\n` +
+        `💵 *Sumber:* ${tx.merchant || 'Pemasukan'}\n` +
+        `💰 *Nominal:* \`${formatRupiah(Number(tx.amount || 0))}\`\n` +
+        `📁 *Kategori:* ${tx.categories?.name || 'Gaji/Pemasukan'}\n` +
+        `🏦 *Masuk ke:* ${tx.accounts?.name || 'Utama'}\n\n` +
+        `Diverifikasi oleh: *${cq.from.first_name || 'Keluarga'}*\n\n` +
+        `_Saldo rekening telah diselaraskan dan transaksi berstatus Reconciled._`
+      : formatExpenseVerifiedMessage({
+          merchant: tx.merchant || 'Transaksi',
+          amount: Number(tx.amount || 0),
+          categoryName: tx.categories?.name || 'Lainnya',
+          accountName: tx.accounts?.name || 'Utama',
+          verifiedBy: cq.from.first_name || 'Keluarga',
+        });
 
     await editTelegramMessageText(chatId, messageId, text, {
       reply_markup: {
@@ -279,19 +346,50 @@ export async function handleTelegramCallbackQuery(
       return;
     }
 
+    const { data: categories } = await supabase
+      .from('categories')
+      .select('id, name, type')
+      .eq('household_id', householdId);
+
+    const incomeCat = categories?.find(
+      (c) => c.type === 'income' || c.name.toLowerCase().includes('pemasukan') || c.name.toLowerCase().includes('gaji')
+    );
+
     const rawMerchant = currentTx.merchant || 'Pemasukan';
     const cleanMerchant = rawMerchant.replace(/^Transfer Internal:\s*/i, '');
+    const notesText = `Diubah menjadi pemasukan luar via Telegram oleh ${cq.from.first_name || 'Keluarga'}`;
 
-    await supabase
+    const updatePayload: Record<string, any> = {
+      merchant: cleanMerchant,
+      direction: 'in',
+      status: 'reconciled',
+      notes: notesText,
+    };
+    if (incomeCat) {
+      updatePayload.category_id = incomeCat.id;
+    }
+
+    let { error: updateErr } = await supabase
       .from('transactions')
-      .update({
-        merchant: cleanMerchant,
-        direction: 'in',
-        status: 'reconciled',
-        notes: `Diubah menjadi pemasukan luar via Telegram oleh ${cq.from.first_name || 'Keluarga'}`,
-      })
+      .update(updatePayload)
       .eq('id', txId)
       .eq('household_id', householdId);
+
+    if (updateErr && (updateErr.message?.includes('notes') || updateErr.code === '42703')) {
+      delete updatePayload.notes;
+      const retryRes = await supabase
+        .from('transactions')
+        .update(updatePayload)
+        .eq('id', txId)
+        .eq('household_id', householdId);
+      updateErr = retryRes.error;
+    }
+
+    if (updateErr) {
+      console.error('[Callback tx_in Update Error]:', updateErr.message);
+      await answerCallbackQuery(cq.id, '⚠️ Gagal mengubah menjadi pemasukan.', true);
+      return;
+    }
 
     if (currentTx.account_id) {
       await syncAccountBalance(supabase, currentTx.account_id);
@@ -339,17 +437,36 @@ export async function handleTelegramCallbackQuery(
 
     const rawMerchant = currentTx.merchant || 'Pengeluaran';
     const cleanMerchant = rawMerchant.replace(/^Transfer Internal:\s*/i, '');
+    const notesText = `Diubah menjadi pengeluaran via Telegram oleh ${cq.from.first_name || 'Keluarga'}`;
 
-    await supabase
+    const updatePayload: Record<string, any> = {
+      merchant: cleanMerchant,
+      direction: 'out',
+      status: 'reconciled',
+      notes: notesText,
+    };
+
+    let { error: updateErr } = await supabase
       .from('transactions')
-      .update({
-        merchant: cleanMerchant,
-        direction: 'out',
-        status: 'reconciled',
-        notes: `Diubah menjadi pengeluaran via Telegram oleh ${cq.from.first_name || 'Keluarga'}`,
-      })
+      .update(updatePayload)
       .eq('id', txId)
       .eq('household_id', householdId);
+
+    if (updateErr && (updateErr.message?.includes('notes') || updateErr.code === '42703')) {
+      delete updatePayload.notes;
+      const retryRes = await supabase
+        .from('transactions')
+        .update(updatePayload)
+        .eq('id', txId)
+        .eq('household_id', householdId);
+      updateErr = retryRes.error;
+    }
+
+    if (updateErr) {
+      console.error('[Callback tx_out Update Error]:', updateErr.message);
+      await answerCallbackQuery(cq.id, '⚠️ Gagal mengubah menjadi pengeluaran.', true);
+      return;
+    }
 
     if (currentTx.account_id) {
       await syncAccountBalance(supabase, currentTx.account_id);
@@ -398,16 +515,35 @@ export async function handleTelegramCallbackQuery(
     const rawMerchant = currentTx.merchant || 'Transaksi';
     const cleanMerchant = rawMerchant.replace(/^Transfer Internal:\s*/i, '');
     const newMerchant = `Transfer Internal: ${cleanMerchant}`;
+    const notesText = `Ditandai sebagai transfer internal via Telegram oleh ${cq.from.first_name || 'Keluarga'}`;
 
-    await supabase
+    const updatePayload: Record<string, any> = {
+      merchant: newMerchant,
+      status: 'reconciled',
+      notes: notesText,
+    };
+
+    let { error: updateErr } = await supabase
       .from('transactions')
-      .update({
-        merchant: newMerchant,
-        status: 'reconciled',
-        notes: `Ditandai sebagai transfer internal via Telegram oleh ${cq.from.first_name || 'Keluarga'}`,
-      })
+      .update(updatePayload)
       .eq('id', txId)
       .eq('household_id', householdId);
+
+    if (updateErr && (updateErr.message?.includes('notes') || updateErr.code === '42703')) {
+      delete updatePayload.notes;
+      const retryRes = await supabase
+        .from('transactions')
+        .update(updatePayload)
+        .eq('id', txId)
+        .eq('household_id', householdId);
+      updateErr = retryRes.error;
+    }
+
+    if (updateErr) {
+      console.error('[Callback tx_mark_transfer Update Error]:', updateErr.message);
+      await answerCallbackQuery(cq.id, '⚠️ Gagal menandai transfer internal.', true);
+      return;
+    }
 
     if (currentTx.account_id) {
       await syncAccountBalance(supabase, currentTx.account_id);
@@ -446,7 +582,7 @@ export async function handleTelegramCallbackQuery(
     const buttons = (accounts || []).map((a) => [
       {
         text: `🏦 ${a.name} (${a.owner === 'istri' ? 'Istri' : 'Suami'})`,
-        callback_data: `tx_setacc:${txId}:${a.id}`,
+        callback_data: `tsa:${txId}:${a.id.slice(0, 8)}`,
       },
     ]);
     buttons.push([{ text: '⬅️ Kembali', callback_data: `tx_edit:${txId}` }]);
@@ -462,11 +598,12 @@ export async function handleTelegramCallbackQuery(
     return;
   }
 
-  // 1.7. Terapkan Pindah Rekening
-  if (data.startsWith('tx_setacc:')) {
-    const parts = data.replace('tx_setacc:', '').split(':');
+  // 1.7. Terapkan Pindah Rekening (Prefix ringkas tsa: agar <= 64 bytes)
+  if (data.startsWith('tsa:') || data.startsWith('tx_setacc:')) {
+    const raw = data.replace(/^(?:tsa|tx_setacc):/, '');
+    const parts = raw.split(':');
     const txId = parts[0];
-    const newAccId = parts[1];
+    const shortOrFullAccId = parts[1];
 
     const { data: currentTx, error: fetchErr } = await supabase
       .from('transactions')
@@ -482,27 +619,49 @@ export async function handleTelegramCallbackQuery(
 
     const oldAccId = currentTx.account_id;
 
-    const { data: newAccount } = await supabase
+    const { data: accounts } = await supabase
       .from('accounts')
       .select('id, name, owner')
-      .eq('id', newAccId)
-      .maybeSingle();
+      .eq('household_id', householdId)
+      .eq('is_active', true);
 
-    await supabase
+    const targetAccount = accounts?.find(
+      (a) => a.id === shortOrFullAccId || a.id.startsWith(shortOrFullAccId)
+    );
+
+    if (!targetAccount) {
+      await answerCallbackQuery(cq.id, '⚠️ Rekening tujuan tidak ditemukan.', true);
+      return;
+    }
+
+    const newAccId = targetAccount.id;
+    if (newAccId === oldAccId) {
+      await answerCallbackQuery(cq.id, 'ℹ️ Transaksi sudah berada di rekening ini.');
+      return;
+    }
+
+    const { error: updateErr } = await supabase
       .from('transactions')
       .update({ account_id: newAccId })
-      .eq('id', txId);
+      .eq('id', txId)
+      .eq('household_id', householdId);
+
+    if (updateErr) {
+      console.error('[Callback tsa Update Error]:', updateErr.message);
+      await answerCallbackQuery(cq.id, '⚠️ Gagal memindahkan rekening.', true);
+      return;
+    }
 
     // Sinkronkan saldo kedua akun
     if (oldAccId) await syncAccountBalance(supabase, oldAccId);
-    if (newAccId) await syncAccountBalance(supabase, newAccId);
+    await syncAccountBalance(supabase, newAccId);
 
     await answerCallbackQuery(cq.id, '🏦 Rekening berhasil dipindahkan!');
 
     const baseText = originalText
       .replace(/\n\n\*Pilih rekening baru:\*.*$/s, '')
       .replace(/\n\n✅ _Rekening dipindahkan.*$/s, '');
-    const newAccName = newAccount ? `${newAccount.name} (${newAccount.owner === 'istri' ? 'Istri' : 'Suami'})` : 'Rekening Baru';
+    const newAccName = `${targetAccount.name} (${targetAccount.owner === 'istri' ? 'Istri' : 'Suami'})`;
     const updatedText = `${baseText}\n\n✅ _Rekening dipindahkan ke *${newAccName}*._`;
 
     await editTelegramMessageText(chatId, messageId, updatedText, {
@@ -552,14 +711,32 @@ export async function handleTelegramCallbackQuery(
       .replace(/\n\n\*Pilih Koreksi Mutasi:\*.*$/s, '')
       .replace(/\n\n\*Pilih rekening baru:\*.*$/s, '');
 
-    await editTelegramMessageText(chatId, messageId, baseText, {
-      reply_markup: {
-        inline_keyboard: [
+    const { data: currentTx } = await supabase
+      .from('transactions')
+      .select('id, status')
+      .eq('id', txId)
+      .eq('household_id', householdId)
+      .maybeSingle();
+
+    const isPending = currentTx?.status === 'pending';
+    const defaultButtons = isPending
+      ? [
+          [
+            { text: '✅ Benar & Sesuai', callback_data: `tx_ok:${txId}` },
+            { text: '✏️ Koreksi', callback_data: `tx_edit:${txId}` },
+            { text: '❌ Salah', callback_data: `tx_wrong_menu:${txId}` },
+          ],
+        ]
+      : [
           [
             { text: '✏️ Koreksi Mutasi', callback_data: `tx_edit:${txId}` },
             { text: '❌ Batalkan', callback_data: `tx_wrong_menu:${txId}` },
           ],
-        ],
+        ];
+
+    await editTelegramMessageText(chatId, messageId, baseText, {
+      reply_markup: {
+        inline_keyboard: defaultButtons,
       },
     });
     return;
@@ -597,9 +774,8 @@ export async function handleTelegramCallbackQuery(
     }
 
     // Jika transaksi sebelumnya reconciled, pulihkan saldo akun
-    if (targetTx.status === 'reconciled' && targetTx.account_id && targetTx.amount) {
-      const revertDelta = targetTx.direction === 'in' ? -Number(targetTx.amount) : Number(targetTx.amount);
-      await applyAccountBalanceDelta(supabase, targetTx.account_id, revertDelta);
+    if (targetTx.status === 'reconciled' && targetTx.account_id) {
+      await syncAccountBalance(supabase, targetTx.account_id);
     }
 
     await answerCallbackQuery(cq.id, 'Pola promo dipelajari oleh AI.');
@@ -671,9 +847,8 @@ export async function handleTelegramCallbackQuery(
     }
 
     // Jika transaksi sebelumnya reconciled, pulihkan saldo akun
-    if (targetTx.status === 'reconciled' && targetTx.account_id && targetTx.amount) {
-      const revertDelta = targetTx.direction === 'in' ? -Number(targetTx.amount) : Number(targetTx.amount);
-      await applyAccountBalanceDelta(supabase, targetTx.account_id, revertDelta);
+    if (targetTx.status === 'reconciled' && targetTx.account_id) {
+      await syncAccountBalance(supabase, targetTx.account_id);
     }
 
     await answerCallbackQuery(cq.id, 'Ditandai transaksi dobel.');

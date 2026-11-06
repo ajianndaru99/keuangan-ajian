@@ -32,6 +32,7 @@ import { processFinancialChatWithAI } from '@/lib/telegram/nlp-chat.ts';
 import {
   handleCustomRejectionReply,
   handleSetSaldoFlow,
+  promptSetSaldoConfirmation,
   handleSetAnggaranFlow,
   handleSetGajianFlow,
   shouldProcessChat,
@@ -142,11 +143,13 @@ async function handleNaturalLanguageFlow(
 
   // 1. Intent Ubah Saldo / Total Kas (Dua Langkah dengan Konfirmasi)
   if (nlpResult.type === 'set_balance_intent') {
-    const rawCmd = nlpResult.accountName === 'total_kas'
-      ? `total kas ganti ${nlpResult.amount}`
-      : `ganti saldo ${nlpResult.accountName} ${nlpResult.amount}`;
-    await handleSetSaldoFlow(
-      rawCmd,
+    let normalizedAccountName = nlpResult.accountName.trim();
+    if (/^(total[\s_]*kas|kas[\s_]*(total|keluarga|siap\s*pakai))$/i.test(normalizedAccountName)) {
+      normalizedAccountName = 'total_kas';
+    }
+    await promptSetSaldoConfirmation(
+      normalizedAccountName,
+      nlpResult.amount,
       message.chat.id,
       message.message_id,
       supabase,
