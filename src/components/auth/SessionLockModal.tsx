@@ -12,6 +12,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Lock, LogOut, ShieldAlert } from 'lucide-react';
 import PinKeypad from './PinKeypad';
+import BrandLogo from '@/components/layout/BrandLogo';
 import { checkBiometricsAvailability, authenticateWithBiometrics } from '@/lib/auth/biometrics';
 import { createClient } from '@/lib/supabase/client';
 
@@ -130,10 +131,13 @@ export default function SessionLockModal({
   return (
     <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center p-4 bg-[var(--bg-main)]/95 backdrop-blur-md animate-fade-in select-none">
       <div className="w-full max-w-sm mx-auto flex flex-col items-center text-center">
-        {/* Ikon Kunci & Badge 1 Jam */}
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-[var(--surface-2)] text-[var(--accent-color)] border border-[var(--border-color)] mb-4 shadow-xs">
-          <Lock className="w-3.5 h-3.5" />
-          <span>Sesi Terkunci (Inaktivitas 1 Jam)</span>
+        {/* Logo & Status Kunci Sesi */}
+        <div className="mb-3 flex flex-col items-center gap-2">
+          <BrandLogo size="sm" />
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-[var(--surface-2)] text-[var(--accent-color)] border border-[var(--border-color)] shadow-xs">
+            <Lock className="w-3.5 h-3.5" />
+            <span>[TERKUNCI] Inaktivitas 1 Jam</span>
+          </div>
         </div>
 
         {/* Avatar Profil */}

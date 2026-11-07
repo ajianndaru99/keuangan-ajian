@@ -73,7 +73,7 @@
                         android:id="@+id/rbSuami"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="👨 HP Suami (Infinix Note 30 Pro)"
+                        android:text="HP Suami (Infinix Note 30 Pro)"
                         android:textColor="@color/text_main_dark"
                         android:textSize="13sp" />
 
@@ -82,7 +82,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="6dp"
-                        android:text="👩 HP Istri (Samsung Galaxy A52)"
+                        android:text="HP Istri (Samsung Galaxy A52)"
                         android:textColor="@color/text_main_dark"
                         android:textSize="13sp" />
                 </RadioGroup>

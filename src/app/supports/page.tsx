@@ -244,7 +244,9 @@ export default function SupportsPage() {
             <div className="p-4 rounded-2xl bg-[var(--surface-2)] border border-[var(--border-color)] space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="text-xl">👨</span>
+                  <span className="px-2 py-0.5 rounded-md bg-[var(--surface-1)] border border-[var(--border-color)] text-[10px] font-bold text-[var(--accent-color)]">
+                    SUAMI
+                  </span>
                   <div>
                     <h4 className="text-xs sm:text-sm font-bold text-[var(--text-main)]">
                       HP Suami (Kepala Keluarga)
@@ -272,7 +274,9 @@ export default function SupportsPage() {
             <div className="p-4 rounded-2xl bg-[var(--bg-main)]/70 border border-[var(--border-color)]/80 space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="text-xl">👩</span>
+                  <span className="px-2 py-0.5 rounded-md bg-[var(--surface-1)] border border-[var(--border-color)] text-[10px] font-bold text-emerald-500">
+                    ISTRI
+                  </span>
                   <div>
                     <h4 className="text-xs sm:text-sm font-bold text-[var(--text-main)]">
                       HP Istri
@@ -325,7 +329,6 @@ export default function SupportsPage() {
             <div className="p-4 rounded-2xl bg-[var(--surface-2)]/60 border border-[var(--border-color)] space-y-2.5">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-[var(--text-main)] flex items-center gap-1.5">
-                  <span>👨</span>
                   <span>Untuk HP Suami (Infinix Note 30 Pro)</span>
                 </span>
                 <span className="text-[10px] px-2 py-0.5 rounded bg-[var(--surface-1)] text-[var(--accent-color)] font-mono">
@@ -352,7 +355,6 @@ export default function SupportsPage() {
             <div className="p-4 rounded-2xl bg-[var(--surface-2)]/60 border border-[var(--border-color)] space-y-2.5">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-[var(--text-main)] flex items-center gap-1.5">
-                  <span>👩</span>
                   <span>Untuk HP Istri (Samsung Galaxy A52)</span>
                 </span>
                 <span className="text-[10px] px-2 py-0.5 rounded bg-[var(--surface-1)] text-[var(--accent-color)] font-mono">

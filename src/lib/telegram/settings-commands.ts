@@ -179,7 +179,7 @@ async function cancelTransactionAndLearnSpam(
     console.error('[HandleCustomRejection Update Error]:', updateErr.message);
     await sendTelegramMessage(
       message.chat.id,
-      '⚠️ Gagal memperbarui status pembatalan ke database.',
+      '[ERROR] Gagal memperbarui status pembatalan ke database.',
       { reply_to_message_id: message.message_id }
     );
     return true;
@@ -213,16 +213,16 @@ async function cancelTransactionAndLearnSpam(
   const txName = targetTx.merchant || 'Transaksi';
   const txAmount = targetTx.amount ? formatRupiah(Number(targetTx.amount)) : '';
   const aiNote = isSpamOrPromo
-    ? `\n🧠 _Notifikasi ini ditandai sebagai Spam/Promo${learnedCount > 0 ? ' dan polanya telah dipelajari agar otomatis diblokir di kemudian hari' : ''}._`
+    ? `\n[INFO AI] _Notifikasi ini ditandai sebagai Spam/Promo${learnedCount > 0 ? ' dan polanya telah dipelajari agar otomatis diblokir di kemudian hari' : ''}._`
     : '';
 
   // Perbarui pesan alert asli bot jika memungkinkan agar tombol hilang dan status jelas
   if (message.reply_to_message?.message_id && message.reply_to_message.text && !message.reply_to_message.text.includes('Tulis Alasan Pembatalan')) {
     const rejectedAlertText =
-      `❌ *TRANSAKSI DIBATALKAN / SPAM*\n\n` +
-      `🛒 *Mutasi:* ${txName}\n` +
-      `💰 *Nominal:* \`${txAmount}\`\n` +
-      `📝 *Catatan:* ${userReason}`;
+      `*[DIBATALKAN] TRANSAKSI DIBATALKAN / SPAM*\n\n` +
+      `Mutasi: ${txName}\n` +
+      `Nominal: \`${txAmount}\`\n` +
+      `Catatan: ${userReason}`;
     try {
       await editTelegramMessageText(message.chat.id, message.reply_to_message.message_id, rejectedAlertText, {
         reply_markup: { inline_keyboard: [] },
@@ -234,7 +234,7 @@ async function cancelTransactionAndLearnSpam(
 
   await sendTelegramMessage(
     message.chat.id,
-    `🚫 *Transaksi Berhasil Dibatalkan*\n\nTransaksi: *${txName}* ${txAmount ? `(\`${txAmount}\`)` : ''}\nAlasan: _"${userReason}"_\n\n_Data telah diabaikan, saldo akun diselaraskan ulang, dan tidak akan dihitung ke rekap keluarga._${aiNote}`,
+    `*[DIBATALKAN] Transaksi Berhasil Dibatalkan*\n\nTransaksi: *${txName}* ${txAmount ? `(\`${txAmount}\`)` : ''}\nAlasan: _"${userReason}"_\n\n_Data telah diabaikan, saldo akun diselaraskan ulang, dan tidak akan dihitung ke rekap keluarga._${aiNote}`,
     { reply_to_message_id: message.message_id }
   );
 
@@ -263,7 +263,7 @@ async function updateTransactionCategoryFromReply(
     console.error('[UpdateCategoryFromReply Error]:', result.error);
     await sendTelegramMessage(
       message.chat.id,
-      '⚠️ Gagal memperbarui kategori ke database.',
+      '[ERROR] Gagal memperbarui kategori ke database.',
       { reply_to_message_id: message.message_id }
     );
     return true;
@@ -274,7 +274,7 @@ async function updateTransactionCategoryFromReply(
 
   await sendTelegramMessage(
     message.chat.id,
-    `📁 *Kategori Berhasil Diperbarui* ✅\n\nTransaksi: *${txName}* ${txAmount ? `(\`${txAmount}\`)` : ''}\nKategori Baru: *${result.emoji} ${result.categoryName}*\n\n_Transaksi berstatus Reconciled dan dialokasikan ke pos belanja ${result.categoryName}._`,
+    `*[BERHASIL] Kategori Berhasil Diperbarui*\n\nTransaksi: *${txName}* ${txAmount ? `(\`${txAmount}\`)` : ''}\nKategori Baru: *${result.categoryName}*\n\n_Transaksi berstatus Reconciled dan dialokasikan ke pos belanja ${result.categoryName}._`,
     { reply_to_message_id: message.message_id }
   );
 
@@ -436,7 +436,7 @@ export async function promptSetSaldoConfirmation(
 
   if (accErr || !accounts || accounts.length === 0) {
     console.error('[SetSaldo Account Fetch Error]:', accErr?.message);
-    await sendTelegramMessage(chatId, '⚠️ Gagal memuat daftar rekening dari database.', { reply_to_message_id: messageId });
+    await sendTelegramMessage(chatId, '[ERROR] Gagal memuat daftar rekening dari database.', { reply_to_message_id: messageId });
     return true;
   }
 
@@ -446,13 +446,13 @@ export async function promptSetSaldoConfirmation(
 
     const buttons = accounts.map((a) => [
       {
-        text: `🏦 ${a.name} (Saldo: ${formatRupiah(Number(a.balance || 0))}) ➔ ${formatRupiah(targetAmount)}`,
+        text: `${a.name} (Saldo: ${formatRupiah(Number(a.balance || 0))}) -> ${formatRupiah(targetAmount)}`,
         callback_data: `sask:${a.id}:${targetAmount}`,
       },
     ]);
-    buttons.push([{ text: '❌ Batalkan', callback_data: 'scancel' }]);
+    buttons.push([{ text: 'Batalkan', callback_data: 'scancel' }]);
 
-    const text = `💼 *PENYESUAIAN TOTAL KAS KELUARGA*\n\n` +
+    const text = `*[PENYESUAIAN KAS] PENYESUAIAN TOTAL KAS KELUARGA*\n\n` +
       `Total kas siap pakai saat ini: \`${formatRupiah(totalKas)}\`\n` +
       `Target nominal baru: \`${formatRupiah(targetAmount)}\`\n\n` +
       `_Pilih rekening mana yang ingin disesuaikan saldonya ke nominal ini (akan ada layar konfirmasi):_`;
@@ -479,7 +479,7 @@ export async function promptSetSaldoConfirmation(
     const list = accounts.map((a) => `• *${a.name}* (${a.owner === 'istri' ? 'Istri' : 'Suami'}) — Saldo: \`${formatRupiah(Number(a.balance || 0))}\``).join('\n');
     await sendTelegramMessage(
       chatId,
-      `⚠️ Akun *${accountName}* tidak ditemukan di dasbor.\n\nRekening aktif yang terdaftar saat ini:\n${list || 'Belum ada rekening'}\n\n_Contoh perintah:_ \`set saldo dana suami 2jt\` atau \`total kas ganti 1jt\``,
+      `*[PERHATIAN] Akun ${accountName} tidak ditemukan di dasbor.*\n\nRekening aktif yang terdaftar saat ini:\n${list || 'Belum ada rekening'}\n\n_Contoh perintah:_ \`set saldo dana suami 2jt\` atau \`total kas ganti 1jt\``,
       { reply_to_message_id: messageId }
     );
     return true;
@@ -492,12 +492,12 @@ export async function promptSetSaldoConfirmation(
     .reduce((sum, a) => sum + Number(a.balance || 0), 0);
   const projectedTotalKas = otherAccountsTotal + targetAmount;
 
-  const confirmText = `⚠️ *KONFIRMASI PERUBAHAN SALDO REKENING*\n\n` +
-    `🏦 *Akun:* ${targetAccount.name} (${targetAccount.owner === 'istri' ? 'Istri' : 'Suami'})\n` +
-    `💰 *Saldo Saat Ini:* \`${formatRupiah(currentBalance)}\`\n` +
-    `🎯 *Saldo Baru:* \`${formatRupiah(targetAmount)}\`\n` +
-    `📉 *Selisih Koreksi:* \`${diff >= 0 ? '+' : ''}${formatRupiah(diff)}\`\n` +
-    `💼 *Proyeksi Total Kas:* \`${formatRupiah(projectedTotalKas)}\`\n\n` +
+  const confirmText = `*[KONFIRMASI] PERUBAHAN SALDO REKENING*\n\n` +
+    `Akun: ${targetAccount.name} (${targetAccount.owner === 'istri' ? 'Istri' : 'Suami'})\n` +
+    `Saldo Saat Ini: \`${formatRupiah(currentBalance)}\`\n` +
+    `Saldo Baru: \`${formatRupiah(targetAmount)}\`\n` +
+    `Selisih Koreksi: \`${diff >= 0 ? '+' : ''}${formatRupiah(diff)}\`\n` +
+    `Proyeksi Total Kas: \`${formatRupiah(projectedTotalKas)}\`\n\n` +
     `_Tindakan ini akan mempengaruhi total kas siap pakai keluarga. Pastikan angka sudah benar sebelum konfirmasi._`;
 
   await sendTelegramMessage(chatId, confirmText, {
@@ -505,8 +505,8 @@ export async function promptSetSaldoConfirmation(
     reply_markup: {
       inline_keyboard: [
         [
-          { text: '✅ Ya, Perbarui Saldo', callback_data: `sok:${targetAccount.id}:${targetAmount}` },
-          { text: '❌ Batalkan', callback_data: 'scancel' },
+          { text: 'Ya, Perbarui Saldo', callback_data: `sok:${targetAccount.id}:${targetAmount}` },
+          { text: 'Batalkan', callback_data: 'scancel' },
         ],
       ],
     },
@@ -616,7 +616,7 @@ export async function handleSetAnggaranFlow(
 
     await sendTelegramMessage(
       chatId,
-      `⚠️ *Gagal memperbarui anggaran ke database.*\n\nDetail: \`${errorDetail}\``,
+      `*[ERROR] Gagal memperbarui anggaran ke database.*\n\nDetail: \`${errorDetail}\``,
       { reply_to_message_id: messageId }
     );
     return true;
@@ -675,14 +675,14 @@ export async function handleSetGajianFlow(
 
   if (setErr) {
     console.error('[SetGajian Upsert Error]:', setErr.message);
-    await sendTelegramMessage(chatId, '⚠️ Gagal memperbarui tanggal gajian ke database.', { reply_to_message_id: messageId });
+    await sendTelegramMessage(chatId, '[ERROR] Gagal memperbarui tanggal gajian ke database.', { reply_to_message_id: messageId });
     return true;
   }
 
   const dateRange = getMonthlyRange(0, day);
   await sendTelegramMessage(
     chatId,
-    `🎉 *Tanggal Siklus Gajian Berhasil Diperbarui* ✅\n\nTanggal Gajian Baru: *Tanggal ${day} setiap bulan*\nSiklus Finansial Aktif: *${dateRange.label}*\n\n_Batas aman harian dan penghitungan rekapitulasi keluarga kini otomatis diselaraskan ke tanggal ${day}._`,
+    `*[BERHASIL] Tanggal Siklus Gajian Berhasil Diperbarui*\n\nTanggal Gajian Baru: *Tanggal ${day} setiap bulan*\nSiklus Finansial Aktif: *${dateRange.label}*\n\n_Batas aman harian dan penghitungan rekapitulasi keluarga kini otomatis diselaraskan ke tanggal ${day}._`,
     { reply_to_message_id: messageId }
   );
   return true;

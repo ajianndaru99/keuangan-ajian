@@ -38,7 +38,7 @@ export async function handleTelegramPhotoMessage(
   if (!apiKey && process.env.NODE_ENV === 'production') {
     await sendTelegramMessage(
       chatId,
-      '⚠️ *Fitur Vision AI Belum Dikonfigurasi*\nKunci API Google Gemini (`GEMINI_API_KEY`) belum terpasang di server dasbor. Silakan hubungi admin.',
+      '*[PERHATIAN] Fitur Vision AI Belum Dikonfigurasi*\nKunci API Google Gemini (`GEMINI_API_KEY`) belum terpasang di server dasbor. Silakan hubungi admin.',
       { reply_to_message_id: messageId }
     );
     return;
@@ -53,7 +53,7 @@ export async function handleTelegramPhotoMessage(
   if (!fileData) {
     await sendTelegramMessage(
       chatId,
-      '⚠️ *Gagal Mengunduh Gambar*\nTidak dapat mengambil foto dari server Telegram. Silakan coba kirim ulang foto yang jelas.',
+      '*[ERROR] Gagal Mengunduh Gambar*\nTidak dapat mengambil foto dari server Telegram. Silakan coba kirim ulang foto yang jelas.',
       { reply_to_message_id: messageId }
     );
     return;
@@ -69,7 +69,7 @@ export async function handleTelegramPhotoMessage(
   if (!vision.isValidReceipt || vision.totalAmount <= 0) {
     await sendTelegramMessage(
       chatId,
-      '⚠️ *Foto Tidak Terbaca atau Bukan Struk Transaksi*\n\nSistem hanya mencatat bukti transfer atau struk belanja yang jelas, tegak lurus, dan berstatus *Berhasil*.\n\nSilakan kirimkan foto ulang yang lebih terang dan fokus.',
+      '*[PERHATIAN] Foto Tidak Terbaca atau Bukan Struk Transaksi*\n\nSistem hanya mencatat bukti transfer atau struk belanja yang jelas, tegak lurus, dan berstatus *Berhasil*.\n\nSilakan kirimkan foto ulang yang lebih terang dan fokus.',
       { reply_to_message_id: messageId }
     );
     return;
@@ -159,7 +159,7 @@ export async function handleTelegramPhotoMessage(
     if ((txError as { code?: string }).code === '23505') {
       await sendTelegramMessage(
         chatId,
-        'ℹ️ *Struk Sudah Pernah Dicatat*\n\nBukti transaksi ini sebelumnya telah tersimpan di dasbor keluarga dan tidak dicatat dobel.',
+        '*[INFO] Struk Sudah Pernah Dicatat*\n\nBukti transaksi ini sebelumnya telah tersimpan di dasbor keluarga dan tidak dicatat dobel.',
         { reply_to_message_id: messageId }
       );
       return;
@@ -167,7 +167,7 @@ export async function handleTelegramPhotoMessage(
     console.error('[Telegram Photo Insert Error]:', txError);
     await sendTelegramMessage(
       chatId,
-      '⚠️ *Gagal Menyimpan Data Struk*\nTerjadi kesalahan saat menyimpan catatan ke database.',
+      '*[ERROR] Gagal Menyimpan Data Struk*\nTerjadi kesalahan saat menyimpan catatan ke database.',
       { reply_to_message_id: messageId }
     );
     return;
@@ -187,9 +187,9 @@ export async function handleTelegramPhotoMessage(
     reply_markup: {
       inline_keyboard: [
         [
-          { text: '✅ Sesuai', callback_data: `tx_ok:${newTx.id}` },
-          { text: '📁 Kategori', callback_data: `tx_cat:${newTx.id}` },
-          { text: '❌ Batal', callback_data: `tx_wrong_menu:${newTx.id}` },
+          { text: 'Sesuai', callback_data: `tx_ok:${newTx.id}` },
+          { text: 'Kategori', callback_data: `tx_cat:${newTx.id}` },
+          { text: 'Batal', callback_data: `tx_wrong_menu:${newTx.id}` },
         ],
       ],
     },

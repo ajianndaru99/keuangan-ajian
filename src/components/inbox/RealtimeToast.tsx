@@ -2,12 +2,11 @@
 
 // ==============================================================================
 // COMPONENT: src/components/inbox/RealtimeToast.tsx
-// Pop-up Notifikasi Realtime: Tampilan Elegan, Bersih, dan Profesional
-// Muncul saat notifikasi bank baru terekam oleh sistem
+// Pop-up Notifikasi Realtime: Full-Text Sederhana dengan Penanda Jelas
+// Muncul saat notifikasi mutasi bank baru terekam oleh sistem
 // ==============================================================================
 
 import { useEffect, useState } from 'react';
-import { X, ArrowUpRight, ArrowDownLeft, ArrowRight, Bell } from 'lucide-react';
 import { formatRupiah } from '@/lib/utils';
 
 export interface ToastTransactionData {
@@ -54,6 +53,7 @@ export default function RealtimeToast({
 
   const isIncome = data?.direction === 'in';
   const ownerLabel = data?.sourceDevice === 'suami' ? 'Suami' : 'Istri';
+  const statusMarker = isIncome ? '[PEMASUKAN BARU]' : '[PENGELUARAN BARU]';
 
   return (
     <div
@@ -70,86 +70,71 @@ export default function RealtimeToast({
       `}
     >
       <div className="bg-[var(--surface-4)] rounded-2xl border border-[var(--border-color)] p-4 shadow-xl">
-        <div className="flex items-start gap-3">
-          {/* Icon Indikator Arah */}
-          <div
-            className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${
-              isIncome
-                ? 'bg-income/15 text-income border-income/30'
-                : 'bg-expense/15 text-expense border-expense/30'
-            }`}
-          >
-            {isIncome ? (
-              <ArrowDownLeft className="w-4 h-4" />
-            ) : (
-              <ArrowUpRight className="w-4 h-4" />
-            )}
-          </div>
-
-          {/* Konten Keterangan Transaksi */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-[11px] font-bold text-[var(--accent-color)] flex items-center gap-1">
-                  <Bell className="w-3 h-3 text-[var(--accent-color)]" />
-                  Transaksi Baru
-                </span>
-                {data?.accountName && (
-                  <span className="text-[10px] px-1.5 py-0.2 rounded font-bold bg-[var(--surface-2)] text-[var(--text-muted)] border border-[var(--border-color)]">
-                    {data.accountName}
-                  </span>
-                )}
-                {data?.sourceDevice && (
-                  <span className="text-[10px] px-1.5 py-0.2 rounded font-bold bg-[var(--surface-2)] text-[var(--text-muted)] border border-[var(--border-color)]">
-                    {ownerLabel}
-                  </span>
-                )}
-              </div>
-
-              <button
-                onClick={() => {
-                  setIsVisible(false);
-                  setTimeout(onClose, 300);
-                }}
-                className="text-[var(--text-muted)] hover:text-[var(--text-main)] p-0.5 rounded transition-colors"
-                title="Tutup notifikasi"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            <div className="mt-1 flex items-baseline justify-between gap-2">
-              <h4 className="text-sm font-bold text-[var(--text-main)] truncate">
-                {data?.merchant || 'Transaksi Digital'}
-              </h4>
+        <div className="flex flex-col gap-1.5">
+          {/* Baris Penanda & Informasi Sumber */}
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 flex-wrap">
               <span
-                className={`text-sm font-bold tracking-tight whitespace-nowrap angka-keuangan ${
-                  isIncome
-                    ? 'text-income'
-                    : 'text-expense'
+                className={`text-[11px] font-bold tracking-tight ${
+                  isIncome ? 'text-income' : 'text-expense'
                 }`}
               >
-                {isIncome ? '+' : '-'}{formatRupiah(data?.amount || 0)}
+                {statusMarker}
               </span>
+              {data?.accountName && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold bg-[var(--surface-2)] text-[var(--text-muted)] border border-[var(--border-color)]">
+                  {data.accountName}
+                </span>
+              )}
+              {data?.sourceDevice && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold bg-[var(--surface-2)] text-[var(--text-muted)] border border-[var(--border-color)]">
+                  {ownerLabel}
+                </span>
+              )}
             </div>
 
-            {/* Tombol Aksi Cepat */}
-            {onViewDetail && (
-              <div className="mt-2.5 pt-2 border-t border-[var(--border-color)]/70 flex items-center justify-end">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsVisible(false);
-                    if (data) onViewDetail(data);
-                  }}
-                  className="inline-flex items-center gap-1 text-xs font-bold text-[var(--accent-color)] hover:underline transition-colors"
-                >
-                  <span>Lihat Detail</span>
-                  <ArrowRight className="w-3 h-3" />
-                </button>
-              </div>
-            )}
+            <button
+              onClick={() => {
+                setIsVisible(false);
+                setTimeout(onClose, 300);
+              }}
+              className="text-[11px] font-semibold text-[var(--text-muted)] hover:text-[var(--text-main)] px-1.5 py-0.5 rounded transition-colors cursor-pointer"
+              title="Tutup notifikasi"
+            >
+              Tutup
+            </button>
           </div>
+
+          {/* Merchant & Nominal */}
+          <div className="flex items-baseline justify-between gap-3 pt-0.5">
+            <h4 className="text-sm font-bold text-[var(--text-main)] truncate">
+              {data?.merchant || 'Transaksi Digital'}
+            </h4>
+            <span
+              className={`text-sm font-bold tracking-tight whitespace-nowrap angka-keuangan ${
+                isIncome ? 'text-income' : 'text-expense'
+              }`}
+            >
+              {isIncome ? '+' : '-'}{formatRupiah(data?.amount || 0)}
+            </span>
+          </div>
+
+          {/* Tombol Aksi Teks */}
+          {onViewDetail && (
+            <div className="mt-1.5 pt-2 border-t border-[var(--border-color)]/70 flex items-center justify-between text-[11px] text-[var(--text-muted)]">
+              <span>Tercatat otomatis ke daftar transaksi</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsVisible(false);
+                  if (data) onViewDetail(data);
+                }}
+                className="font-bold text-[var(--accent-color)] hover:underline transition-colors cursor-pointer"
+              >
+                Lihat Detail
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

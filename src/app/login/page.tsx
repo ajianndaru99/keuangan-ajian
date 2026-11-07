@@ -11,10 +11,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Wallet,
   ShieldCheck,
   UserCheck,
-  Sparkles,
   HeartHandshake,
   KeyRound,
   Eye,
@@ -24,6 +22,7 @@ import {
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import PinKeypad from '@/components/auth/PinKeypad';
+import BrandLogo from '@/components/layout/BrandLogo';
 import { checkBiometricsAvailability, authenticateWithBiometrics } from '@/lib/auth/biometrics';
 
 type FamilyRole = 'suami' | 'istri';
@@ -147,12 +146,11 @@ export default function LoginPage() {
       <div className="w-full max-w-md mx-auto">
         {/* Brand & Greeting Header */}
         <div className="text-center mb-5 sm:mb-6">
-          <div className="inline-flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-[var(--surface-1)] text-[var(--accent-color)] border border-[var(--border-color)] shadow-xs mb-2.5">
-            <Wallet className="w-6 h-6 sm:w-7 sm:h-7" />
+          <div className="mb-2.5 flex justify-center">
+            <BrandLogo size="lg" />
           </div>
           <div>
             <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[11px] font-bold bg-[var(--surface-2)] text-[var(--accent-color)] border border-[var(--border-color)] mb-1.5">
-              <Sparkles className="w-3.5 h-3.5" />
               <span>Keluarga Ajian</span>
             </div>
           </div>

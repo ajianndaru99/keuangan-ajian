@@ -175,12 +175,12 @@ export async function evaluateBudgetAlert(
     return null;
   }
 
-  // 5. Susun Pesan Peringatan
+  // 5. Susun Pesan Peringatan (Full Text dengan Penanda Status)
   const remaining = Math.max(0, limitAmount - totalSpent);
   const overspent = Math.max(0, totalSpent - limitAmount);
   const title = level === '100'
-    ? `🚨 Anggaran ${targetCategory.name} Melebihi Batas`
-    : `⚠️ Anggaran ${targetCategory.name} Menipis`;
+    ? `[DARURAT] Anggaran ${targetCategory.name} Melebihi Batas`
+    : `[PERINGATAN] Anggaran ${targetCategory.name} Menipis`;
 
   const message = level === '100'
     ? `Total belanja ${formatRupiah(totalSpent)} telah melebihi batas ${formatRupiah(limitAmount)} sebesar ${formatRupiah(overspent)}.`

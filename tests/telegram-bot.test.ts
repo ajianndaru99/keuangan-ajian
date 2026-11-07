@@ -80,15 +80,15 @@ describe('Telegram Bot: Visual Formatters & Tipografi Finansial', () => {
 
     // 80% (Peringatan Awal)
     const bar80 = generateProgressBar(80);
-    assert.strictEqual(bar80, '`[████████░░]` *80%* ⚠️');
+    assert.strictEqual(bar80, '`[████████░░]` *80%* [PERINGATAN]');
 
     // 100% (Batas Tercapai)
     const bar100 = generateProgressBar(100);
-    assert.strictEqual(bar100, '`[██████████]` *100%* 🚨');
+    assert.strictEqual(bar100, '`[██████████]` *100%* [DARURAT]');
 
     // > 100% (Melebihi Batas)
     const bar120 = generateProgressBar(120);
-    assert.strictEqual(bar120, '`[██████████]` *120%* 🚨');
+    assert.strictEqual(bar120, '`[██████████]` *120%* [DARURAT]');
   });
 
   it('formatStatusMessage memuat rincian kas, persentase anggaran, dan safe-to-spend harian', () => {

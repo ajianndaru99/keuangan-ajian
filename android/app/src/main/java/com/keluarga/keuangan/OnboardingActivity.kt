@@ -139,12 +139,12 @@ class OnboardingActivity : AppCompatActivity() {
         val hasNotifAccess = enabledPackages.contains(packageName)
 
         if (hasNotifAccess) {
-            binding.tvNotifPermissionStatus.text = "Aktif 🟢"
+            binding.tvNotifPermissionStatus.text = "[AKTIF]"
             binding.tvNotifPermissionStatus.setTextColor(getColor(R.color.income_green))
             binding.btnOpenNotifSettings.isEnabled = false
             binding.btnOpenNotifSettings.text = "Izin Notifikasi Sudah Diberikan"
         } else {
-            binding.tvNotifPermissionStatus.text = "Belum Aktif 🔴"
+            binding.tvNotifPermissionStatus.text = "[BELUM AKTIF]"
             binding.tvNotifPermissionStatus.setTextColor(getColor(R.color.expense_red))
             binding.btnOpenNotifSettings.isEnabled = true
             binding.btnOpenNotifSettings.text = "Buka Pengaturan Notifikasi"
@@ -159,12 +159,12 @@ class OnboardingActivity : AppCompatActivity() {
         }
 
         if (isIgnoringBattery) {
-            binding.tvBatteryStatus.text = "Aktif 🟢"
+            binding.tvBatteryStatus.text = "[AKTIF]"
             binding.tvBatteryStatus.setTextColor(getColor(R.color.income_green))
             binding.btnOpenBatterySettings.isEnabled = false
             binding.btnOpenBatterySettings.text = "Baterai Bebas Pembatasan"
         } else {
-            binding.tvBatteryStatus.text = "Belum Aktif 🔴"
+            binding.tvBatteryStatus.text = "[BELUM AKTIF]"
             binding.tvBatteryStatus.setTextColor(getColor(R.color.expense_red))
             binding.btnOpenBatterySettings.isEnabled = true
             binding.btnOpenBatterySettings.text = "Izinkan Tanpa Batas Baterai"
@@ -199,7 +199,7 @@ class OnboardingActivity : AppCompatActivity() {
             override fun onFailure(call: Call, e: IOException) {
                 runOnUiThread {
                     isHandshakeOk = false
-                    binding.tvHandshakeStatus.text = "Koneksi Gagal 🔴"
+                    binding.tvHandshakeStatus.text = "[KONEKSI GAGAL]"
                     binding.tvHandshakeStatus.setTextColor(getColor(R.color.expense_red))
                     binding.tvHandshakeDesc.text = "Gagal terhubung: ${e.message}. Pastikan ponsel tersambung internet."
                     binding.btnRetryHandshake.isEnabled = true
@@ -215,12 +215,12 @@ class OnboardingActivity : AppCompatActivity() {
                         binding.btnRetryHandshake.isEnabled = true
                         if (isSuccess) {
                             isHandshakeOk = true
-                            binding.tvHandshakeStatus.text = "Terhubung 🟢"
+                            binding.tvHandshakeStatus.text = "[TERHUBUNG]"
                             binding.tvHandshakeStatus.setTextColor(getColor(R.color.income_green))
                             binding.tvHandshakeDesc.text = "Database berhasil memverifikasi kunci profil ${profileManager.getProfileDisplayName()}."
                         } else {
                             isHandshakeOk = false
-                            binding.tvHandshakeStatus.text = "HTTP $code 🔴"
+                            binding.tvHandshakeStatus.text = "[GAGAL HTTP $code]"
                             binding.tvHandshakeStatus.setTextColor(getColor(R.color.expense_red))
                             binding.tvHandshakeDesc.text = "Respon server: $message. Periksa konfigurasi API Key."
                         }

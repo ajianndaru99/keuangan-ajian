@@ -266,8 +266,8 @@ export function getIndonesianHolidayInfo(referenceDate: Date = new Date()): Holi
       upcomingHolidayDateLabel: '1 Jan',
       daysUntilUpcoming: 30,
       summaryText: todayEntry
-        ? `🎉 *Hari Ini ${todayEntry.type}:* ${todayEntry.name}`
-        : `🗓️ *Libur Resmi Terdekat:* Tahun Baru Masehi (1 Jan)`,
+        ? `*Hari Ini ${todayEntry.type}:* ${todayEntry.name}`
+        : `*Libur Resmi Terdekat:* Tahun Baru Masehi (1 Jan)`,
     };
   }
 
@@ -283,8 +283,8 @@ export function getIndonesianHolidayInfo(referenceDate: Date = new Date()): Holi
   }).format(upcomingDateObj);
 
   const summaryText = todayEntry
-    ? `🎉 *Hari Ini ${todayEntry.type}:* *${todayEntry.name}*\n🗓️ *Libur Berikutnya:* ${upcomingEntry.name} (${upcomingDateLabel} • _${daysUntil} hari lagi_)`
-    : `🗓️ *Libur Pemerintah Terdekat:* *${upcomingEntry.name}* _(${upcomingEntry.type})_ — ${upcomingDateLabel} *(${daysUntil} hari lagi)*`;
+    ? `*Hari Ini ${todayEntry.type}:* *${todayEntry.name}*\n*Libur Berikutnya:* ${upcomingEntry.name} (${upcomingDateLabel} | _${daysUntil} hari lagi_)`
+    : `*Libur Pemerintah Terdekat:* *${upcomingEntry.name}* _(${upcomingEntry.type})_ — ${upcomingDateLabel} *(${daysUntil} hari lagi)*`;
 
   return {
     isTodayHoliday: Boolean(todayEntry),
@@ -361,11 +361,11 @@ export function generateDailyDynamicCaption(params: {
   const baseMotivation = DAILY_FINANCIAL_MOTIVATIONS[dayOfYear % DAILY_FINANCIAL_MOTIVATIONS.length];
 
   if (params.monthPercentage >= 90) {
-    return `${baseMotivation} (💡 Pengingat: Pagu bulan ini telah mencapai ${params.monthPercentage}%, mari utamakan pos kebutuhan pokok hingga gajian).`;
+    return `${baseMotivation} ([PENGINGAT] Pagu bulan ini telah mencapai ${params.monthPercentage}%, mari utamakan pos kebutuhan pokok hingga gajian).`;
   }
 
   if (params.safeDailySpend > 0 && params.todaySpent > params.safeDailySpend) {
-    return `${baseMotivation} (💡 Pengingat: Belanja hari ini telah melewati batas aman harian, mari jaga ritme pengeluaran sore/malam nanti).`;
+    return `${baseMotivation} ([PENGINGAT] Belanja hari ini telah melewati batas aman harian, mari jaga ritme pengeluaran sore/malam nanti).`;
   }
 
   return baseMotivation;

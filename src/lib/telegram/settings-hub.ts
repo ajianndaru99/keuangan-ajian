@@ -38,17 +38,17 @@ export interface TelegramCallbackQuery {
  * Format Pesan Menu Utama Pengaturan Hub
  */
 export function formatSettingsHubMenuText(): string {
-  return `⚙️ *PUSAT PENGATURAN KEUANGAN KELUARGA*
+  return `*[PENGATURAN] PUSAT PENGATURAN KEUANGAN KELUARGA*
 
 Pusat kendali pengaturan keuangan keluarga langsung dari Telegram.
 Silakan pilih modul pengaturan yang ingin Anda kelola:
 
-• 🏦 *Rekening & Saldo:* Cek, ubah saldo, atau satukan rekening
-• 📋 *Pagu Anggaran:* Atur kuota belanja 8 kategori utama
-• 🗓️ *Tanggal Gajian:* Sinkronisasi siklus finansial bulanan
-• 🛡️ *Filter Spam & Promo:* Kelola kata kunci blokir otomatis
-• 🧹 *Bersihkan Sampah:* Hapus log promo yang diabaikan
-• ☀️ *Laporan 11:00 WIB:* Tampilkan ringkasan harian, cuaca Yogyakarta & libur resmi
+- *Rekening & Saldo:* Cek, ubah saldo, atau satukan rekening
+- *Pagu Anggaran:* Atur kuota belanja 8 kategori utama
+- *Tanggal Gajian:* Sinkronisasi siklus finansial bulanan
+- *Filter Spam & Promo:* Kelola kata kunci blokir otomatis
+- *Bersihkan Sampah:* Hapus log promo yang diabaikan
+- *Laporan 11:00 WIB:* Tampilkan ringkasan harian, cuaca Yogyakarta & libur resmi
 
 _Pilih menu di bawah ini:_`;
 }
@@ -57,19 +57,19 @@ export function getSettingsHubInlineKeyboard() {
   return {
     inline_keyboard: [
       [
-        { text: '🏦 Rekening', callback_data: 'cfg:acc' },
-        { text: '📋 Anggaran', callback_data: 'cfg:bg' },
+        { text: 'Rekening', callback_data: 'cfg:acc' },
+        { text: 'Anggaran', callback_data: 'cfg:bg' },
       ],
       [
-        { text: '🗓️ Tgl Gajian', callback_data: 'cfg:pay' },
-        { text: '🛡️ Filter Spam', callback_data: 'cfg:spam' },
+        { text: 'Tgl Gajian', callback_data: 'cfg:pay' },
+        { text: 'Filter Spam', callback_data: 'cfg:spam' },
       ],
       [
-        { text: '☀️ Laporan 11:00', callback_data: 'cfg:report11' },
-        { text: '🧹 Hapus Sampah', callback_data: 'cfg:clean' },
+        { text: 'Laporan 11:00', callback_data: 'cfg:report11' },
+        { text: 'Hapus Sampah', callback_data: 'cfg:clean' },
       ],
       [
-        { text: '❌ Tutup', callback_data: 'cfg:close' },
+        { text: 'Tutup', callback_data: 'cfg:close' },
       ],
     ],
   };
@@ -103,34 +103,34 @@ async function handleAccountSettingsMenu(
   const totalKas = activeAccounts.reduce((sum, a) => sum + Number(a.current_balance || 0), 0);
 
   const accLines = activeAccounts.map(
-    (a) => `• *${a.name}* (${a.owner === 'istri' ? 'Istri' : 'Suami'}): \`${formatRupiah(Number(a.current_balance || 0))}\``
+    (a) => `- *${a.name}* (${a.owner === 'istri' ? 'Istri' : 'Suami'}): \`${formatRupiah(Number(a.current_balance || 0))}\``
   );
 
-  const text = `🏦 *KELOLA REKENING & SALDO KELUARGA*
+  const text = `*[REKENING] KELOLA REKENING & SALDO KELUARGA*
 
 *Total Kas Siap Pakai:* \`${formatRupiah(totalKas)}\`
 
 Daftar rekening aktif terdaftar:
-${accLines.join('\n') || '- Belum ada rekening aktif-'}
+${accLines.join('\n') || '- Belum ada rekening aktif -'}
 
-💡 *Panduan Perintah Cepat:*
-• Ketik \`total kas ganti 1jt\` untuk sinkronisasi kas
-• Ketik \`set saldo dana suami 2jt\` untuk ubah saldo rekening
-• Ketik \`tambah akun <nama> <suami/istri> <saldo>\` untuk buat rekening baru
-• Ketik \`nonaktifkan akun <nama>\` untuk menutup rekening lama`;
+*Panduan Perintah Cepat:*
+- Ketik \`total kas ganti 1jt\` untuk sinkronisasi kas
+- Ketik \`set saldo dana suami 2jt\` untuk ubah saldo rekening
+- Ketik \`tambah akun <nama> <suami/istri> <saldo>\` untuk buat rekening baru
+- Ketik \`nonaktifkan akun <nama>\` untuk menutup rekening lama`;
 
   const buttons = activeAccounts.map((a) => [
     {
-      text: `✏️ Ubah Saldo: ${a.name}`,
+      text: `Ubah Saldo: ${a.name}`,
       callback_data: `cfg:abaledit:${a.id.slice(0, 8)}`,
     },
   ]);
 
   buttons.push([
-    { text: '⚡ Sederhanakan Akun', callback_data: 'cfg:asimp' },
+    { text: 'Sederhanakan Akun', callback_data: 'cfg:asimp' },
   ]);
   buttons.push([
-    { text: '⬅️ Kembali', callback_data: 'cfg:menu' },
+    { text: 'Kembali', callback_data: 'cfg:menu' },
   ]);
 
   await editTelegramMessageText(chatId, messageId, text, {
@@ -162,17 +162,17 @@ async function handleAccountBalanceEditMenu(
   const plus100k = currentBal + 100000;
   const minus100k = Math.max(0, currentBal - 100000);
 
-  const text = `✏️ *UBAH SALDO: ${target.name.toUpperCase()} (${ownerLabel})*
+  const text = `*[UBAH SALDO] ${target.name.toUpperCase()} (${ownerLabel})*
 
-💰 *Saldo Saat Ini:* \`${formatRupiah(currentBal)}\`
+*Saldo Saat Ini:* \`${formatRupiah(currentBal)}\`
 
 Pilih nominal saldo baru secara instan di bawah ini, atau ketik nominal bebas di chat dengan format:
 \`set saldo ${target.name.toLowerCase()} 750rb\``;
 
   const buttons = [
     [
-      { text: '➕ +Rp 100rb', callback_data: `sask:${shortId}:${plus100k}` },
-      { text: '➖ -Rp 100rb', callback_data: `sask:${shortId}:${minus100k}` },
+      { text: '+Rp 100rb', callback_data: `sask:${shortId}:${plus100k}` },
+      { text: '-Rp 100rb', callback_data: `sask:${shortId}:${minus100k}` },
     ],
     [
       { text: 'Rp 250 Ribu', callback_data: `sask:${shortId}:250000` },
@@ -187,7 +187,7 @@ Pilih nominal saldo baru secara instan di bawah ini, atau ketik nominal bebas di
       { text: 'Rp 7,6 Juta', callback_data: `sask:${shortId}:7600000` },
     ],
     [
-      { text: '⬅️ Kembali ke Rekening', callback_data: 'cfg:acc' },
+      { text: 'Kembali ke Rekening', callback_data: 'cfg:acc' },
     ],
   ];
 
@@ -203,7 +203,7 @@ async function promptSimplifyAccountsConfirmation(
   chatId: number | string,
   messageId: number
 ): Promise<void> {
-  const text = `⚠️ *KONFIRMASI PENYEDERHANAAN REKENING*
+  const text = `*[KONFIRMASI] PENYEDERHANAAN REKENING*
 
 Tindakan ini akan merapikan struktur dompet keluarga menjadi 2 rekening resmi:
 1. *Dana Suami* (Milik Suami)
@@ -217,8 +217,8 @@ Apakah Anda yakin ingin melanjutkan?`;
     reply_markup: {
       inline_keyboard: [
         [
-          { text: '✅ Ya, Sederhanakan Sekarang', callback_data: 'cfg:asimp_ok' },
-          { text: '❌ Batal', callback_data: 'cfg:acc' },
+          { text: 'Ya, Sederhanakan Sekarang', callback_data: 'cfg:asimp_ok' },
+          { text: 'Batal', callback_data: 'cfg:acc' },
         ],
       ],
     },
@@ -320,12 +320,12 @@ async function executeSimplifyAccounts(
   if (accSuami?.id) await syncAccountBalance(supabase, accSuami.id);
   if (accIstri?.id) await syncAccountBalance(supabase, accIstri.id);
 
-  const successText = `🎉 *REKENING BERHASIL DISEDERHANAKAN* ✅
+  const successText = `*[BERHASIL] REKENING BERHASIL DISEDERHANAKAN*
 
 Struktur rekening keluarga kini ringkas & rapi:
-• *Dana Suami:* \`${formatRupiah(totalSuami)}\`
-• *Dana Istri:* \`${formatRupiah(totalIstri)}\`
-• *Total Kas:* \`${formatRupiah(totalSuami + totalIstri)}\`
+- *Dana Suami:* \`${formatRupiah(totalSuami)}\`
+- *Dana Istri:* \`${formatRupiah(totalIstri)}\`
+- *Total Kas:* \`${formatRupiah(totalSuami + totalIstri)}\`
 
 Seluruh transaksi historis telah dialihkan secara aman.
 Diselaraskan oleh: *${userName}*`;
@@ -333,8 +333,8 @@ Diselaraskan oleh: *${userName}*`;
   await editTelegramMessageText(chatId, messageId, successText, {
     reply_markup: {
       inline_keyboard: [
-        [{ text: '⬅️ Rekening', callback_data: 'cfg:acc' }],
-        [{ text: '🏠 Menu Utama', callback_data: 'cfg:menu' }],
+        [{ text: 'Rekening', callback_data: 'cfg:acc' }],
+        [{ text: 'Menu Utama', callback_data: 'cfg:menu' }],
       ],
     },
   });
@@ -372,10 +372,10 @@ async function handleBudgetSettingsMenu(
 
   const lines = TARGET_BUDGET_CATEGORIES.map((c) => {
     const limit = budgetMap[c.id] || 0;
-    return `${c.emoji} *${c.name}:* ${limit > 0 ? `\`${formatRupiah(limit)}\`` : '_Belum diset_'}`;
+    return `- *${c.name}:* ${limit > 0 ? `\`${formatRupiah(limit)}\`` : '_Belum diset_'}`;
   });
 
-  const text = `📋 *ATUR PAGU ANGGARAN KELUARGA*
+  const text = `*[ANGGARAN] ATUR PAGU ANGGARAN KELUARGA*
 
 Pagu anggaran aktif bulan ini:
 ${lines.join('\n')}
@@ -387,16 +387,16 @@ _Pilih pos kategori di bawah untuk mengatur batas pagu:_`;
   for (let i = 0; i < TARGET_BUDGET_CATEGORIES.length; i += 2) {
     const row: Array<{ text: string; callback_data: string }> = [];
     const cat1 = TARGET_BUDGET_CATEGORIES[i];
-    row.push({ text: `${cat1.emoji} ${cat1.name}`, callback_data: `cfg:bpos:${cat1.id}` });
+    row.push({ text: cat1.name, callback_data: `cfg:bpos:${cat1.id}` });
 
     if (i + 1 < TARGET_BUDGET_CATEGORIES.length) {
       const cat2 = TARGET_BUDGET_CATEGORIES[i + 1];
-      row.push({ text: `${cat2.emoji} ${cat2.name}`, callback_data: `cfg:bpos:${cat2.id}` });
+      row.push({ text: cat2.name, callback_data: `cfg:bpos:${cat2.id}` });
     }
     buttons.push(row);
   }
 
-  buttons.push([{ text: '⬅️ Kembali', callback_data: 'cfg:menu' }]);
+  buttons.push([{ text: 'Kembali', callback_data: 'cfg:menu' }]);
 
   await editTelegramMessageText(chatId, messageId, text, {
     reply_markup: { inline_keyboard: buttons },
@@ -435,7 +435,7 @@ async function handleCategoryBudgetQuickSelect(
 
   const currentLimit = Number(existingBudget?.limit_amount || 0);
 
-  const text = `${cat.emoji} *ATUR PAGU: ${cat.name.toUpperCase()}*
+  const text = `*[ATUR PAGU] ${cat.name.toUpperCase()}*
 
 Pagu saat ini: \`${formatRupiah(currentLimit)}\`
 
@@ -456,7 +456,7 @@ _Pilih nominal pagu baru cepat di bawah ini atau ketik langsung:_
       { text: 'Rp 3 Juta', callback_data: `cfg:bset:${cat.id}:3000000` },
     ],
     [
-      { text: '⬅️ Pos Lain', callback_data: 'cfg:bg' },
+      { text: 'Pos Lain', callback_data: 'cfg:bg' },
     ],
   ];
 
@@ -520,9 +520,9 @@ async function handleApplyBudgetLimit(
     console.error('[SettingsHub Budget Upsert Error]:', upsertErr.message);
   }
 
-  const text = `📋 *PAGU ANGGARAN DIPERBARUI* ✅
+  const text = `*[BERHASIL] PAGU ANGGARAN DIPERBARUI*
 
-Pos: ${cat.emoji} *${cat.name}*
+Pos: *${cat.name}*
 Pagu Baru: \`${formatRupiah(amount)}\`
 Periode Finansial: *${dateRange.label}*
 
@@ -531,8 +531,8 @@ _Batas anggaran telah diselaraskan dengan kalkulasi sisa dan alert harian._`;
   await editTelegramMessageText(chatId, messageId, text, {
     reply_markup: {
       inline_keyboard: [
-        [{ text: '📋 Pos Lain', callback_data: 'cfg:bg' }],
-        [{ text: '🏠 Menu Utama', callback_data: 'cfg:menu' }],
+        [{ text: 'Pos Lain', callback_data: 'cfg:bg' }],
+        [{ text: 'Menu Utama', callback_data: 'cfg:menu' }],
       ],
     },
   });
@@ -556,7 +556,7 @@ async function handlePaydaySettingsMenu(
   const currentDay = settingData?.month_start_day || 1;
   const dateRange = getMonthlyRange(0, currentDay);
 
-  const text = `🗓️ *ATUR TANGGAL SIKLUS GAJIAN*
+  const text = `*[SIKLUS GAJIAN] ATUR TANGGAL SIKLUS GAJIAN*
 
 Tanggal gajian aktif saat ini: *Tanggal ${currentDay} setiap bulan*
 Rentang Siklus Finansial: *${dateRange.label}*
@@ -566,14 +566,14 @@ _Pilih opsi tanggal gajian keluarga di bawah ini, atau ketik:_
 
   const buttons = [
     [
-      { text: currentDay === 1 ? '✅ Tgl 1' : 'Tgl 1 (Awal Bln)', callback_data: 'cfg:pset:1' },
-      { text: currentDay === 15 ? '✅ Tgl 15' : 'Tgl 15 (Tengah Bln)', callback_data: 'cfg:pset:15' },
+      { text: currentDay === 1 ? '[Aktif] Tgl 1' : 'Tgl 1 (Awal Bln)', callback_data: 'cfg:pset:1' },
+      { text: currentDay === 15 ? '[Aktif] Tgl 15' : 'Tgl 15 (Tengah Bln)', callback_data: 'cfg:pset:15' },
     ],
     [
-      { text: currentDay === 25 ? '✅ Tgl 25' : 'Tgl 25 (BUMN/Swasta)', callback_data: 'cfg:pset:25' },
-      { text: currentDay === 28 ? '✅ Tgl 28' : 'Tgl 28 (Akhir Bln)', callback_data: 'cfg:pset:28' },
+      { text: currentDay === 25 ? '[Aktif] Tgl 25' : 'Tgl 25 (BUMN/Swasta)', callback_data: 'cfg:pset:25' },
+      { text: currentDay === 28 ? '[Aktif] Tgl 28' : 'Tgl 28 (Akhir Bln)', callback_data: 'cfg:pset:28' },
     ],
-    [{ text: '⬅️ Kembali', callback_data: 'cfg:menu' }],
+    [{ text: 'Kembali', callback_data: 'cfg:menu' }],
   ];
 
   await editTelegramMessageText(chatId, messageId, text, {
@@ -603,7 +603,7 @@ async function handleApplyPayday(
     );
 
   const dateRange = getMonthlyRange(0, day);
-  const text = `🎉 *TANGGAL GAJIAN DIPERBARUI* ✅
+  const text = `*[BERHASIL] TANGGAL GAJIAN DIPERBARUI*
 
 Tanggal Gajian Baru: *Tanggal ${day} setiap bulan*
 Siklus Finansial Aktif: *${dateRange.label}*
@@ -613,7 +613,7 @@ _Kalkulasi sisa waktu, rekap bulanan, dan batas aman harian kini otomatis disela
   await editTelegramMessageText(chatId, messageId, text, {
     reply_markup: {
       inline_keyboard: [
-        [{ text: '🏠 Menu Utama', callback_data: 'cfg:menu' }],
+        [{ text: 'Menu Utama', callback_data: 'cfg:menu' }],
       ],
     },
   });
@@ -639,7 +639,7 @@ async function handleSpamFilterMenu(
     (r, i) => `${i + 1}. \`${r.keyword}\``
   );
 
-  const text = `🛡️ *FILTER SPAM & PROMO AI (CLOSED-LOOP)*
+  const text = `*[FILTER SPAM] FILTER SPAM & PROMO AI (CLOSED-LOOP)*
 
 Sistem AI secara mandiri mempelajari teks notifikasi marketing dan otomatis memblokirnya agar tidak mencemari kas keluarga.
 
@@ -650,12 +650,12 @@ _Setiap kali Anda menolak mutasi dengan alasan "Promo" atau reply "Itu spam", AI
 
   const buttons = (rules || []).slice(0, 4).map((r) => [
     {
-      text: `❌ Hapus Blokir: ${r.keyword.slice(0, 18)}`,
+      text: `Hapus Blokir: ${r.keyword.slice(0, 18)}`,
       callback_data: `cfg:sdel:${r.id.slice(0, 8)}`,
     },
   ]);
 
-  buttons.push([{ text: '⬅️ Kembali', callback_data: 'cfg:menu' }]);
+  buttons.push([{ text: 'Kembali', callback_data: 'cfg:menu' }]);
 
   await editTelegramMessageText(chatId, messageId, text, {
     reply_markup: { inline_keyboard: buttons },
@@ -704,7 +704,7 @@ async function handleCleanIgnoredMenu(
     .eq('household_id', householdId)
     .eq('status', 'ignored');
 
-  const text = `🧹 *BERSIHKAN LOG TRANSAKSI SAMPAH*
+  const text = `*[PEMBERSIHAN] BERSIHKAN LOG TRANSAKSI SAMPAH*
 
 Saat ini tersimpan *${count || 0} transaksi diabaikan/promo* di database yang ditolak oleh sistem atau Anda batalkan.
 
@@ -716,8 +716,8 @@ Lanjutkan pembersihan?`;
     reply_markup: {
       inline_keyboard: [
         [
-          { text: `🧹 Bersihkan (${count || 0} Data)`, callback_data: 'cfg:clean_ok' },
-          { text: '❌ Batal', callback_data: 'cfg:menu' },
+          { text: `Bersihkan (${count || 0} Data)`, callback_data: 'cfg:clean_ok' },
+          { text: 'Batal', callback_data: 'cfg:menu' },
         ],
       ],
     },
@@ -740,13 +740,13 @@ async function executeCleanIgnored(
     .eq('status', 'ignored');
 
   const text = error
-    ? `⚠️ Gagal membersihkan sampah: ${error.message}`
-    : `✨ *LOG SAMPAH PROMO BERHASIL DIBERSIHKAN* ✅\n\nSeluruh data transaksi yang diabaikan telah dihapus dari database. Database kini bersih dan optimal.`;
+    ? `[ERROR] Gagal membersihkan sampah: ${error.message}`
+    : `*[BERHASIL] LOG SAMPAH PROMO BERHASIL DIBERSIHKAN*\n\nSeluruh data transaksi yang diabaikan telah dihapus dari database. Database kini bersih dan optimal.`;
 
   await editTelegramMessageText(chatId, messageId, text, {
     reply_markup: {
       inline_keyboard: [
-        [{ text: '🏠 Menu Utama', callback_data: 'cfg:menu' }],
+        [{ text: 'Menu Utama', callback_data: 'cfg:menu' }],
       ],
     },
   });
@@ -788,7 +788,7 @@ export async function handleSettingsHubCallback(
     await editTelegramMessageText(
       chatId,
       messageId,
-      `🔒 *Menu Pengaturan Ditutup*\nKetik \`/pengaturan\` kapan saja untuk membuka kembali pusat kendali ini.`,
+      `*[DITUTUP] Menu Pengaturan Ditutup*\nKetik \`/pengaturan\` kapan saja untuk membuka kembali pusat kendali ini.`,
       { reply_markup: { inline_keyboard: [] } }
     );
     return true;
@@ -806,7 +806,7 @@ export async function handleSettingsHubCallback(
     await editTelegramMessageText(chatId, messageId, reportText, {
       reply_markup: {
         inline_keyboard: [
-          [{ text: '⬅️ Kembali', callback_data: 'cfg:menu' }],
+          [{ text: 'Kembali', callback_data: 'cfg:menu' }],
         ],
       },
     });
@@ -924,13 +924,13 @@ export async function handleAccountTextCommands(
     }).select().single();
 
     if (error || !newAcc) {
-      await sendTelegramMessage(chatId, `⚠️ Gagal menambah rekening: ${error?.message || 'Terjadi kesalahan'}`, { reply_to_message_id: messageId });
+      await sendTelegramMessage(chatId, `[ERROR] Gagal menambah rekening: ${error?.message || 'Terjadi kesalahan'}`, { reply_to_message_id: messageId });
       return true;
     }
 
     await sendTelegramMessage(
       chatId,
-      `🏦 *REKENING BERHASIL DITAMBAHKAN* ✅\n\nNama: *${accountName}*\nPemilik: *${owner === 'istri' ? 'Istri' : 'Suami'}*\nSaldo Awal: \`${formatRupiah(initialAmount)}\`\n\n_Rekening siap digunakan dan otomatis disinkronkan ke rekap kas keluarga._`,
+      `*[BERHASIL] REKENING BERHASIL DITAMBAHKAN*\n\nNama: *${accountName}*\nPemilik: *${owner === 'istri' ? 'Istri' : 'Suami'}*\nSaldo Awal: \`${formatRupiah(initialAmount)}\`\n\n_Rekening siap digunakan dan otomatis disinkronkan ke rekap kas keluarga._`,
       { reply_to_message_id: messageId }
     );
     return true;
@@ -951,7 +951,7 @@ export async function handleAccountTextCommands(
     );
 
     if (!target) {
-      await sendTelegramMessage(chatId, `⚠️ Rekening *"${delMatch[1]}"* tidak ditemukan di daftar aktif.`, { reply_to_message_id: messageId });
+      await sendTelegramMessage(chatId, `[PERHATIAN] Rekening *"${delMatch[1]}"* tidak ditemukan di daftar aktif.`, { reply_to_message_id: messageId });
       return true;
     }
 
@@ -963,7 +963,7 @@ export async function handleAccountTextCommands(
 
     await sendTelegramMessage(
       chatId,
-      `🗑️ *REKENING DINONAKTIFKAN*\n\nAkun *${target.name}* (${target.owner === 'istri' ? 'Istri' : 'Suami'}) kini telah dinonaktifkan.\nRiwayat transaksi masa lalu tetap tersimpan utuh di sistem.`,
+      `*[DINONAKTIFKAN] REKENING DINONAKTIFKAN*\n\nAkun *${target.name}* (${target.owner === 'istri' ? 'Istri' : 'Suami'}) kini telah dinonaktifkan.\nRiwayat transaksi masa lalu tetap tersimpan utuh di sistem.`,
       { reply_to_message_id: messageId }
     );
     return true;

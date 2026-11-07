@@ -366,8 +366,7 @@ export async function processFinancialChatWithAI(
     if (parsed.type === 'transaction' && parsed.transaction?.amount > 0) {
       const tx = parsed.transaction;
       const isIn = tx.direction === 'in';
-      const directionEmoji = isIn ? '📈' : '💸';
-      const directionTitle = isIn ? 'PEMASUKAN BARU TERDETEKSI' : 'PENGELUARAN BARU TERDETEKSI';
+      const directionTitle = isIn ? '[TERCATAT] PEMASUKAN BARU TERDETEKSI' : '[TERCATAT] PENGELUARAN BARU TERDETEKSI';
       return {
         type: 'transaction',
         data: {
@@ -377,7 +376,7 @@ export async function processFinancialChatWithAI(
           accountName: String(tx.accountName || 'Utama').trim(),
           direction: isIn ? 'in' : 'out',
         },
-        replyText: `${directionEmoji} *${directionTitle}*\n\n🛒 *Merchant:* ${tx.merchant}\n💰 *Nominal:* \`${formatRupiah(tx.amount)}\`\n📁 *Kategori:* ${tx.categoryName}\n🏦 *Akun:* ${tx.accountName}`,
+        replyText: `*${directionTitle}*\n\nMerchant: ${tx.merchant}\nNominal: \`${formatRupiah(tx.amount)}\`\nKategori: ${tx.categoryName}\nAkun: ${tx.accountName}`,
       };
     }
 
@@ -393,7 +392,7 @@ export async function processFinancialChatWithAI(
       const rejection =
         parsed.rejectionReason ||
         parsed.answer ||
-        'Maaf, saya asisten khusus keuangan keluarga Ajian. Saya hanya dapat membantu pencatatan transaksi belanja, pengecekan saldo, pagu anggaran, serta konsultasi keuangan keluarga. Ada yang ingin dicek seputar keuangan hari ini? 😊';
+        'Maaf, saya asisten khusus keuangan keluarga Ajian. Saya hanya dapat membantu pencatatan transaksi belanja, pengecekan saldo, pagu anggaran, serta konsultasi keuangan keluarga. Ada yang ingin dicek seputar keuangan hari ini?';
       return {
         type: 'off_topic',
         replyText: rejection,
@@ -465,7 +464,7 @@ export function handleLocalDeterministicFallback(userText: string, context: Fina
     const accLines = context.accounts.map((a) => `• *${a.name}:* \`${formatRupiah(a.balance)}\``).join('\n');
     return {
       type: 'chat_answer',
-      replyText: `💼 *Informasi Saldo Saat Ini:*\n\n${accLines || 'Belum ada data saldo.'}\n\n*Total Kas:* \`${formatRupiah(context.totalBalance)}\``,
+      replyText: `*[STATUS KAS] Informasi Saldo Saat Ini:*\n\n${accLines || 'Belum ada data saldo.'}\n\n*Total Kas:* \`${formatRupiah(context.totalBalance)}\``,
     };
   }
 
@@ -475,13 +474,13 @@ export function handleLocalDeterministicFallback(userText: string, context: Fina
     if (matchedCategory) {
       return {
         type: 'chat_answer',
-        replyText: `📊 *Status Anggaran ${matchedCategory.name}:*\n\n• Terpakai: \`${formatRupiah(matchedCategory.spent)}\`\n• Batas Pagu: \`${formatRupiah(matchedCategory.limit)}\`\n• Sisa Anggaran: \`${formatRupiah(matchedCategory.remaining)}\``,
+        replyText: `*[ANGGARAN] Status Anggaran ${matchedCategory.name}:*\n\n• Terpakai: \`${formatRupiah(matchedCategory.spent)}\`\n• Batas Pagu: \`${formatRupiah(matchedCategory.limit)}\`\n• Sisa Anggaran: \`${formatRupiah(matchedCategory.remaining)}\``,
       };
     }
 
     return {
       type: 'chat_answer',
-      replyText: `📊 *Total Pengeluaran Bulan Ini:* \`${formatRupiah(context.totalSpentMonth)}\` dari pagu \`${formatRupiah(context.totalBudgetLimit)}\`.\nSisa waktu: *${context.daysRemaining} hari lagi*.`,
+      replyText: `*[ANGGARAN] Total Pengeluaran Bulan Ini:* \`${formatRupiah(context.totalSpentMonth)}\` dari pagu \`${formatRupiah(context.totalBudgetLimit)}\`.\nSisa waktu: *${context.daysRemaining} hari lagi*.`,
     };
   }
 
@@ -503,13 +502,13 @@ export function handleLocalDeterministicFallback(userText: string, context: Fina
     return {
       type: 'off_topic',
       replyText:
-        'Maaf, saya asisten khusus keuangan keluarga Ajian. Saya hanya dapat membantu pencatatan transaksi belanja, pengecekan saldo, pagu anggaran, serta konsultasi keuangan keluarga. Ada yang ingin dicek seputar keuangan hari ini? 😊',
+        'Maaf, saya asisten khusus keuangan keluarga Ajian. Saya hanya dapat membantu pencatatan transaksi belanja, pengecekan saldo, pagu anggaran, serta konsultasi keuangan keluarga. Ada yang ingin dicek seputar keuangan hari ini?',
     };
   }
 
   // 4. Fallback umum finansial
   return {
     type: 'chat_answer',
-    replyText: `🤖 Saya dapat membantu mencatat belanja harian Anda (misal: _"beli martabak 35rb pake gopay"_), memeriksa saldo (_"saldo jago berapa?"_), atau mengecek pagu anggaran (_"sisa belanja dapur aman?"_).`,
+    replyText: `[INFO] Saya dapat membantu mencatat belanja harian Anda (misal: _"beli martabak 35rb pake gopay"_), memeriksa saldo (_"saldo jago berapa?"_), atau mengecek pagu anggaran (_"sisa belanja dapur aman?"_).`,
   };
 }

@@ -8,6 +8,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import BrandLogo from './BrandLogo';
 import {
   LayoutDashboard,
   ReceiptText,
@@ -81,9 +82,7 @@ export default function Sidebar({
       {/* Brand Header: Keluarga Ajian */}
       <div className="p-5 flex items-center justify-between border-b border-[var(--border-color)]">
         <Link href="/" className="flex items-center gap-3 group">
-          <div className="w-9 h-9 rounded-xl bg-[var(--surface-2)] text-[var(--accent-color)] flex items-center justify-center font-bold shadow-xs border border-[var(--border-color)]">
-            <Wallet className="w-5 h-5" />
-          </div>
+          <BrandLogo size="md" />
           <div>
             <div className="flex items-center gap-1.5">
               <span className="text-sm font-extrabold text-[var(--text-main)] tracking-tight">

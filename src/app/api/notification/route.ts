@@ -280,7 +280,7 @@ export async function POST(req: NextRequest) {
           amount: 0,
           merchant: safeTitle || app_name,
           accountName: app_name,
-          title: '⚠️ Format Mutasi Baru Terdeteksi',
+          title: '[PERLU PERIKSA] Format Mutasi Baru Terdeteksi',
           message: `${app_name}: Notifikasi masuk tapi nominal belum terbaca otomatis. Ketuk untuk periksa.`,
           reason: parsed.reasons.join(', ') || 'Format belum dikenali Regex',
         };
@@ -599,8 +599,8 @@ export async function POST(req: NextRequest) {
               reply_markup: {
                 inline_keyboard: [
                   [
-                    { text: '✏️ Ubah', callback_data: `tx_edit:${newTransaction.id}` },
-                    { text: '❌ Batal', callback_data: `tx_wrong_menu:${newTransaction.id}` },
+                    { text: 'Ubah', callback_data: `tx_edit:${newTransaction.id}` },
+                    { text: 'Batal', callback_data: `tx_wrong_menu:${newTransaction.id}` },
                   ],
                 ],
               },
@@ -630,17 +630,17 @@ export async function POST(req: NextRequest) {
               ? {
                   inline_keyboard: [
                     [
-                      { text: '✏️ Ubah', callback_data: `tx_edit:${newTransaction.id}` },
-                      { text: '❌ Batal', callback_data: `tx_wrong_menu:${newTransaction.id}` },
+                      { text: 'Ubah', callback_data: `tx_edit:${newTransaction.id}` },
+                      { text: 'Batal', callback_data: `tx_wrong_menu:${newTransaction.id}` },
                     ],
                   ],
                 }
               : {
                   inline_keyboard: [
                     [
-                      { text: '✅ Sesuai', callback_data: `tx_ok:${newTransaction.id}` },
-                      { text: '✏️ Ubah', callback_data: `tx_edit:${newTransaction.id}` },
-                      { text: '❌ Batal', callback_data: `tx_wrong_menu:${newTransaction.id}` },
+                      { text: 'Sesuai', callback_data: `tx_ok:${newTransaction.id}` },
+                      { text: 'Ubah', callback_data: `tx_edit:${newTransaction.id}` },
+                      { text: 'Batal', callback_data: `tx_wrong_menu:${newTransaction.id}` },
                     ],
                   ],
                 };
@@ -676,21 +676,21 @@ export async function POST(req: NextRequest) {
               ? {
                   inline_keyboard: [
                     [
-                      { text: '📁 Kategori', callback_data: `tx_cat:${newTransaction.id}` },
-                      { text: '✏️ Ubah', callback_data: `tx_edit:${newTransaction.id}` },
-                      { text: '❌ Batal', callback_data: `tx_wrong_menu:${newTransaction.id}` },
+                      { text: 'Kategori', callback_data: `tx_cat:${newTransaction.id}` },
+                      { text: 'Ubah', callback_data: `tx_edit:${newTransaction.id}` },
+                      { text: 'Batal', callback_data: `tx_wrong_menu:${newTransaction.id}` },
                     ],
                   ],
                 }
               : {
                   inline_keyboard: [
                     [
-                      { text: '✅ Sesuai', callback_data: `tx_ok:${newTransaction.id}` },
-                      { text: '📁 Kategori', callback_data: `tx_cat:${newTransaction.id}` },
+                      { text: 'Sesuai', callback_data: `tx_ok:${newTransaction.id}` },
+                      { text: 'Kategori', callback_data: `tx_cat:${newTransaction.id}` },
                     ],
                     [
-                      { text: '✏️ Ubah', callback_data: `tx_edit:${newTransaction.id}` },
-                      { text: '❌ Batal', callback_data: `tx_wrong_menu:${newTransaction.id}` },
+                      { text: 'Ubah', callback_data: `tx_edit:${newTransaction.id}` },
+                      { text: 'Batal', callback_data: `tx_wrong_menu:${newTransaction.id}` },
                     ],
                   ],
                 };
@@ -743,7 +743,7 @@ export async function POST(req: NextRequest) {
         amount,
         merchant,
         accountName: accountName || app_name,
-        title: '⚠️ Verifikasi Transaksi Baru',
+        title: '[PERLU KONFIRMASI] Verifikasi Transaksi Baru',
         message: `${accountName || app_name}: ${merchant || 'Mutasi'} ${amount > 0 ? formatRupiah(amount) : ''} perlu Anda periksa.`.trim(),
         reason,
       };

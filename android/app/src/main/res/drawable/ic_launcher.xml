@@ -4,19 +4,40 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Latar Belakang Hijau Zamrud Finansial -->
+
+    <!-- Latar Belakang Biru Tua Finansial Keluarga Ajian -->
     <path
-        android:fillColor="#007a33"
+        android:fillColor="#0B132B"
         android:pathData="M0,0h108v108h-108z" />
-    <!-- Simbol Dompet Keuangan Keluarga -->
+
+    <!-- Bingkai Perisai Dalam -->
     <path
-        android:fillColor="#ffffff"
-        android:pathData="M24,34h60a6,6 0 0,1 6,6v28a6,6 0 0,1 -6,6h-60a6,6 0 0,1 -6,-6v-28a6,6 0 0,1 6,-6z" />
-    <!-- Aksen Pengunci Dompet -->
+        android:fillColor="#0F2442"
+        android:pathData="M18,18h72a10,10 0 0,1 10,10v52a10,10 0 0,1 -10,10h-72a10,10 0 0,1 -10,-10v-52a10,10 0 0,1 10,-10z" />
+
+    <!-- Monogram Arsitektural 'A' Keluarga Ajian -->
     <path
-        android:fillColor="#38bdf8"
-        android:pathData="M66,48h18v12h-18a6,6 0 0,1 0,-12z" />
+        android:fillColor="#10B981"
+        android:pathData="M54,25 L29,80 H41 L54,50 L67,80 H79 L54,25 Z" />
+
+    <!-- Palang Horizontal Buku Kas -->
     <path
-        android:fillColor="#ffffff"
-        android:pathData="M72,54m-2,0a2,2 0 1,0 4,0a2,2 0 1,0 -4,0" />
+        android:fillColor="#F8FAFC"
+        android:pathData="M39,61h30v7h-30z" />
+
+    <!-- Tiga Pilar Pertumbuhan Finansial -->
+    <path
+        android:fillColor="#38BDF8"
+        android:pathData="M44,73h5v7h-5z" />
+    <path
+        android:fillColor="#10B981"
+        android:pathData="M52,70h5v10h-5z" />
+    <path
+        android:fillColor="#34D399"
+        android:pathData="M60,67h5v13h-5z" />
+
+    <!-- Titik Puncak Harmoni Keluarga -->
+    <path
+        android:fillColor="#FBBF24"
+        android:pathData="M54,22m-3,0a3,3 0 1,0 6,0a3,3 0 1,0 -6,0" />
 </vector>

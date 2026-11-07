@@ -140,7 +140,7 @@ async function handleSlashCommands(
     default: {
       await sendTelegramMessage(
         chatId,
-        `❓ Perintah \`${command}\` tidak dikenali.\n\nKetik \`/help\` untuk melihat panduan atau langsung ajukan pertanyaan finansial Anda.`
+        `[INFO] Perintah \`${command}\` tidak dikenali.\n\nKetik \`/help\` untuk melihat panduan atau langsung ajukan pertanyaan finansial Anda.`
       );
       break;
     }
@@ -273,7 +273,7 @@ async function handleNaturalLanguageFlow(
       console.error('[NLP Transaction Insert Error]:', txErr.message);
       await sendTelegramMessage(
         message.chat.id,
-        '⚠️ Gagal mencatat transaksi ke database.',
+        '[ERROR] Gagal mencatat transaksi ke database.',
         { reply_to_message_id: message.message_id }
       );
       return;
@@ -308,9 +308,9 @@ async function handleNaturalLanguageFlow(
       ? {
           inline_keyboard: [
             [
-              { text: '📁 Kategori', callback_data: `tx_cat:${newTx.id}` },
-              { text: '✏️ Ubah', callback_data: `tx_edit:${newTx.id}` },
-              { text: '❌ Batal', callback_data: `tx_wrong_menu:${newTx.id}` },
+              { text: 'Kategori', callback_data: `tx_cat:${newTx.id}` },
+              { text: 'Ubah', callback_data: `tx_edit:${newTx.id}` },
+              { text: 'Batal', callback_data: `tx_wrong_menu:${newTx.id}` },
             ],
           ],
         }
@@ -382,7 +382,7 @@ export async function POST(req: NextRequest) {
       console.warn(`[Telegram Webhook Access Denied] Chat ID ${chatId} tidak terdaftar di whitelist.`);
       await sendTelegramMessage(
         chatId,
-        '⛔ *Akses Ditolak*\n\nAkun atau grup Anda belum terdaftar dalam daftar izin keluarga. Hubungi admin dasbor untuk mendaftarkan Chat ID ini.'
+        '*[AKSES DITOLAK]*\n\nAkun atau grup Anda belum terdaftar dalam daftar izin keluarga. Hubungi admin dasbor untuk mendaftarkan Chat ID ini.'
       );
       return NextResponse.json({ ok: true });
     }

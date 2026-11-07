@@ -152,7 +152,7 @@ class KeuanganNotificationListener : NotificationListenerService() {
             // 1. Peringatan Validasi Transaksi (Review Alert)
             if (root.has("review_alert") && !root.get("review_alert").isJsonNull) {
                 val review = root.getAsJsonObject("review_alert")
-                val title = review.get("title")?.asString ?: "⚠️ Verifikasi Transaksi Baru"
+                val title = review.get("title")?.asString ?: "[PERLU KONFIRMASI] Verifikasi Transaksi Baru"
                 val message = review.get("message")?.asString ?: "Ada transaksi yang memerlukan pemeriksaan Anda."
                 showLocalNotification(
                     notificationId = 1001,
@@ -165,9 +165,14 @@ class KeuanganNotificationListener : NotificationListenerService() {
             // 2. Peringatan Batas Anggaran (Budget Alert: 80% atau 100%)
             if (root.has("budget_alert") && !root.get("budget_alert").isJsonNull) {
                 val budget = root.getAsJsonObject("budget_alert")
-                val title = budget.get("title")?.asString ?: "⚠️ Peringatan Batas Anggaran"
-                val message = budget.get("message")?.asString ?: "Pengeluaran kategori hampir melebihi batas anggaran."
                 val level = budget.get("level")?.asString ?: "80"
+                val defaultTitle = if (level == "100") {
+                    "[DARURAT ANGGARAN] Batas Belanja Terlampaui"
+                } else {
+                    "[PERINGATAN ANGGARAN] Pagu Hampir Penuh"
+                }
+                val title = budget.get("title")?.asString ?: defaultTitle
+                val message = budget.get("message")?.asString ?: "Pengeluaran kategori hampir melebihi batas anggaran."
                 val notifId = if (level == "100") 2002 else 2001
                 showLocalNotification(
                     notificationId = notifId,

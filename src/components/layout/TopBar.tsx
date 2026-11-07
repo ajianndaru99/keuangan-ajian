@@ -8,6 +8,7 @@
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { usePrivacy } from '@/lib/privacy';
+import BrandLogo from './BrandLogo';
 import {
   Search,
   Sun,
@@ -118,6 +119,8 @@ export default function TopBar({
               <Menu className="w-5 h-5" />
             </button>
           )}
+
+          <BrandLogo size="sm" className="md:hidden" />
 
           <div>
             <h1 className="text-base sm:text-lg tracking-tight leading-none">

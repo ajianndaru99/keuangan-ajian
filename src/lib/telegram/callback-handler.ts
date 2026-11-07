@@ -127,7 +127,7 @@ export async function handleTelegramCallbackQuery(
     );
 
     if (accErr || !targetAccount) {
-      await answerCallbackQuery(cq.id, '⚠️ Rekening tidak ditemukan.', true);
+      await answerCallbackQuery(cq.id, '[PERHATIAN] Rekening tidak ditemukan.', true);
       return;
     }
 
@@ -143,13 +143,13 @@ export async function handleTelegramCallbackQuery(
 
     if (!syncRes.success) {
       console.error('[Callback sok Sync Error]:', syncRes.error);
-      await answerCallbackQuery(cq.id, '⚠️ Gagal memperbarui saldo rekening.', true);
+      await answerCallbackQuery(cq.id, '[ERROR] Gagal memperbarui saldo rekening.', true);
       return;
     }
 
-    await answerCallbackQuery(cq.id, '✅ Saldo berhasil disinkronkan!');
+    await answerCallbackQuery(cq.id, 'Saldo berhasil disinkronkan.');
 
-    const successText = `💰 *SALDO BERHASIL DIPERBARUI* ✅\n\n` +
+    const successText = `*[BERHASIL] SALDO BERHASIL DIPERBARUI*\n\n` +
       `Akun: *${targetAccount.name}* (${targetAccount.owner === 'istri' ? 'Istri' : 'Suami'})\n` +
       `Saldo Sekarang: \`${formatRupiah(targetBalance)}\`\n` +
       `Selisih Penyesuaian: \`${diff >= 0 ? '+' : ''}${formatRupiah(diff)}\`\n` +
@@ -175,13 +175,13 @@ export async function handleTelegramCallbackQuery(
       .eq('is_active', true);
 
     if (accErr || !accounts) {
-      await answerCallbackQuery(cq.id, '⚠️ Gagal memuat data rekening.', true);
+      await answerCallbackQuery(cq.id, '[ERROR] Gagal memuat data rekening.', true);
       return;
     }
 
     const targetAccount = accounts.find((a) => a.id === accId || a.id.startsWith(accId));
     if (!targetAccount) {
-      await answerCallbackQuery(cq.id, '⚠️ Rekening tidak ditemukan.', true);
+      await answerCallbackQuery(cq.id, '[PERHATIAN] Rekening tidak ditemukan.', true);
       return;
     }
 
@@ -194,20 +194,20 @@ export async function handleTelegramCallbackQuery(
       .reduce((sum, a) => sum + Number(a.balance || 0), 0);
     const projectedTotalKas = otherAccountsTotal + targetAmount;
 
-    const confirmText = `⚠️ *KONFIRMASI PERUBAHAN SALDO REKENING*\n\n` +
-      `🏦 *Akun Terpilih:* ${targetAccount.name} (${targetAccount.owner === 'istri' ? 'Istri' : 'Suami'})\n` +
-      `💰 *Saldo Saat Ini:* \`${formatRupiah(currentBalance)}\`\n` +
-      `🎯 *Saldo Baru:* \`${formatRupiah(targetAmount)}\`\n` +
-      `📉 *Selisih Koreksi:* \`${diff >= 0 ? '+' : ''}${formatRupiah(diff)}\`\n` +
-      `💼 *Proyeksi Total Kas:* \`${formatRupiah(projectedTotalKas)}\`\n\n` +
+    const confirmText = `*[KONFIRMASI] PERUBAHAN SALDO REKENING*\n\n` +
+      `Akun Terpilih: ${targetAccount.name} (${targetAccount.owner === 'istri' ? 'Istri' : 'Suami'})\n` +
+      `Saldo Saat Ini: \`${formatRupiah(currentBalance)}\`\n` +
+      `Saldo Baru: \`${formatRupiah(targetAmount)}\`\n` +
+      `Selisih Koreksi: \`${diff >= 0 ? '+' : ''}${formatRupiah(diff)}\`\n` +
+      `Proyeksi Total Kas: \`${formatRupiah(projectedTotalKas)}\`\n\n` +
       `_Tindakan ini akan mempengaruhi total kas siap pakai keluarga. Pastikan angka sudah benar sebelum konfirmasi._`;
 
     await editTelegramMessageText(chatId, messageId, confirmText, {
       reply_markup: {
         inline_keyboard: [
           [
-            { text: '✅ Ya, Perbarui Saldo', callback_data: `sok:${targetAccount.id}:${targetAmount}` },
-            { text: '❌ Batalkan', callback_data: 'scancel' },
+            { text: 'Ya, Perbarui Saldo', callback_data: `sok:${targetAccount.id}:${targetAmount}` },
+            { text: 'Batalkan', callback_data: 'scancel' },
           ],
         ],
       },
@@ -217,17 +217,17 @@ export async function handleTelegramCallbackQuery(
 
   // 0.5. Pembatalan Penyesuaian Saldo
   if (data === 'scancel') {
-    await answerCallbackQuery(cq.id, '🚫 Penyesuaian saldo dibatalkan.');
+    await answerCallbackQuery(cq.id, 'Penyesuaian saldo dibatalkan.');
     await editTelegramMessageText(
       chatId,
       messageId,
-      `🚫 *Penyesuaian saldo dibatalkan.*\nTidak ada perubahan pada saldo rekening keluarga.`,
+      `*[DIBATALKAN] Penyesuaian saldo dibatalkan.*\nTidak ada perubahan pada saldo rekening keluarga.`,
       { reply_markup: { inline_keyboard: [] } }
     );
     return;
   }
 
-  // 1. Verifikasi Transaksi: [✅ Benar & Sesuai]
+  // 1. Verifikasi Transaksi: [Sesuai]
   if (data.startsWith('tx_ok:')) {
     const txId = data.replace('tx_ok:', '').trim();
 
@@ -241,13 +241,13 @@ export async function handleTelegramCallbackQuery(
 
     if (fetchErr || !currentTx) {
       console.error('[Telegram Callback tx_ok Fetch Error]:', fetchErr?.message);
-      await answerCallbackQuery(cq.id, '⚠️ Data transaksi tidak ditemukan.', true);
+      await answerCallbackQuery(cq.id, '[PERHATIAN] Data transaksi tidak ditemukan.', true);
       return;
     }
 
     // Hindari duplikasi verifikasi
     if (currentTx.status === 'reconciled') {
-      await answerCallbackQuery(cq.id, 'ℹ️ Transaksi ini sudah terverifikasi sebelumnya.');
+      await answerCallbackQuery(cq.id, '[INFO] Transaksi ini sudah terverifikasi sebelumnya.');
       return;
     }
 
@@ -261,7 +261,7 @@ export async function handleTelegramCallbackQuery(
 
     if (!success) {
       console.error('[Telegram Callback tx_ok Update Error]:', updateErr);
-      await answerCallbackQuery(cq.id, '⚠️ Gagal menyimpan status verifikasi.', true);
+      await answerCallbackQuery(cq.id, '[ERROR] Gagal menyimpan status verifikasi.', true);
       return;
     }
 
@@ -270,17 +270,17 @@ export async function handleTelegramCallbackQuery(
       await syncAccountBalance(supabase, currentTx.account_id);
     }
 
-    await answerCallbackQuery(cq.id, '✅ Transaksi diverifikasi!');
+    await answerCallbackQuery(cq.id, 'Transaksi diverifikasi.');
 
     const tx = currentTx as unknown as TxWithRelations;
     const txDate = tx.transaction_date || new Date();
     const text = currentTx.direction === 'in'
-      ? `📈 *PEMASUKAN TERVERIFIKASI* ✅\n\n` +
-        `💵 *Sumber:* ${tx.merchant || 'Pemasukan'}\n` +
-        `💰 *Nominal:* \`${formatRupiah(Number(tx.amount || 0))}\`\n` +
-        `📁 *Kategori:* ${tx.categories?.name || 'Gaji/Pemasukan'}\n` +
-        `🏦 *Masuk ke:* ${tx.accounts?.name || 'Utama'}\n` +
-        `🕒 *Waktu:* ${formatDateWIB(txDate)}\n\n` +
+      ? `*[TERVERIFIKASI] PEMASUKAN TERVERIFIKASI*\n\n` +
+        `Sumber: ${tx.merchant || 'Pemasukan'}\n` +
+        `Nominal: \`${formatRupiah(Number(tx.amount || 0))}\`\n` +
+        `Kategori: ${tx.categories?.name || 'Gaji/Pemasukan'}\n` +
+        `Masuk ke: ${tx.accounts?.name || 'Utama'}\n` +
+        `Waktu: ${formatDateWIB(txDate)}\n\n` +
         `Diverifikasi oleh: *${cq.from.first_name || 'Keluarga'}*\n\n` +
         `_Saldo rekening telah diselaraskan dan transaksi berstatus Reconciled._`
       : formatExpenseVerifiedMessage({
@@ -296,9 +296,9 @@ export async function handleTelegramCallbackQuery(
       reply_markup: {
         inline_keyboard: [
           [
-            { text: '📁 Kategori', callback_data: `tx_cat:${txId}` },
-            { text: '✏️ Ubah', callback_data: `tx_edit:${txId}` },
-            { text: '❌ Batal', callback_data: `tx_wrong_menu:${txId}` },
+            { text: 'Kategori', callback_data: `tx_cat:${txId}` },
+            { text: 'Ubah', callback_data: `tx_edit:${txId}` },
+            { text: 'Batal', callback_data: `tx_wrong_menu:${txId}` },
           ],
         ],
       },
@@ -306,7 +306,7 @@ export async function handleTelegramCallbackQuery(
     return;
   }
 
-  // 1.1. Menu Pemilihan Kategori / Pos Anggaran: [📁 Kategori]
+  // 1.1. Menu Pemilihan Kategori / Pos Anggaran: [Kategori]
   if (data.startsWith('tx_cat:')) {
     const txId = data.replace('tx_cat:', '').trim();
     await answerCallbackQuery(cq.id);
@@ -316,30 +316,30 @@ export async function handleTelegramCallbackQuery(
       .replace(/\n\n\*Pilih Koreksi Mutasi:\*.*$/s, '')
       .replace(/\n\n\*Pilih Alasan Penolakan:\*.*$/s, '')
       .replace(/\n\n\*Pilih rekening baru:\*.*$/s, '')
-      .replace(/\n\n✅ _Kategori.*$/s, '');
+      .replace(/\n\n(?:\[INFO\]|✅)\s*_Kategori.*$/s, '');
     const newText = `${baseText}\n\n*Pilih Kategori Pos Anggaran:*`;
 
     await editTelegramMessageText(chatId, messageId, newText, {
       reply_markup: {
         inline_keyboard: [
           [
-            { text: '🛒 Dapur', callback_data: `tsc:${txId}:b-dapur` },
-            { text: '🍔 Makan/Jajan', callback_data: `tsc:${txId}:b-makan` },
+            { text: 'Dapur', callback_data: `tsc:${txId}:b-dapur` },
+            { text: 'Makan/Jajan', callback_data: `tsc:${txId}:b-makan` },
           ],
           [
-            { text: '🚗 Transport', callback_data: `tsc:${txId}:b-trans` },
-            { text: '⚡ Tagihan', callback_data: `tsc:${txId}:b-tagih` },
+            { text: 'Transport', callback_data: `tsc:${txId}:b-trans` },
+            { text: 'Tagihan', callback_data: `tsc:${txId}:b-tagih` },
           ],
           [
-            { text: '🏠 Kebutuhan Rumah', callback_data: `tsc:${txId}:b-rumah` },
-            { text: '🏖️ Jalan-jalan', callback_data: `tsc:${txId}:b-jalan` },
+            { text: 'Kebutuhan Rumah', callback_data: `tsc:${txId}:b-rumah` },
+            { text: 'Jalan-jalan', callback_data: `tsc:${txId}:b-jalan` },
           ],
           [
-            { text: '🚨 Darurat', callback_data: `tsc:${txId}:b-darurat` },
-            { text: '📝 Lainnya', callback_data: `tsc:${txId}:b-lain` },
+            { text: 'Darurat', callback_data: `tsc:${txId}:b-darurat` },
+            { text: 'Lainnya', callback_data: `tsc:${txId}:b-lain` },
           ],
           [
-            { text: '⬅️ Kembali', callback_data: `tx_back:${txId}` },
+            { text: 'Kembali', callback_data: `tx_back:${txId}` },
           ],
         ],
       },
@@ -358,32 +358,32 @@ export async function handleTelegramCallbackQuery(
 
     if (!result.success) {
       console.error('[Callback tsc Update Error]:', result.error);
-      await answerCallbackQuery(cq.id, '⚠️ Gagal mengubah kategori.', true);
+      await answerCallbackQuery(cq.id, '[ERROR] Gagal mengubah kategori.', true);
       return;
     }
 
-    await answerCallbackQuery(cq.id, `📁 Kategori: ${result.categoryName}!`);
+    await answerCallbackQuery(cq.id, `Kategori: ${result.categoryName}`);
 
     let baseText = originalText
       .replace(/\n\n\*Pilih Kategori Pos Anggaran:\*.*$/s, '')
       .replace(/\n\n\*Pilih Koreksi Mutasi:\*.*$/s, '')
       .replace(/\n\n\*Pilih Alasan Penolakan:\*.*$/s, '')
       .replace(/\n\n\*Pilih rekening baru:\*.*$/s, '')
-      .replace(/\n\n✅ _Kategori.*$/s, '');
+      .replace(/\n\n(?:\[INFO\]|✅)\s*_Kategori.*$/s, '');
 
-    if (/📁 \*Kategori:\*.*$/m.test(baseText)) {
-      baseText = baseText.replace(/📁 \*Kategori:\*.*$/m, `📁 *Kategori:* ${result.emoji} ${result.categoryName}`);
+    if (/^(?:📁\s*)?\*?Kategori:\*?.*$/m.test(baseText)) {
+      baseText = baseText.replace(/^(?:📁\s*)?\*?Kategori:\*?.*$/m, `Kategori: ${result.categoryName}`);
     }
 
-    const updatedText = `${baseText}\n\n✅ _Kategori disetel ke *${result.emoji} ${result.categoryName}* (Status: Reconciled)._`;
+    const updatedText = `${baseText}\n\n[INFO] _Kategori disetel ke *${result.categoryName}* (Status: Reconciled)._`;
 
     await editTelegramMessageText(chatId, messageId, updatedText, {
       reply_markup: {
         inline_keyboard: [
           [
-            { text: '📁 Kategori', callback_data: `tx_cat:${txId}` },
-            { text: '✏️ Ubah', callback_data: `tx_edit:${txId}` },
-            { text: '❌ Batal', callback_data: `tx_wrong_menu:${txId}` },
+            { text: 'Kategori', callback_data: `tx_cat:${txId}` },
+            { text: 'Ubah', callback_data: `tx_edit:${txId}` },
+            { text: 'Batal', callback_data: `tx_wrong_menu:${txId}` },
           ],
         ],
       },
@@ -406,16 +406,16 @@ export async function handleTelegramCallbackQuery(
       reply_markup: {
         inline_keyboard: [
           [
-            { text: '📁 Kategori', callback_data: `tx_cat:${txId}` },
-            { text: '🏦 Rekening', callback_data: `tx_acc:${txId}` },
+            { text: 'Kategori', callback_data: `tx_cat:${txId}` },
+            { text: 'Rekening', callback_data: `tx_acc:${txId}` },
           ],
           [
-            { text: '📈 Pemasukan', callback_data: `tx_in:${txId}` },
-            { text: '💸 Pengeluaran', callback_data: `tx_out:${txId}` },
+            { text: 'Pemasukan', callback_data: `tx_in:${txId}` },
+            { text: 'Pengeluaran', callback_data: `tx_out:${txId}` },
           ],
           [
-            { text: '🔄 Transfer', callback_data: `tx_mark_transfer:${txId}` },
-            { text: '⬅️ Kembali', callback_data: `tx_back:${txId}` },
+            { text: 'Transfer', callback_data: `tx_mark_transfer:${txId}` },
+            { text: 'Kembali', callback_data: `tx_back:${txId}` },
           ],
         ],
       },
@@ -435,7 +435,7 @@ export async function handleTelegramCallbackQuery(
       .maybeSingle();
 
     if (fetchErr || !currentTx) {
-      await answerCallbackQuery(cq.id, '⚠️ Data transaksi tidak ditemukan.', true);
+      await answerCallbackQuery(cq.id, '[PERHATIAN] Data transaksi tidak ditemukan.', true);
       return;
     }
 
@@ -480,7 +480,7 @@ export async function handleTelegramCallbackQuery(
 
     if (updateErr) {
       console.error('[Callback tx_in Update Error]:', updateErr.message);
-      await answerCallbackQuery(cq.id, '⚠️ Gagal mengubah menjadi pemasukan.', true);
+      await answerCallbackQuery(cq.id, '[ERROR] Gagal mengubah menjadi pemasukan.', true);
       return;
     }
 
@@ -488,14 +488,14 @@ export async function handleTelegramCallbackQuery(
       await syncAccountBalance(supabase, currentTx.account_id);
     }
 
-    await answerCallbackQuery(cq.id, '📈 Diubah menjadi Pemasukan Luar!');
+    await answerCallbackQuery(cq.id, 'Diubah menjadi Pemasukan Luar.');
 
     const accRelation = currentTx.accounts as unknown as { name?: string } | null;
     const accName = accRelation?.name || 'Rekening';
-    const text = `📈 *PEMASUKAN LUAR TERKONFIRMASI* ✅\n\n` +
-      `💵 *Sumber:* ${cleanMerchant}\n` +
-      `💰 *Nominal:* \`${formatRupiah(Number(currentTx.amount || 0))}\`\n` +
-      `🏦 *Masuk ke:* ${accName}\n` +
+    const text = `*[TERVERIFIKASI] PEMASUKAN LUAR TERKONFIRMASI*\n\n` +
+      `Sumber: ${cleanMerchant}\n` +
+      `Nominal: \`${formatRupiah(Number(currentTx.amount || 0))}\`\n` +
+      `Masuk ke: ${accName}\n` +
       `Diubah oleh: *${cq.from.first_name || 'Keluarga'}*\n\n` +
       `_Tercatat sebagai pemasukan riil keluarga dan menambah saldo kas._`;
 
@@ -503,9 +503,9 @@ export async function handleTelegramCallbackQuery(
       reply_markup: {
         inline_keyboard: [
           [
-            { text: '📁 Kategori', callback_data: `tx_cat:${txId}` },
-            { text: '✏️ Ubah', callback_data: `tx_edit:${txId}` },
-            { text: '❌ Batal', callback_data: `tx_wrong_menu:${txId}` },
+            { text: 'Kategori', callback_data: `tx_cat:${txId}` },
+            { text: 'Ubah', callback_data: `tx_edit:${txId}` },
+            { text: 'Batal', callback_data: `tx_wrong_menu:${txId}` },
           ],
         ],
       },
@@ -525,7 +525,7 @@ export async function handleTelegramCallbackQuery(
       .maybeSingle();
 
     if (fetchErr || !currentTx) {
-      await answerCallbackQuery(cq.id, '⚠️ Data transaksi tidak ditemukan.', true);
+      await answerCallbackQuery(cq.id, '[PERHATIAN] Data transaksi tidak ditemukan.', true);
       return;
     }
 
@@ -558,7 +558,7 @@ export async function handleTelegramCallbackQuery(
 
     if (updateErr) {
       console.error('[Callback tx_out Update Error]:', updateErr.message);
-      await answerCallbackQuery(cq.id, '⚠️ Gagal mengubah menjadi pengeluaran.', true);
+      await answerCallbackQuery(cq.id, '[ERROR] Gagal mengubah menjadi pengeluaran.', true);
       return;
     }
 
@@ -566,14 +566,14 @@ export async function handleTelegramCallbackQuery(
       await syncAccountBalance(supabase, currentTx.account_id);
     }
 
-    await answerCallbackQuery(cq.id, '💸 Diubah menjadi Pengeluaran!');
+    await answerCallbackQuery(cq.id, 'Diubah menjadi Pengeluaran.');
 
     const accRelation = currentTx.accounts as unknown as { name?: string } | null;
     const accName = accRelation?.name || 'Rekening';
-    const text = `💸 *PENGELUARAN TERKONFIRMASI* ✅\n\n` +
-      `🛒 *Merchant:* ${cleanMerchant}\n` +
-      `💰 *Nominal:* \`${formatRupiah(Number(currentTx.amount || 0))}\`\n` +
-      `🏦 *Sumber:* ${accName}\n` +
+    const text = `*[TERVERIFIKASI] PENGELUARAN TERKONFIRMASI*\n\n` +
+      `Merchant: ${cleanMerchant}\n` +
+      `Nominal: \`${formatRupiah(Number(currentTx.amount || 0))}\`\n` +
+      `Sumber: ${accName}\n` +
       `Diubah oleh: *${cq.from.first_name || 'Keluarga'}*\n\n` +
       `_Tercatat sebagai pengeluaran keluarga dan mengurangi saldo akun._`;
 
@@ -581,9 +581,9 @@ export async function handleTelegramCallbackQuery(
       reply_markup: {
         inline_keyboard: [
           [
-            { text: '📁 Kategori', callback_data: `tx_cat:${txId}` },
-            { text: '✏️ Ubah', callback_data: `tx_edit:${txId}` },
-            { text: '❌ Batal', callback_data: `tx_wrong_menu:${txId}` },
+            { text: 'Kategori', callback_data: `tx_cat:${txId}` },
+            { text: 'Ubah', callback_data: `tx_edit:${txId}` },
+            { text: 'Batal', callback_data: `tx_wrong_menu:${txId}` },
           ],
         ],
       },
@@ -591,7 +591,7 @@ export async function handleTelegramCallbackQuery(
     return;
   }
 
-  // 1.5. Koreksi Transaksi Menjadi Transfer Internal: [🔄 Itu Transfer Sendiri]
+  // 1.5. Koreksi Transaksi Menjadi Transfer Internal: [Transfer]
   if (data.startsWith('tx_mark_transfer:')) {
     const txId = data.replace('tx_mark_transfer:', '').trim();
 
@@ -603,7 +603,7 @@ export async function handleTelegramCallbackQuery(
       .maybeSingle();
 
     if (fetchErr || !currentTx) {
-      await answerCallbackQuery(cq.id, '⚠️ Data transaksi tidak ditemukan.', true);
+      await answerCallbackQuery(cq.id, '[PERHATIAN] Data transaksi tidak ditemukan.', true);
       return;
     }
 
@@ -636,7 +636,7 @@ export async function handleTelegramCallbackQuery(
 
     if (updateErr) {
       console.error('[Callback tx_mark_transfer Update Error]:', updateErr.message);
-      await answerCallbackQuery(cq.id, '⚠️ Gagal menandai transfer internal.', true);
+      await answerCallbackQuery(cq.id, '[ERROR] Gagal menandai transfer internal.', true);
       return;
     }
 
@@ -644,18 +644,18 @@ export async function handleTelegramCallbackQuery(
       await syncAccountBalance(supabase, currentTx.account_id);
     }
 
-    await answerCallbackQuery(cq.id, '🔄 Diubah menjadi Transfer Internal!');
+    await answerCallbackQuery(cq.id, 'Diubah menjadi Transfer Internal.');
 
     const accRelation = currentTx.accounts as unknown as { name?: string } | null;
     const accName = accRelation?.name || 'Rekening';
-    const text = `🔄 *PERPINDAHAN DANA INTERNAL DIKONFIRMASI* ✅\n\nTransaksi: *${cleanMerchant}*\nNominal: \`${formatRupiah(Number(currentTx.amount || 0))}\`\nAkun: *${accName}*\nDiubah oleh: *${cq.from.first_name || 'Keluarga'}*\n\n_Transaksi ini disetel sebagai mutasi antar rekening/dompet keluarga dan tidak memotong anggaran belanja._`;
+    const text = `*[MUTASI INTERNAL] PERPINDAHAN DANA INTERNAL DIKONFIRMASI*\n\nTransaksi: *${cleanMerchant}*\nNominal: \`${formatRupiah(Number(currentTx.amount || 0))}\`\nAkun: *${accName}*\nDiubah oleh: *${cq.from.first_name || 'Keluarga'}*\n\n_Transaksi ini disetel sebagai mutasi antar rekening/dompet keluarga dan tidak memotong anggaran belanja._`;
 
     await editTelegramMessageText(chatId, messageId, text, {
       reply_markup: {
         inline_keyboard: [
           [
-            { text: '✏️ Ubah', callback_data: `tx_edit:${txId}` },
-            { text: '❌ Batal', callback_data: `tx_wrong_menu:${txId}` },
+            { text: 'Ubah', callback_data: `tx_edit:${txId}` },
+            { text: 'Batal', callback_data: `tx_wrong_menu:${txId}` },
           ],
         ],
       },
@@ -676,11 +676,11 @@ export async function handleTelegramCallbackQuery(
 
     const buttons = (accounts || []).map((a) => [
       {
-        text: `🏦 ${a.name} (${a.owner === 'istri' ? 'Istri' : 'Suami'})`,
+        text: `${a.name} (${a.owner === 'istri' ? 'Istri' : 'Suami'})`,
         callback_data: `tsa:${txId}:${a.id.slice(0, 8)}`,
       },
     ]);
-    buttons.push([{ text: '⬅️ Kembali', callback_data: `tx_edit:${txId}` }]);
+    buttons.push([{ text: 'Kembali', callback_data: `tx_edit:${txId}` }]);
 
     const baseText = originalText
       .replace(/\n\n\*Pilih Koreksi Mutasi:\*.*$/s, '')
@@ -708,7 +708,7 @@ export async function handleTelegramCallbackQuery(
       .maybeSingle();
 
     if (fetchErr || !currentTx) {
-      await answerCallbackQuery(cq.id, '⚠️ Data transaksi tidak ditemukan.', true);
+      await answerCallbackQuery(cq.id, '[PERHATIAN] Data transaksi tidak ditemukan.', true);
       return;
     }
 
@@ -725,13 +725,13 @@ export async function handleTelegramCallbackQuery(
     );
 
     if (!targetAccount) {
-      await answerCallbackQuery(cq.id, '⚠️ Rekening tujuan tidak ditemukan.', true);
+      await answerCallbackQuery(cq.id, '[PERHATIAN] Rekening tujuan tidak ditemukan.', true);
       return;
     }
 
     const newAccId = targetAccount.id;
     if (newAccId === oldAccId) {
-      await answerCallbackQuery(cq.id, 'ℹ️ Transaksi sudah berada di rekening ini.');
+      await answerCallbackQuery(cq.id, '[INFO] Transaksi sudah berada di rekening ini.');
       return;
     }
 
@@ -743,7 +743,7 @@ export async function handleTelegramCallbackQuery(
 
     if (updateErr) {
       console.error('[Callback tsa Update Error]:', updateErr.message);
-      await answerCallbackQuery(cq.id, '⚠️ Gagal memindahkan rekening.', true);
+      await answerCallbackQuery(cq.id, '[ERROR] Gagal memindahkan rekening.', true);
       return;
     }
 
@@ -751,21 +751,21 @@ export async function handleTelegramCallbackQuery(
     if (oldAccId) await syncAccountBalance(supabase, oldAccId);
     await syncAccountBalance(supabase, newAccId);
 
-    await answerCallbackQuery(cq.id, '🏦 Rekening berhasil dipindahkan!');
+    await answerCallbackQuery(cq.id, 'Rekening berhasil dipindahkan.');
 
     const baseText = originalText
       .replace(/\n\n\*Pilih rekening baru:\*.*$/s, '')
-      .replace(/\n\n✅ _Rekening dipindahkan.*$/s, '');
+      .replace(/\n\n(?:\[INFO\]|✅)\s*_Rekening dipindahkan.*$/s, '');
     const newAccName = `${targetAccount.name} (${targetAccount.owner === 'istri' ? 'Istri' : 'Suami'})`;
-    const updatedText = `${baseText}\n\n✅ _Rekening dipindahkan ke *${newAccName}*._`;
+    const updatedText = `${baseText}\n\n[INFO] _Rekening dipindahkan ke *${newAccName}*._`;
 
     await editTelegramMessageText(chatId, messageId, updatedText, {
       reply_markup: {
         inline_keyboard: [
           [
-            { text: '📁 Kategori', callback_data: `tx_cat:${txId}` },
-            { text: '✏️ Ubah', callback_data: `tx_edit:${txId}` },
-            { text: '❌ Batal', callback_data: `tx_wrong_menu:${txId}` },
+            { text: 'Kategori', callback_data: `tx_cat:${txId}` },
+            { text: 'Ubah', callback_data: `tx_edit:${txId}` },
+            { text: 'Batal', callback_data: `tx_wrong_menu:${txId}` },
           ],
         ],
       },
@@ -773,7 +773,7 @@ export async function handleTelegramCallbackQuery(
     return;
   }
 
-  // 2. Menu Pilihan Alasan Penolakan: [❌ Salah / Bukan Belanja]
+  // 2. Menu Pilihan Alasan Penolakan: [Batal]
   if (data.startsWith('tx_wrong_menu:')) {
     const txId = data.replace('tx_wrong_menu:', '').trim();
     await answerCallbackQuery(cq.id);
@@ -789,12 +789,12 @@ export async function handleTelegramCallbackQuery(
       reply_markup: {
         inline_keyboard: [
           [
-            { text: '📢 Promo/Spam', callback_data: `tx_rej_promo:${txId}` },
-            { text: '👥 Dobel', callback_data: `tx_rej_dup:${txId}` },
+            { text: 'Promo/Spam', callback_data: `tx_rej_promo:${txId}` },
+            { text: 'Dobel', callback_data: `tx_rej_dup:${txId}` },
           ],
           [
-            { text: '✍️ Alasan Lain', callback_data: `tx_rej_custom:${txId}` },
-            { text: '⬅️ Kembali', callback_data: `tx_back:${txId}` },
+            { text: 'Alasan Lain', callback_data: `tx_rej_custom:${txId}` },
+            { text: 'Kembali', callback_data: `tx_back:${txId}` },
           ],
         ],
       },
@@ -824,19 +824,19 @@ export async function handleTelegramCallbackQuery(
     const defaultButtons = isPending
       ? [
           [
-            { text: '✅ Sesuai', callback_data: `tx_ok:${txId}` },
-            { text: '📁 Kategori', callback_data: `tx_cat:${txId}` },
-            { text: '✏️ Ubah', callback_data: `tx_edit:${txId}` },
+            { text: 'Sesuai', callback_data: `tx_ok:${txId}` },
+            { text: 'Kategori', callback_data: `tx_cat:${txId}` },
+            { text: 'Ubah', callback_data: `tx_edit:${txId}` },
           ],
           [
-            { text: '❌ Batal', callback_data: `tx_wrong_menu:${txId}` },
+            { text: 'Batal', callback_data: `tx_wrong_menu:${txId}` },
           ],
         ]
       : [
           [
-            { text: '📁 Kategori', callback_data: `tx_cat:${txId}` },
-            { text: '✏️ Ubah', callback_data: `tx_edit:${txId}` },
-            { text: '❌ Batal', callback_data: `tx_wrong_menu:${txId}` },
+            { text: 'Kategori', callback_data: `tx_cat:${txId}` },
+            { text: 'Ubah', callback_data: `tx_edit:${txId}` },
+            { text: 'Batal', callback_data: `tx_wrong_menu:${txId}` },
           ],
         ];
 
@@ -848,7 +848,7 @@ export async function handleTelegramCallbackQuery(
     return;
   }
 
-  // 4. Alasan 1: [📢 Promo / Iklan] (Closed-Loop Learning)
+  // 4. Alasan 1: [Promo/Spam] (Closed-Loop Learning)
   if (data.startsWith('tx_rej_promo:')) {
     const txId = data.replace('tx_rej_promo:', '').trim();
 
@@ -861,7 +861,7 @@ export async function handleTelegramCallbackQuery(
 
     if (fetchErr || !targetTx) {
       console.error('[Telegram Callback tx_rej_promo Fetch Error]:', fetchErr?.message);
-      await answerCallbackQuery(cq.id, '⚠️ Data transaksi tidak ditemukan.', true);
+      await answerCallbackQuery(cq.id, '[PERHATIAN] Data transaksi tidak ditemukan.', true);
       return;
     }
 
@@ -875,7 +875,7 @@ export async function handleTelegramCallbackQuery(
 
     if (!success) {
       console.error('[Telegram Callback tx_rej_promo Update Error]:', updateErr);
-      await answerCallbackQuery(cq.id, '⚠️ Gagal memperbarui status transaksi.', true);
+      await answerCallbackQuery(cq.id, '[ERROR] Gagal memperbarui status transaksi.', true);
       return;
     }
 
@@ -921,7 +921,7 @@ export async function handleTelegramCallbackQuery(
     return;
   }
 
-  // 5. Alasan 2: [👥 Tercatat Dobel]
+  // 5. Alasan 2: [Dobel]
   if (data.startsWith('tx_rej_dup:')) {
     const txId = data.replace('tx_rej_dup:', '').trim();
 
@@ -934,7 +934,7 @@ export async function handleTelegramCallbackQuery(
 
     if (fetchErr || !targetTx) {
       console.error('[Telegram Callback tx_rej_dup Fetch Error]:', fetchErr?.message);
-      await answerCallbackQuery(cq.id, '⚠️ Data transaksi tidak ditemukan.', true);
+      await answerCallbackQuery(cq.id, '[PERHATIAN] Data transaksi tidak ditemukan.', true);
       return;
     }
 
@@ -948,7 +948,7 @@ export async function handleTelegramCallbackQuery(
 
     if (!success) {
       console.error('[Telegram Callback tx_rej_dup Update Error]:', updateErr);
-      await answerCallbackQuery(cq.id, '⚠️ Gagal memperbarui status transaksi.', true);
+      await answerCallbackQuery(cq.id, '[ERROR] Gagal memperbarui status transaksi.', true);
       return;
     }
 
@@ -972,7 +972,7 @@ export async function handleTelegramCallbackQuery(
     return;
   }
 
-  // 6. Alasan 3: [✍️ Tulis Alasan Lain] (Memicu Balasan Pengguna)
+  // 6. Alasan 3: [Alasan Lain] (Memicu Balasan Pengguna)
   if (data.startsWith('tx_rej_custom:')) {
     const txId = data.replace('tx_rej_custom:', '').trim();
     await answerCallbackQuery(cq.id);
@@ -980,7 +980,7 @@ export async function handleTelegramCallbackQuery(
     const shortId = txId.slice(0, 8);
     await sendTelegramMessage(
       chatId,
-      `✍️ *Tulis Alasan Pembatalan*\n\nBalas pesan ini dengan alasan penolakan mutasi #${shortId} [REF:${txId}]:\n_(Contoh: transfer ke orang tua, tarik tunai, pindah kantong)_`,
+      `*[PEMBATALAN] Tulis Alasan Pembatalan*\n\nBalas pesan ini dengan alasan penolakan mutasi #${shortId} [REF:${txId}]:\n_(Contoh: transfer ke orang tua, tarik tunai, pindah kantong)_`,
       {
         reply_markup: { force_reply: true },
       }
