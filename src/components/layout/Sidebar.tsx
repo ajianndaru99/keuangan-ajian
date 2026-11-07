@@ -18,7 +18,6 @@ import {
   PieChart,
   Smartphone,
   Bot,
-  Sliders,
 } from 'lucide-react';
 
 interface SidebarProps {

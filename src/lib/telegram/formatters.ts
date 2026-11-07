@@ -3,7 +3,7 @@
 // Tipografi, Visual Progress Bar, & Template Pesan Interaktif Finansial
 // ==============================================================================
 
-import { formatRupiah } from '../utils.ts';
+import { formatRupiah, formatDateWIB } from '../utils.ts';
 
 export interface AccountBalanceItem {
   name: string;
@@ -39,6 +39,20 @@ export interface RekapSummaryData {
   topCategoryName?: string;
   topCategoryAmount?: number;
   weekLabel: string;
+}
+
+export interface TodayExpenseItem {
+  time: string;
+  merchant: string;
+  amount: number;
+  categoryName: string;
+  accountName: string;
+}
+
+export interface TodayExpensesData {
+  dateLabel: string;
+  items: TodayExpenseItem[];
+  totalAmount: number;
 }
 
 export interface InboxSummaryData {
@@ -210,6 +224,31 @@ export function formatRekapMessage(data: RekapSummaryData): string {
 }
 
 /**
+ * Format Pesan Perintah /hariini atau /today (Hanya Pengeluaran Hari Berjalan)
+ */
+export function formatTodayExpensesMessage(data: TodayExpensesData): string {
+  const lines: string[] = [];
+
+  lines.push(`📅 *PENGELUARAN HARI INI*`);
+  lines.push(`_${data.dateLabel}_\n`);
+
+  if (data.items.length === 0) {
+    lines.push(`✅ *Belum ada pengeluaran yang tercatat hari ini.*`);
+    lines.push(`Kas belanja keluarga tetap aman dan terkendali. 🎯`);
+    return lines.join('\n');
+  }
+
+  for (const item of data.items) {
+    lines.push(`• \`${item.time}\` *${item.merchant}* (\`${formatRupiah(item.amount)}\`)`);
+    lines.push(`  📁 ${item.categoryName} • 🏦 ${item.accountName}`);
+  }
+
+  lines.push(`\n💰 *Total Hari Ini:* \`${formatRupiah(data.totalAmount)}\` _(${data.items.length} transaksi)_`);
+  lines.push(`👉 _Ketik \`/status\` untuk kas keseluruhan atau \`/rekap\` untuk tren mingguan._`);
+  return lines.join('\n');
+}
+
+/**
  * Format Pesan Perintah /inbox
  */
 export function formatInboxMessage(data: InboxSummaryData): string {
@@ -246,6 +285,7 @@ Halo! Saya bot asisten keuangan yang terhubung langsung ke dasbor keluarga Anda.
 
 📋 *Menu Laporan & Status:*
 📊 \`/status\` — Ringkasan kas, belanja & batas aman harian
+📅 \`/hariini\` — Rincian belanja pengeluaran khusus hari ini
 📋 \`/anggaran\` — Kuota belanja 8 kategori (lengkap dengan status pos diset / belum)
 📈 \`/rekap\` — Pengeluaran 7 hari & tren vs minggu lalu
 📥 \`/inbox\` — Cek mutasi gantung yang butuh konfirmasi
@@ -259,7 +299,9 @@ Halo! Saya bot asisten keuangan yang terhubung langsung ke dasbor keluarga Anda.
 
 💬 *Catat Mutasi & Tanya Jawab AI:*
 • _"tadi beli martabak 35rb pake gopay"_
+• _"pengeluaran hari ini apa saja?"_
 • _"sisa anggaran belanja dapur masih aman?"_
+• _Reply pesan alert dengan "masuk dapur" untuk koreksi kategori_
 • Kirimkan foto struk kasir / bukti transfer untuk dicatat otomatis
 
 🔒 _Data terenkripsi dan terlindungi whitelist chat ID keluarga._`;
@@ -351,6 +393,7 @@ export function formatExpenseAlertMessage(tx: {
   accountName: string;
   sourceDevice?: string;
   isAutoReconciled?: boolean;
+  transactionDate?: string | Date;
 }): string {
   const deviceBadge = tx.sourceDevice ? (tx.sourceDevice.includes('istri') ? '(Istri)' : '(Suami)') : '';
   const header = tx.isAutoReconciled
@@ -366,6 +409,7 @@ export function formatExpenseAlertMessage(tx: {
 💰 *Nominal:* \`${formatRupiah(tx.amount)}\`
 📁 *Kategori:* ${tx.categoryName}
 🏦 *Sumber:* ${tx.accountName} ${deviceBadge}
+🕒 *Waktu:* ${formatDateWIB(tx.transactionDate || new Date())}
 
 ${footer}`;
 }
@@ -380,6 +424,7 @@ export function formatIncomeAlertMessage(tx: {
   accountName: string;
   sourceDevice?: string;
   isAutoReconciled?: boolean;
+  transactionDate?: string | Date;
 }): string {
   const deviceBadge = tx.sourceDevice ? (tx.sourceDevice.includes('istri') ? '(Istri)' : '(Suami)') : '';
   const header = tx.isAutoReconciled
@@ -395,6 +440,7 @@ export function formatIncomeAlertMessage(tx: {
 💰 *Nominal:* \`${formatRupiah(tx.amount)}\`
 📁 *Kategori:* ${tx.categoryName}
 🏦 *Masuk ke:* ${tx.accountName} ${deviceBadge}
+🕒 *Waktu:* ${formatDateWIB(tx.transactionDate || new Date())}
 
 ${footer}`;
 }
@@ -406,12 +452,14 @@ export function formatInternalTransferAlertMessage(tx: {
   fromAccount: string;
   toAccount: string;
   amount: number;
+  transactionDate?: string | Date;
 }): string {
   return `🔄 *PERPINDAHAN DANA TERDETEKSI* ✅
 
 💰 *Nominal:* \`${formatRupiah(tx.amount)}\`
 📤 *Dari:* ${tx.fromAccount}
 📥 *Ke:* ${tx.toAccount}
+🕒 *Waktu:* ${formatDateWIB(tx.transactionDate || new Date())}
 
 _Saldo kedua rekening otomatis diselaraskan dan tidak dihitung memotong anggaran belanja keluarga._`;
 }
@@ -425,6 +473,7 @@ export function formatExpenseVerifiedMessage(tx: {
   categoryName: string;
   accountName: string;
   verifiedBy?: string;
+  transactionDate?: string | Date;
 }): string {
   return `💸 *PENGELUARAN TERVERIFIKASI* ✅
 
@@ -432,6 +481,7 @@ export function formatExpenseVerifiedMessage(tx: {
 💰 *Nominal:* \`${formatRupiah(tx.amount)}\`
 📁 *Kategori:* ${tx.categoryName}
 🏦 *Sumber:* ${tx.accountName}
+🕒 *Waktu:* ${formatDateWIB(tx.transactionDate || new Date())}
 
 _Diverifikasi oleh ${tx.verifiedBy || 'Keluarga'} (Status: Reconciled)_`;
 }
@@ -464,6 +514,7 @@ export function formatReceiptScanSuccessMessage(result: {
   amount: number;
   categoryName: string;
   accountName: string;
+  transactionDate?: string | Date;
 }): string {
   return `📸 *STRUK BERHASIL DIPINDAI*
 
@@ -471,6 +522,7 @@ export function formatReceiptScanSuccessMessage(result: {
 💰 *Total Belanja:* \`${formatRupiah(result.amount)}\`
 📁 *Kategori:* ${result.categoryName}
 🏦 *Sumber:* ${result.accountName}
+🕒 *Waktu:* ${formatDateWIB(result.transactionDate || new Date())}
 
 _Data telah dicatat. Apakah hasil pembacaan ini sudah benar?_`;
 }

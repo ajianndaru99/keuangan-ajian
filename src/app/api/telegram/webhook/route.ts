@@ -17,6 +17,7 @@ import {
   handleAnggaranCommand,
   handleRekapCommand,
   handleInboxCommand,
+  handleTodayExpensesCommand,
   buildFinancialContext,
 } from '@/lib/telegram/commands.ts';
 import {
@@ -98,6 +99,11 @@ async function handleSlashCommands(
       await handleStatusCommand(chatId, supabase, householdId, monthStartDay);
       break;
     }
+    case '/hariini':
+    case '/today': {
+      await handleTodayExpensesCommand(chatId, supabase, householdId);
+      break;
+    }
     case '/anggaran':
     case '/budget': {
       await handleAnggaranCommand(chatId, supabase, householdId, monthStartDay);
@@ -144,6 +150,17 @@ async function handleNaturalLanguageFlow(
   householdId: string,
   monthStartDay: number
 ): Promise<void> {
+  // 0. Cek pertanyaan langsung pengeluaran hari ini
+  if (
+    /^(?:pengeluaran|belanja|rekap)\s+(?:hari\s+ini|today)\s*[?!.]*$/i.test(rawText) ||
+    /^(?:hari\s+ini|today)\s+(?:habis|pengeluaran|belanja|beli\s+apa)\s*(?:berapa|saja|aja)?\s*[?!.]*$/i.test(rawText) ||
+    /^(?:pengeluaran|belanja)\s+hari\s+ini\s+(?:apa\s+saja|apa\s+aja|berapa)\s*[?!.]*$/i.test(rawText) ||
+    /^(?:apa\s+saja\s+pengeluaran|daftar\s+pengeluaran)\s+hari\s+ini\s*[?!.]*$/i.test(rawText)
+  ) {
+    await handleTodayExpensesCommand(message.chat.id, supabase, householdId);
+    return;
+  }
+
   const context = await buildFinancialContext(supabase, householdId, monthStartDay);
   const repliedText = message.reply_to_message?.text?.trim();
   const promptInput = repliedText
@@ -274,6 +291,7 @@ async function handleNaturalLanguageFlow(
           categoryName,
           accountName,
           isAutoReconciled: true,
+          transactionDate: new Date(),
         })
       : formatExpenseAlertMessage({
           merchant: tx.merchant,
@@ -281,14 +299,16 @@ async function handleNaturalLanguageFlow(
           categoryName,
           accountName,
           isAutoReconciled: true,
+          transactionDate: new Date(),
         });
 
     const replyMarkup = newTx?.id
       ? {
           inline_keyboard: [
             [
-              { text: '✏️ Koreksi Mutasi', callback_data: `tx_edit:${newTx.id}` },
-              { text: '❌ Batalkan', callback_data: `tx_wrong_menu:${newTx.id}` },
+              { text: '📁 Kategori', callback_data: `tx_cat:${newTx.id}` },
+              { text: '✏️ Ubah', callback_data: `tx_edit:${newTx.id}` },
+              { text: '❌ Batal', callback_data: `tx_wrong_menu:${newTx.id}` },
             ],
           ],
         }

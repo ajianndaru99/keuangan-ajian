@@ -19,12 +19,14 @@ import {
   formatExpenseRejectedMessage,
   formatReceiptScanSuccessMessage,
   formatInternalTransferAlertMessage,
+  formatTodayExpensesMessage,
 } from '../src/lib/telegram/formatters.ts';
 import {
   findMatchingAccount,
   shouldProcessChat,
   stripBotMentions,
   isDirectRejectionFeedback,
+  isDirectCategoryFeedback,
   extractAmountFromBotAlertText,
   handleCustomRejectionReply,
 } from '../src/lib/telegram/settings-commands.ts';
@@ -33,7 +35,7 @@ import {
   getSettingsHubInlineKeyboard,
   handleAccountTextCommands,
 } from '../src/lib/telegram/settings-hub.ts';
-import { getMonthlyRange, getBudgetPeriodKey } from '../src/lib/date-utils.ts';
+import { getMonthlyRange, getBudgetPeriodKey, getTodayRangeWIB } from '../src/lib/date-utils.ts';
 import {
   isChatIdAllowed,
   getAllowedChatIds,
@@ -314,13 +316,14 @@ describe('Telegram Bot: Keamanan & Whitelist Chat ID', () => {
 });
 
 describe('Telegram Bot: Format Pesan Alert Realtime & Struk Belanja', () => {
-  it('formatExpenseAlertMessage menampilkan nominal rupiah, merchant, kategori, dan tombol siap verifikasi', () => {
+  it('formatExpenseAlertMessage menampilkan nominal rupiah, merchant, kategori, waktu WIB, dan tombol siap verifikasi', () => {
     const text = formatExpenseAlertMessage({
       merchant: 'Warung Bu Joko',
       amount: 45000,
       categoryName: 'Belanja Dapur',
       accountName: 'GoPay',
       sourceDevice: 'istri',
+      transactionDate: '2026-11-07T10:15:00.000Z',
     });
 
     assert.ok(text.includes('PENGELUARAN BARU TERDETEKSI'));
@@ -328,15 +331,18 @@ describe('Telegram Bot: Format Pesan Alert Realtime & Struk Belanja', () => {
     assert.ok(text.includes('45.000'));
     assert.ok(text.includes('Belanja Dapur'));
     assert.ok(text.includes('(Istri)'));
+    assert.ok(text.includes('Waktu:'));
+    assert.ok(text.includes('WIB'));
   });
 
-  it('formatExpenseVerifiedMessage menampilkan status reconciled dan nama verifikator', () => {
+  it('formatExpenseVerifiedMessage menampilkan status reconciled, waktu WIB, dan nama verifikator', () => {
     const text = formatExpenseVerifiedMessage({
       merchant: 'SPBU Pertamina',
       amount: 100000,
       categoryName: 'Transportasi/Bensin',
       accountName: 'Bank Jago',
       verifiedBy: 'Ajian N.',
+      transactionDate: '2026-11-07T11:20:00.000Z',
     });
 
     assert.ok(text.includes('PENGELUARAN TERVERIFIKASI'));
@@ -344,6 +350,8 @@ describe('Telegram Bot: Format Pesan Alert Realtime & Struk Belanja', () => {
     assert.ok(text.includes('100.000'));
     assert.ok(text.includes('Ajian N.'));
     assert.ok(text.includes('Reconciled'));
+    assert.ok(text.includes('Waktu:'));
+    assert.ok(text.includes('WIB'));
   });
 
   it('formatExpenseRejectedMessage menampilkan alasan penolakan dan indikator pembelajaran AI', () => {
@@ -360,21 +368,24 @@ describe('Telegram Bot: Format Pesan Alert Realtime & Struk Belanja', () => {
     assert.ok(text.includes('dipelajari oleh AI'));
   });
 
-  it('formatReceiptScanSuccessMessage menampilkan hasil pembacaan Vision AI', () => {
+  it('formatReceiptScanSuccessMessage menampilkan hasil pembacaan Vision AI beserta waktu WIB', () => {
     const text = formatReceiptScanSuccessMessage({
       merchant: 'Indomaret Point',
       amount: 87500,
       categoryName: 'Belanja Dapur',
       accountName: 'BCA',
+      transactionDate: '2026-11-07T09:30:00.000Z',
     });
 
     assert.ok(text.includes('STRUK BERHASIL DIPINDAI'));
     assert.ok(text.includes('Indomaret Point'));
     assert.ok(text.includes('87.500'));
     assert.ok(text.includes('BCA'));
+    assert.ok(text.includes('Waktu:'));
+    assert.ok(text.includes('WIB'));
   });
 
-  it('formatExpenseAlertMessage dengan isAutoReconciled menyajikan status reconciled', () => {
+  it('formatExpenseAlertMessage dengan isAutoReconciled menyajikan status reconciled dan waktu WIB', () => {
     const text = formatExpenseAlertMessage({
       merchant: 'Superindo',
       amount: 150000,
@@ -382,18 +393,22 @@ describe('Telegram Bot: Format Pesan Alert Realtime & Struk Belanja', () => {
       accountName: 'BCA',
       sourceDevice: 'suami',
       isAutoReconciled: true,
+      transactionDate: '2026-11-07T13:45:00.000Z',
     });
 
     assert.ok(text.includes('PENGELUARAN DICATAT OTOMATIS'));
     assert.ok(text.includes('Reconciled'));
     assert.ok(text.includes('150.000'));
+    assert.ok(text.includes('Waktu:'));
+    assert.ok(text.includes('WIB'));
   });
 
-  it('formatInternalTransferAlertMessage menyajikan informasi perpindahan akun dan saldo seimbang', () => {
+  it('formatInternalTransferAlertMessage menyajikan informasi perpindahan akun dan saldo seimbang beserta waktu WIB', () => {
     const text = formatInternalTransferAlertMessage({
       fromAccount: 'Bank Jago Suami',
       toAccount: 'GoPay Suami',
       amount: 200000,
+      transactionDate: '2026-11-07T14:10:00.000Z',
     });
 
     assert.ok(text.includes('PERPINDAHAN DANA TERDETEKSI'));
@@ -401,6 +416,48 @@ describe('Telegram Bot: Format Pesan Alert Realtime & Struk Belanja', () => {
     assert.ok(text.includes('GoPay Suami'));
     assert.ok(text.includes('200.000'));
     assert.ok(text.includes('tidak dihitung memotong anggaran'));
+    assert.ok(text.includes('Waktu:'));
+    assert.ok(text.includes('WIB'));
+  });
+
+  it('formatTodayExpensesMessage menyajikan rincian pengeluaran khusus hari ini atau pesan aman', () => {
+    // 1. Kondisi belum ada belanja
+    const emptyMsg = formatTodayExpensesMessage({
+      dateLabel: 'Sabtu, 7 Nov 2026',
+      items: [],
+      totalAmount: 0,
+    });
+    assert.ok(emptyMsg.includes('PENGELUARAN HARI INI'));
+    assert.ok(emptyMsg.includes('Belum ada pengeluaran yang tercatat hari ini'));
+
+    // 2. Kondisi ada belanja hari ini
+    const populatedMsg = formatTodayExpensesMessage({
+      dateLabel: 'Sabtu, 7 Nov 2026',
+      items: [
+        {
+          time: '08:30 WIB',
+          merchant: 'Tukang Sayur Keliling',
+          amount: 45000,
+          categoryName: 'Belanja Dapur',
+          accountName: 'Dana Istri',
+        },
+        {
+          time: '12:15 WIB',
+          merchant: 'Ayam Geprek Mas Eko',
+          amount: 28000,
+          categoryName: 'Makan & Jajan',
+          accountName: 'GoPay Suami',
+        },
+      ],
+      totalAmount: 73000,
+    });
+    assert.ok(populatedMsg.includes('PENGELUARAN HARI INI'));
+    assert.ok(populatedMsg.includes('Tukang Sayur Keliling'));
+    assert.ok(populatedMsg.includes('45.000'));
+    assert.ok(populatedMsg.includes('Belanja Dapur'));
+    assert.ok(populatedMsg.includes('Ayam Geprek Mas Eko'));
+    assert.ok(populatedMsg.includes('73.000'));
+    assert.ok(populatedMsg.includes('2 transaksi'));
   });
 });
 
@@ -540,6 +597,39 @@ describe('Telegram Bot: NLP Parser & Perintah Cepat', () => {
     assert.strictEqual(resAnggaran.type, 'chat_answer');
     assert.ok(resAnggaran.replyText.includes('Belanja Dapur'));
     assert.ok(resAnggaran.replyText.includes('900.000'));
+
+    // Pertanyaan Pengeluaran Hari Ini
+    const contextWithToday: FinancialContext = {
+      ...mockContext,
+      todaySpent: 73000,
+      todayTransactions: [
+        { time: '08:30 WIB', merchant: 'Tukang Sayur', amount: 45000, categoryName: 'Belanja Dapur' },
+        { time: '12:15 WIB', merchant: 'Ayam Geprek', amount: 28000, categoryName: 'Makan & Jajan' },
+      ],
+    };
+    const resToday = await processFinancialChatWithAI('pengeluaran hari ini apa saja?', contextWithToday);
+    assert.strictEqual(resToday.type, 'chat_answer');
+    assert.ok(resToday.replyText.includes('Pengeluaran Hari Ini'));
+    assert.ok(resToday.replyText.includes('Tukang Sayur'));
+    assert.ok(resToday.replyText.includes('45.000'));
+    assert.ok(resToday.replyText.includes('73.000'));
+  });
+
+  it('isDirectCategoryFeedback mengenali instruksi koreksi kategori pos belanja', () => {
+    assert.strictEqual(isDirectCategoryFeedback('masuk dapur'), true);
+    assert.strictEqual(isDirectCategoryFeedback('kategori belanja dapur'), true);
+    assert.strictEqual(isDirectCategoryFeedback('ubah ke makan & jajan'), true);
+    assert.strictEqual(isDirectCategoryFeedback('ke transportasi'), true);
+    assert.strictEqual(isDirectCategoryFeedback('dapur'), true);
+    assert.strictEqual(isDirectCategoryFeedback('bukan belanja'), false);
+    assert.strictEqual(isDirectCategoryFeedback('ini salah'), false);
+  });
+
+  it('getTodayRangeWIB menghasilkan rentang 00:00:00 hingga 23:59:59 WIB secara presisi', () => {
+    const range = getTodayRangeWIB(new Date('2026-11-07T12:00:00Z'));
+    assert.ok(range.label);
+    assert.strictEqual(range.subLabel, 'Hari Ini');
+    assert.ok(range.startDate < range.endDate);
   });
 
   it('Ekstraksi referensi UUID pada format force reply pembatalan [REF:uuid]', () => {
@@ -779,13 +869,15 @@ describe('Telegram Bot: NLP Parser & Perintah Cepat', () => {
 
     let updatedStatus = '';
     let updatedNotes = '';
+    let updatedDirection = '';
+    let updatedMerchant = '';
     const mockTx = {
       id: 'tx-dana-7500',
       merchant: 'Transfer Internal: Top Up DANA',
       amount: 7500,
-      direction: 'out',
+      direction: 'in',
       account_id: null,
-      status: 'reconciled',
+      status: 'pending',
       raw_notification: '[Notifikasi DANA] Promo Voucher DANA Deals Rp 7.500',
     };
 
@@ -808,13 +900,33 @@ describe('Telegram Bot: NLP Parser & Perintah Cepat', () => {
         if (table === 'transactions') {
           return {
             select: () => createChain(),
-            update: (payload: { status: string; notes?: string }) => ({
+            update: (payload: { status: string; notes?: string; direction?: string; merchant?: string }) => ({
               eq: () => ({
                 eq: async () => {
                   updatedStatus = payload.status;
                   updatedNotes = payload.notes || '';
+                  updatedDirection = payload.direction || '';
+                  updatedMerchant = payload.merchant || '';
                   return { error: null };
                 },
+              }),
+            }),
+          };
+        }
+        if (table === 'categories') {
+          return {
+            select: () => ({
+              eq: async () => ({
+                data: [{ id: 'cat-dapur', name: 'Belanja Dapur' }],
+                error: null,
+              }),
+            }),
+            insert: () => ({
+              select: () => ({
+                maybeSingle: async () => ({
+                  data: { id: 'cat-dapur', name: 'Belanja Dapur' },
+                  error: null,
+                }),
               }),
             }),
           };
@@ -846,6 +958,27 @@ describe('Telegram Bot: NLP Parser & Perintah Cepat', () => {
       assert.strictEqual(handled, true);
       assert.strictEqual(updatedStatus, 'ignored');
       assert.ok(updatedNotes.includes('Ini salah'));
+
+      // Test Kasus 2.B: Balasan "masuk dapur" langsung memperbarui pos anggaran ke Belanja Dapur
+      updatedStatus = '';
+      updatedNotes = '';
+      const replyCategoryMessage = {
+        message_id: 205,
+        chat: { id: 987654321, type: 'private' },
+        date: 1700000000,
+        text: 'masuk dapur',
+        reply_to_message: {
+          message_id: 201,
+          text: sampleAlert,
+        },
+      };
+
+      const handledCatReply = await handleCustomRejectionReply(replyCategoryMessage, mockSupabase, 'hh-test');
+      assert.strictEqual(handledCatReply, true);
+      assert.strictEqual(updatedStatus, 'reconciled');
+      assert.strictEqual(updatedDirection, 'out');
+      assert.strictEqual(updatedMerchant, 'Top Up DANA');
+      assert.ok(updatedNotes.includes('Belanja Dapur'));
 
       // Test Kasus 3: Balasan "Itu spam" ke pesan AI bot umum (bukan alert kartu transaksi)
       updatedStatus = '';
@@ -964,6 +1097,12 @@ describe('Telegram Bot: NLP Parser & Perintah Cepat', () => {
 
     const sampleSpamDelCallback = 'cfg:sdel:12345678';
     assert.ok(Buffer.byteLength(sampleSpamDelCallback, 'utf8') <= 64);
+
+    const sampleCategoryCallback = 'tsc:123e4567-e89b-12d3-a456-426614174000:b-dapur';
+    assert.ok(Buffer.byteLength(sampleCategoryCallback, 'utf8') <= 64);
+
+    const sampleCategoryMenuCallback = 'tx_cat:123e4567-e89b-12d3-a456-426614174000';
+    assert.ok(Buffer.byteLength(sampleCategoryMenuCallback, 'utf8') <= 64);
 
     // 4. Pengujian Perintah Chat Tambah & Nonaktifkan Akun
     let insertedAcc: any = null;

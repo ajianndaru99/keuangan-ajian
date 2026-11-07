@@ -35,7 +35,6 @@ import {
   TrendingUp,
   Wallet,
   Bot,
-  Sliders,
   CheckCircle2,
 } from 'lucide-react';
 

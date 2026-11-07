@@ -19,7 +19,6 @@ import {
   Smartphone,
   Bot,
   CheckCircle2,
-  Sliders,
 } from 'lucide-react';
 
 export interface AccountBalanceItem {

@@ -179,6 +179,7 @@ export async function handleTelegramPhotoMessage(
     amount: vision.totalAmount,
     categoryName,
     accountName,
+    transactionDate: vision.transactionDate || new Date().toISOString(),
   });
 
   await sendTelegramMessage(chatId, messageText, {
@@ -186,8 +187,9 @@ export async function handleTelegramPhotoMessage(
     reply_markup: {
       inline_keyboard: [
         [
-          { text: '✅ Benar & Sesuai', callback_data: `tx_ok:${newTx.id}` },
-          { text: '❌ Salah / Bukan Belanja', callback_data: `tx_wrong_menu:${newTx.id}` },
+          { text: '✅ Sesuai', callback_data: `tx_ok:${newTx.id}` },
+          { text: '📁 Kategori', callback_data: `tx_cat:${newTx.id}` },
+          { text: '❌ Batal', callback_data: `tx_wrong_menu:${newTx.id}` },
         ],
       ],
     },

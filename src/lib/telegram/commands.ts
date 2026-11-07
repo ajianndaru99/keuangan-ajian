@@ -10,19 +10,29 @@ import {
   formatAnggaranMessage,
   formatRekapMessage,
   formatInboxMessage,
+  formatTodayExpensesMessage,
 } from './formatters.ts';
 import type {
   CategoryBudgetItem,
   AccountBalanceItem,
 } from './formatters.ts';
-import { getMonthlyRange, getWeeklyRange, calculateComparison } from '../date-utils.ts';
+import {
+  getMonthlyRange,
+  getWeeklyRange,
+  getTodayRangeWIB,
+  calculateComparison,
+} from '../date-utils.ts';
+import { formatTimeWIB } from '../utils.ts';
 import { TARGET_BUDGET_CATEGORIES, matchTargetCategory } from '../budget/budget-guard.ts';
 import type { FinancialContext } from './nlp-chat.ts';
 
 interface TxCatRelation {
-  amount: number;
+  amount?: number | null;
+  merchant?: string | null;
   category_id?: string | null;
-  categories: { name: string } | null;
+  transaction_date?: string | null;
+  categories?: { name: string } | null;
+  accounts?: { name: string } | null;
 }
 
 /**
@@ -60,7 +70,7 @@ export async function buildFinancialContext(
   // Kecualikan koreksi saldo administratif dan transfer internal antar rekening
   let txQuery = supabase
     .from('transactions')
-    .select('amount, merchant, category_id, categories(name)')
+    .select('amount, merchant, category_id, transaction_date, categories(name)')
     .eq('household_id', householdId)
     .eq('direction', 'out')
     .eq('status', 'reconciled');
@@ -81,7 +91,8 @@ export async function buildFinancialContext(
   }
 
   // Filter in-memory cadangan
-  const validTxs = (txList || []).filter((t: any) => !/^(koreksi saldo|transfer internal)/i.test(t.merchant || ''));
+  const rawTxList = (txList || []) as unknown as TxCatRelation[];
+  const validTxs = rawTxList.filter((t) => !/^(koreksi saldo|transfer internal)/i.test(t.merchant || ''));
   const totalSpentMonth = validTxs.reduce((sum, t) => sum + Number(t.amount || 0), 0);
 
   // Ambil transaksi pending untuk catatan konteks
@@ -133,6 +144,22 @@ export async function buildFinancialContext(
     };
   });
 
+  // 5. Hitung Pengeluaran Hari Ini (WIB)
+  const todayRange = getTodayRangeWIB(now);
+  const todayTxs = validTxs.filter((t) => {
+    if (!t.transaction_date) return false;
+    const txTime = new Date(t.transaction_date).getTime();
+    return txTime >= todayRange.startDate.getTime() && txTime <= todayRange.endDate.getTime();
+  });
+
+  const todaySpent = todayTxs.reduce((sum, t) => sum + Number(t.amount || 0), 0);
+  const todayTransactions = todayTxs.map((t) => ({
+    time: formatTimeWIB(t.transaction_date || ''),
+    merchant: t.merchant || 'Transaksi',
+    amount: Number(t.amount || 0),
+    categoryName: (t.categories?.name || 'Lainnya'),
+  }));
+
   return {
     accounts: accountItems,
     totalBalance,
@@ -143,6 +170,8 @@ export async function buildFinancialContext(
     categoryBudgets,
     periodLabel: dateRange.label,
     pendingCount: pendingCount || 0,
+    todaySpent,
+    todayTransactions,
   };
 }
 
@@ -342,6 +371,62 @@ export async function handleInboxCommand(
     pendingCount: pendingCount || 0,
     unreviewedRawCount: unreviewedCount || 0,
     oldestPendingDate: oldestDateStr,
+  });
+
+  await sendTelegramMessage(chatId, text);
+}
+
+/**
+ * Handler Perintah /hariini atau /today (Hanya Pengeluaran Hari Berjalan)
+ */
+export async function handleTodayExpensesCommand(
+  chatId: number | string,
+  supabase: SupabaseClient,
+  householdId: string
+): Promise<void> {
+  const todayRange = getTodayRangeWIB(new Date());
+
+  let query = supabase
+    .from('transactions')
+    .select('amount, merchant, transaction_date, category_id, categories(name), accounts(name)')
+    .eq('household_id', householdId)
+    .eq('direction', 'out')
+    .eq('status', 'reconciled')
+    .gte('transaction_date', todayRange.startDate.toISOString())
+    .lte('transaction_date', todayRange.endDate.toISOString())
+    .order('transaction_date', { ascending: true });
+
+  const qAny = query as any;
+  if (typeof qAny.not === 'function') {
+    query = qAny
+      .not('merchant', 'ilike', 'Koreksi Saldo:%')
+      .not('merchant', 'ilike', 'Transfer Internal:%');
+  }
+
+  const { data: rawList, error } = await query;
+  if (error) {
+    console.error('[Commands handleTodayExpensesCommand Error]:', error.message);
+  }
+
+  const rawItems = (rawList || []) as unknown as TxCatRelation[];
+  const validItems = rawItems.filter(
+    (t) => !/^(koreksi saldo|transfer internal)/i.test(t.merchant || '')
+  );
+
+  const items = validItems.map((t) => ({
+    time: formatTimeWIB(t.transaction_date || ''),
+    merchant: t.merchant || 'Pengeluaran',
+    amount: Number(t.amount || 0),
+    categoryName: t.categories?.name || 'Lainnya',
+    accountName: t.accounts?.name || 'Akun',
+  }));
+
+  const totalAmount = items.reduce((sum, item) => sum + item.amount, 0);
+
+  const text = formatTodayExpensesMessage({
+    dateLabel: todayRange.label,
+    items,
+    totalAmount,
   });
 
   await sendTelegramMessage(chatId, text);

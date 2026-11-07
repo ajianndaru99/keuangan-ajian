@@ -13,6 +13,7 @@ import { getMonthlyRange, getBudgetPeriodKey } from '../date-utils.ts';
 import { buildFinancialContext } from './commands.ts';
 import { syncAccountBalance } from '../account-balance.ts';
 import { extractPromoKeywordsFromText } from '../ai/adaptive-rules.ts';
+import { assignTransactionCategory } from './category-helper.ts';
 import {
   parseNominal,
   parseSetSaldoCommand,
@@ -110,6 +111,18 @@ export function isDirectRejectionFeedback(text: string): boolean {
   const clean = text.trim();
   if (!clean || clean.length > 100) return false;
   return /\b(salah|spam|promo|iklan|batal|batalkan|hapus|bukan\s+transaksi|bukan\s+belanja|dobel|duplikat|keliru|abaikan|ngaco|ngawur|hoax)\b/i.test(clean);
+}
+
+/**
+ * Mengecek apakah balasan pengguna merupakan instruksi koreksi kategori (misal: "masuk dapur", "kategori belanja dapur")
+ */
+export function isDirectCategoryFeedback(text: string): boolean {
+  const clean = text.trim().toLowerCase();
+  if (!clean || clean.length > 60) return false;
+  return (
+    /^(?:masuk|kategori|pos|ke|ubah\s+ke|pindah\s+ke|set\s+kategori)\s+([a-zA-Z\s&/]+)$/i.test(clean) ||
+    /^(?:dapur|belanja dapur|makan|jajan|makan & jajan|bensin|transport|transportasi|tagihan|utilitas|kebutuhan rumah|jalan-jalan|liburan|darurat|keperluan mendadak)$/i.test(clean)
+  );
 }
 
 /**
@@ -229,11 +242,52 @@ async function cancelTransactionAndLearnSpam(
 }
 
 /**
+ * Memperbarui kategori transaksi via reply teks pengguna
+ */
+async function updateTransactionCategoryFromReply(
+  targetTx: {
+    id: string;
+    merchant?: string | null;
+    amount?: number | null;
+    account_id?: string | null;
+  },
+  userCategoryText: string,
+  message: TelegramMessage,
+  supabase: SupabaseClient,
+  householdId: string
+): Promise<boolean> {
+  const changerName = message.from?.first_name || 'Keluarga';
+  const result = await assignTransactionCategory(supabase, householdId, targetTx.id, userCategoryText, changerName);
+
+  if (!result.success) {
+    console.error('[UpdateCategoryFromReply Error]:', result.error);
+    await sendTelegramMessage(
+      message.chat.id,
+      '⚠️ Gagal memperbarui kategori ke database.',
+      { reply_to_message_id: message.message_id }
+    );
+    return true;
+  }
+
+  const txName = targetTx.merchant || 'Transaksi';
+  const txAmount = targetTx.amount ? formatRupiah(Number(targetTx.amount)) : '';
+
+  await sendTelegramMessage(
+    message.chat.id,
+    `📁 *Kategori Berhasil Diperbarui* ✅\n\nTransaksi: *${txName}* ${txAmount ? `(\`${txAmount}\`)` : ''}\nKategori Baru: *${result.emoji} ${result.categoryName}*\n\n_Transaksi berstatus Reconciled dan dialokasikan ke pos belanja ${result.categoryName}._`,
+    { reply_to_message_id: message.message_id }
+  );
+
+  return true;
+}
+
+/**
  * Handler Balasan Teks Pengguna untuk Pembatalan Transaksi / Laporan Spam
  * Mendukung:
  * 1. Force Reply resmi dengan tag [REF:uuid]
  * 2. Reply langsung ("Ini salah", "Itu spam", "Promo", "Batalkan") ke pesan notifikasi transaksi bot
- * 3. Pesan susulan ("Itu spam", "Ini salah") terhadap transaksi terakhir yang baru tercatat
+ * 3. Reply langsung koreksi kategori ("masuk dapur", "kategori belanja dapur")
+ * 4. Pesan susulan ("Itu spam", "Ini salah") terhadap transaksi terakhir yang baru tercatat
  */
 export async function handleCustomRejectionReply(
   message: TelegramMessage,
@@ -266,47 +320,84 @@ export async function handleCustomRejectionReply(
     );
   }
 
-  // Kasus 2: Balasan langsung ("Ini salah", "Itu spam", "Promo", dll) ke kartu notifikasi transaksi/perpindahan dana bot
+  // Kasus 2: Balasan langsung ke kartu notifikasi transaksi/perpindahan dana bot
   const isBotTransactionAlert =
     replyText.includes('PERPINDAHAN DANA') ||
     replyText.includes('PENGELUARAN') ||
     replyText.includes('PEMASUKAN') ||
     replyText.includes('STRUK BERHASIL DIPINDAI');
 
-  if (isBotTransactionAlert && isDirectRejectionFeedback(userReason)) {
+  if (isBotTransactionAlert) {
     const refMatch = replyText.match(/\[REF:([a-f0-9-]{36})\]/i);
-    if (refMatch) {
-      const { data: txByRef } = await supabase
+
+    // 2.A: Koreksi Kategori ("masuk dapur", "kategori bensin", dll)
+    if (isDirectCategoryFeedback(userReason)) {
+      if (refMatch) {
+        const { data: txByRef } = await supabase
+          .from('transactions')
+          .select('id, merchant, amount, direction, account_id, status, raw_notification')
+          .eq('id', refMatch[1])
+          .eq('household_id', householdId)
+          .maybeSingle();
+        if (txByRef) {
+          return updateTransactionCategoryFromReply(txByRef, userReason, message, supabase, householdId);
+        }
+      }
+
+      const alertAmount = extractAmountFromBotAlertText(replyText);
+      let query = supabase
         .from('transactions')
         .select('id, merchant, amount, direction, account_id, status, raw_notification')
-        .eq('id', refMatch[1])
         .eq('household_id', householdId)
-        .maybeSingle();
-      if (txByRef) {
-        return cancelTransactionAndLearnSpam(txByRef, userReason, message, supabase, householdId);
+        .neq('status', 'ignored')
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (alertAmount > 0) {
+        query = query.eq('amount', alertAmount);
+      }
+
+      const { data: matchedTx } = await query.maybeSingle();
+      if (matchedTx) {
+        return updateTransactionCategoryFromReply(matchedTx, userReason, message, supabase, householdId);
       }
     }
 
-    const alertAmount = extractAmountFromBotAlertText(replyText);
-    let query = supabase
-      .from('transactions')
-      .select('id, merchant, amount, direction, account_id, status, raw_notification')
-      .eq('household_id', householdId)
-      .neq('status', 'ignored')
-      .order('created_at', { ascending: false })
-      .limit(1);
+    // 2.B: Pembatalan / Laporan Spam
+    if (isDirectRejectionFeedback(userReason)) {
+      if (refMatch) {
+        const { data: txByRef } = await supabase
+          .from('transactions')
+          .select('id, merchant, amount, direction, account_id, status, raw_notification')
+          .eq('id', refMatch[1])
+          .eq('household_id', householdId)
+          .maybeSingle();
+        if (txByRef) {
+          return cancelTransactionAndLearnSpam(txByRef, userReason, message, supabase, householdId);
+        }
+      }
 
-    if (alertAmount > 0) {
-      query = query.eq('amount', alertAmount);
-    }
+      const alertAmount = extractAmountFromBotAlertText(replyText);
+      let query = supabase
+        .from('transactions')
+        .select('id, merchant, amount, direction, account_id, status, raw_notification')
+        .eq('household_id', householdId)
+        .neq('status', 'ignored')
+        .order('created_at', { ascending: false })
+        .limit(1);
 
-    const { data: matchedTx } = await query.maybeSingle();
-    if (matchedTx) {
-      return cancelTransactionAndLearnSpam(matchedTx, userReason, message, supabase, householdId);
+      if (alertAmount > 0) {
+        query = query.eq('amount', alertAmount);
+      }
+
+      const { data: matchedTx } = await query.maybeSingle();
+      if (matchedTx) {
+        return cancelTransactionAndLearnSpam(matchedTx, userReason, message, supabase, householdId);
+      }
     }
   }
 
-  // Kasus 3: Pesan komplain ("Itu spam", "Ini salah", "Itu promo", "Batalkan") baik tanpa reply atau reply ke pesan bot umum (mis. fallback AI)
+  // Kasus 3: Pesan komplain ("Itu spam", "Ini salah", "Itu promo", "Batalkan")
   const isComplaint = isDirectRejectionFeedback(userReason) || /^(?:itu|ini|yg\s+tadi|yang\s+barusan)?\s*(?:salah|spam|promo|iklan|bukan\s+transaksi|hapus|batalkan)\s*[.!?]*$/i.test(userReason);
   if (isComplaint) {
     const { data: latestTx } = await supabase

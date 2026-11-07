@@ -120,12 +120,54 @@ export function getMonthlyRange(offset: number = 0, monthStartDay: number = 1): 
 }
 
 /**
+ * Mendapatkan rentang waktu hari ini (00:00:00.000 - 23:59:59.999 WIB)
+ */
+export function getTodayRangeWIB(referenceDate: Date = new Date()): DateRange {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Jakarta',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(referenceDate);
+
+  const year = parseInt(parts.find((p) => p.type === 'year')?.value || '1970', 10);
+  const month = parseInt(parts.find((p) => p.type === 'month')?.value || '1', 10) - 1;
+  const day = parseInt(parts.find((p) => p.type === 'day')?.value || '1', 10);
+
+  // WIB adalah UTC+7 (00:00:00 WIB = 17:00:00 UTC hari sebelumnya)
+  const startDate = new Date(Date.UTC(year, month, day, 0 - 7, 0, 0, 0));
+  const endDate = new Date(Date.UTC(year, month, day, 23 - 7, 59, 59, 999));
+
+  const dayNameId = new Intl.DateTimeFormat('id-ID', {
+    timeZone: 'Asia/Jakarta',
+    weekday: 'long',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(referenceDate);
+
+  return {
+    startDate,
+    endDate,
+    label: dayNameId,
+    subLabel: 'Hari Ini',
+  };
+}
+
+/**
  * Mendapatkan kunci string period_month standar (format: YYYY-MM) berdasarkan tanggal dan siklus gajian
  */
 export function getBudgetPeriodKey(date: Date = new Date(), monthStartDay: number = 1): string {
-  const range = getMonthlyRange(0, monthStartDay);
-  const year = range.startDate.getFullYear();
-  const month = String(range.startDate.getMonth() + 1).padStart(2, '0');
+  const safeStartDay = Math.min(28, Math.max(1, monthStartDay));
+  let baseYear = date.getFullYear();
+  let baseMonth = date.getMonth();
+
+  if (safeStartDay > 1 && date.getDate() < safeStartDay) {
+    baseMonth -= 1;
+  }
+  const startDate = new Date(baseYear, baseMonth, safeStartDay);
+  const year = startDate.getFullYear();
+  const month = String(startDate.getMonth() + 1).padStart(2, '0');
   return `${year}-${month}`;
 }
 

@@ -570,14 +570,17 @@ export async function POST(req: NextRequest) {
 
         // 0. Kirim Notifikasi Transfer Internal / Top-Up ke Telegram lengkap dengan Tombol Koreksi & Batalkan
         if (isInternalTransfer && internalTransferAlertPayload && isTelegramConfigured() && newTransaction?.id) {
-          const transferAlert = formatInternalTransferAlertMessage(internalTransferAlertPayload);
+          const transferAlert = formatInternalTransferAlertMessage({
+            ...internalTransferAlertPayload,
+            transactionDate: transactionDate || new Date().toISOString(),
+          });
           try {
             await broadcastToAllowedChats(transferAlert, {
               reply_markup: {
                 inline_keyboard: [
                   [
-                    { text: '✏️ Koreksi Mutasi', callback_data: `tx_edit:${newTransaction.id}` },
-                    { text: '❌ Batalkan / Promo', callback_data: `tx_wrong_menu:${newTransaction.id}` },
+                    { text: '✏️ Ubah', callback_data: `tx_edit:${newTransaction.id}` },
+                    { text: '❌ Batal', callback_data: `tx_wrong_menu:${newTransaction.id}` },
                   ],
                 ],
               },
@@ -600,23 +603,24 @@ export async function POST(req: NextRequest) {
               accountName: accName,
               sourceDevice,
               isAutoReconciled: isFixFormat,
+              transactionDate: transactionDate || new Date().toISOString(),
             });
 
             const replyMarkup = isFixFormat
               ? {
                   inline_keyboard: [
                     [
-                      { text: '✏️ Koreksi Mutasi', callback_data: `tx_edit:${newTransaction.id}` },
-                      { text: '❌ Batalkan', callback_data: `tx_wrong_menu:${newTransaction.id}` },
+                      { text: '✏️ Ubah', callback_data: `tx_edit:${newTransaction.id}` },
+                      { text: '❌ Batal', callback_data: `tx_wrong_menu:${newTransaction.id}` },
                     ],
                   ],
                 }
               : {
                   inline_keyboard: [
                     [
-                      { text: '✅ Benar & Sesuai', callback_data: `tx_ok:${newTransaction.id}` },
-                      { text: '✏️ Koreksi', callback_data: `tx_edit:${newTransaction.id}` },
-                      { text: '❌ Salah', callback_data: `tx_wrong_menu:${newTransaction.id}` },
+                      { text: '✅ Sesuai', callback_data: `tx_ok:${newTransaction.id}` },
+                      { text: '✏️ Ubah', callback_data: `tx_edit:${newTransaction.id}` },
+                      { text: '❌ Batal', callback_data: `tx_wrong_menu:${newTransaction.id}` },
                     ],
                   ],
                 };
@@ -645,23 +649,28 @@ export async function POST(req: NextRequest) {
               accountName: accName,
               sourceDevice,
               isAutoReconciled: isFixFormat,
+              transactionDate: transactionDate || new Date().toISOString(),
             });
 
             const replyMarkup = isFixFormat
               ? {
                   inline_keyboard: [
                     [
-                      { text: '✏️ Koreksi Mutasi', callback_data: `tx_edit:${newTransaction.id}` },
-                      { text: '❌ Batalkan / Promo', callback_data: `tx_wrong_menu:${newTransaction.id}` },
+                      { text: '📁 Kategori', callback_data: `tx_cat:${newTransaction.id}` },
+                      { text: '✏️ Ubah', callback_data: `tx_edit:${newTransaction.id}` },
+                      { text: '❌ Batal', callback_data: `tx_wrong_menu:${newTransaction.id}` },
                     ],
                   ],
                 }
               : {
                   inline_keyboard: [
                     [
-                      { text: '✅ Benar & Sesuai', callback_data: `tx_ok:${newTransaction.id}` },
-                      { text: '✏️ Koreksi', callback_data: `tx_edit:${newTransaction.id}` },
-                      { text: '❌ Salah', callback_data: `tx_wrong_menu:${newTransaction.id}` },
+                      { text: '✅ Sesuai', callback_data: `tx_ok:${newTransaction.id}` },
+                      { text: '📁 Kategori', callback_data: `tx_cat:${newTransaction.id}` },
+                    ],
+                    [
+                      { text: '✏️ Ubah', callback_data: `tx_edit:${newTransaction.id}` },
+                      { text: '❌ Batal', callback_data: `tx_wrong_menu:${newTransaction.id}` },
                     ],
                   ],
                 };

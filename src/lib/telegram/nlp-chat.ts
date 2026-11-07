@@ -15,6 +15,8 @@ export interface FinancialContext {
   categoryBudgets: Array<{ name: string; spent: number; limit: number; remaining: number }>;
   periodLabel: string;
   pendingCount?: number;
+  todaySpent?: number;
+  todayTransactions?: Array<{ time: string; merchant: string; amount: number; categoryName: string }>;
 }
 
 export interface ExtractedTransaction {
@@ -204,6 +206,7 @@ Tugas Anda:
    Ekstrak: accountName (nama akun spesifik atau "total_kas") dan amount (angka nominal target).
 3. PERTANYAAN & KONSULTASI KEUANGAN (type: "chat_answer"):
    Jika pesan pengguna menanyakan data keuangan keluarga (saldo, pengeluaran, sisa pagu, safe daily spend) ATAU konsultasi keuangan keluarga (tips menabung, evaluasi belanja, dana darurat, investasi, utang, perencanaan keuangan).
+   PENTING: Jika pengguna menanyakan pengeluaran hari ini ("pengeluaran hari ini apa saja", "hari ini habis berapa", "belanja hari ini"), jawab HANYA dengan rincian pengeluaran hari ini di bawah, JANGAN mencampur dengan total pengeluaran satu bulan.
    Jawab langsung berbasis data riil keluarga di bawah ini secara ringkas, to-the-point, dan santun (maksimal 2-3 kalimat).
 4. DI LUAR TOPIK KEUANGAN / NON-FINANSIAL (type: "off_topic"):
    Jika pesan pengguna TIDAK ADA HUBUNGANNYA SAMA SEKALI DENGAN KEUANGAN (contoh: tanya cuaca, resep masakan, politik, coding, kesehatan umum non-biaya, tugas sekolah umum, gosip, atau topik di luar finansial).
@@ -215,6 +218,8 @@ KONTEKS FINANSIAL KELUARGA BULAN INI (${context.periodLabel}):
 - Saldo Rekening Saat Ini:
 ${accountLines || '- Tidak ada data rekening'}
 - Total Saldo Kas: ${formatRupiah(context.totalBalance)}
+- Total Pengeluaran Hari Ini (Reconciled): ${formatRupiah(context.todaySpent || 0)} (${context.todayTransactions?.length || 0} transaksi)
+${(context.todayTransactions || []).length > 0 ? (context.todayTransactions || []).map((t) => `  * ${t.time} • ${t.merchant}: ${formatRupiah(t.amount)} (${t.categoryName})`).join('\n') : '  * Belum ada pengeluaran hari ini'}
 - Total Pengeluaran Bulan Ini (Reconciled): ${formatRupiah(context.totalSpentMonth)}
 - Transaksi Pending Belum Terkonfirmasi: ${context.pendingCount || 0} transaksi
 - Total Batas Anggaran: ${formatRupiah(context.totalBudgetLimit)}
@@ -380,6 +385,30 @@ export function handleLocalDeterministicFallback(userText: string, context: Fina
       type: 'set_balance_intent',
       accountName: setSaldoCmd.accountName,
       amount: setSaldoCmd.amount,
+    };
+  }
+
+  // 0.5. Cek pola tanya pengeluaran hari ini
+  if (
+    lower.includes('hari ini') ||
+    lower.includes('hariini') ||
+    lower.includes('today') ||
+    lower === 'pengeluaran hari ini' ||
+    lower.includes('belanja hari ini') ||
+    lower.includes('habis berapa hari ini')
+  ) {
+    if (context.todayTransactions && context.todayTransactions.length > 0) {
+      const lines = context.todayTransactions.map(
+        (t) => `• \`${t.time}\` *${t.merchant}* (\`${formatRupiah(t.amount)}\`) • ${t.categoryName}`
+      );
+      return {
+        type: 'chat_answer',
+        replyText: `📅 *Pengeluaran Hari Ini:*\n\n${lines.join('\n')}\n\n💰 *Total Hari Ini:* \`${formatRupiah(context.todaySpent || 0)}\` _(${context.todayTransactions.length} transaksi)_`,
+      };
+    }
+    return {
+      type: 'chat_answer',
+      replyText: `📅 *Pengeluaran Hari Ini:*\n\n✅ Belum ada pengeluaran yang tercatat untuk hari ini. Kas belanja keluarga tetap aman! 🎯`,
     };
   }
 
