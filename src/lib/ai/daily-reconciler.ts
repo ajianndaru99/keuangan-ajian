@@ -201,37 +201,24 @@ export function runLocalRuleBasedReconciliation(
 
   const processedIds = new Set<string>();
 
-  // 1. Deteksi Duplikat Waktu Sempit (nominal sama, akun/perangkat sama, waktu bersamaan / selisih <= 3 menit)
+  // 1. Deteksi Duplikat Waktu Sempit (nominal sama, arah sama, waktu bersamaan / selisih <= 5 menit)
   for (let i = 0; i < items.length; i++) {
     for (let j = i + 1; j < items.length; j++) {
       const a = items[i];
       const b = items[j];
 
-      // Cek apakah berasal dari akun/perangkat yang sama ATAU akun bersama seperti Kantong Bersama Bank Jago (diterima HP Suami & HP Istri)
-      const isBothJagoOrShared =
-        (a.account.toLowerCase().includes('jago') && b.account.toLowerCase().includes('jago')) ||
-        ((a.text.toLowerCase().includes('jago') || a.text.includes('1500 746')) &&
-         (b.text.toLowerCase().includes('jago') || b.text.includes('1500 746'))) ||
-        a.account.toLowerCase().includes('bersama') ||
-        b.account.toLowerCase().includes('bersama');
-
-      const isSameAccountOrDevice =
-        a.account === b.account ||
-        isBothJagoOrShared ||
-        (a.account.toLowerCase().includes('suami') && b.account.toLowerCase().includes('suami')) ||
-        (a.account.toLowerCase().includes('istri') && b.account.toLowerCase().includes('istri'));
-
       if (
         !processedIds.has(a.id) &&
         !processedIds.has(b.id) &&
-        isSameAccountOrDevice &&
         a.amount === b.amount &&
         a.direction === b.direction &&
-        areTimesClose(a.time, b.time, 3)
+        areTimesClose(a.time, b.time, 5)
       ) {
-        // Tentukan mana yang disimpan: utamakan nama merchant nyata daripada nama kantong e-wallet/generik
+        // Tentukan mana yang disimpan: utamakan nama merchant nyata daripada nama bank/kantong e-wallet/generik
         const isGenericOrPocket = (m: string) =>
-          /daily\s*pocket|kantong|saldo|dana|gopay|ovo|shopeepay|rekening|merchant\s*transaksi|transaksi\s*digital|umum/i.test(m);
+          /^(?:jago|bank\s*jago|bca|mandiri|bri|bni|bsi|seabank|qris|pembayaran(?:\s*qris)?|daily\s*pocket|your\s*daily\s*pocket|kantong|saldo|dana|gopay|ovo|shopeepay|rekening|merchant\s*transaksi|transaksi\s*digital|umum)$/i.test(
+            (m || '').trim()
+          ) || /daily\s*pocket|kantong|saldo|dana|gopay|ovo|shopeepay|rekening|merchant\s*transaksi|transaksi\s*digital|umum/i.test(m || '');
 
         const keepA = !isGenericOrPocket(a.merchant) || isGenericOrPocket(b.merchant);
         const keepTx = keepA ? a : b;

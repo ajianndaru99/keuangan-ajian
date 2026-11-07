@@ -18,7 +18,7 @@ import {
   formatIncomeAlertMessage,
   formatInternalTransferAlertMessage,
 } from '@/lib/telegram/formatters';
-import { applyAccountBalanceDelta } from '@/lib/account-balance';
+import { applyAccountBalanceDelta, syncAccountBalance } from '@/lib/account-balance';
 
 export const dynamic = 'force-dynamic';
 
@@ -347,18 +347,20 @@ export async function POST(req: NextRequest) {
 
       const suggestedCategoryId = categories ? suggestCategoryForMerchant(merchant, categories) : null;
 
-      // Cek apakah ada notifikasi konfirmasi ganda pada waktu bersamaan (+/- 3 menit)
+      // Cek apakah ada notifikasi konfirmasi ganda pada waktu bersamaan (+/- 5 menit) dan nominal sama
+      // Aturan keluarga: jika ada 2 notifikasi bersamaan dengan nominal sama (mis. Rp 13.500 di NURUL HAFIZA RAHIMA & Rp 13.500 di Jago),
+      // maka satukan menjadi 1 transaksi milik Istri (gunakan nama merchant spesifik & alokasikan ke akun Istri)
       const txTimeMs = new Date(transactionDate).getTime();
-      const minTimeIso = new Date(txTimeMs - 3 * 60 * 1000).toISOString();
-      const maxTimeIso = new Date(txTimeMs + 3 * 60 * 1000).toISOString();
+      const minTimeIso = new Date(txTimeMs - 5 * 60 * 1000).toISOString();
+      const maxTimeIso = new Date(txTimeMs + 5 * 60 * 1000).toISOString();
 
       const { data: existingSameTimeTx } = await supabase
         .from('transactions')
-        .select('id, merchant, raw_notification')
+        .select('id, merchant, account_id, source_device, raw_notification')
         .eq('household_id', householdId)
         .eq('amount', amount)
         .eq('direction', direction)
-        .eq('source_device', sourceDevice)
+        .neq('status', 'ignored')
         .gte('transaction_date', minTimeIso)
         .lte('transaction_date', maxTimeIso)
         .order('created_at', { ascending: false })
@@ -366,16 +368,34 @@ export async function POST(req: NextRequest) {
         .maybeSingle();
 
       if (existingSameTimeTx) {
-        // Jika notifikasi baru memiliki nama merchant spesifik (misal 'warung sayur mas Eko') sedangkan sebelumnya nama kantong generik ('your Daily Pocket')
-        const isGeneric = (m: string) => /daily\s*pocket|kantong|saldo|dana|gopay|ovo|shopeepay|rekening|merchant\s*transaksi|transaksi\s*digital/i.test(m);
-        if (isGeneric(existingSameTimeTx.merchant) && !isGeneric(merchant)) {
-          await supabase
-            .from('transactions')
-            .update({
-              merchant,
-              raw_notification: `${existingSameTimeTx.raw_notification} | [Notif Ganda] ${safeTitle}: ${safeContent}`,
-            })
-            .eq('id', existingSameTimeTx.id);
+        const isGeneric = (m: string) =>
+          /^(?:jago|bank\s*jago|bca|mandiri|bri|bni|bsi|seabank|qris|pembayaran(?:\s*qris)?|daily\s*pocket|your\s*daily\s*pocket|kantong(?:\s*utama|\s*bersama)?|saldo|dana|gopay|ovo|shopeepay|linkaja|rekening|merchant(?:\s*transaksi)?|transaksi(?:\s*digital)?|umum|pengeluaran)$/i.test(
+            (m || '').trim()
+          ) || /daily\s*pocket|kantong|saldo|dana|gopay|ovo|shopeepay|rekening|merchant\s*transaksi|transaksi\s*digital/i.test(m || '');
+
+        const bestMerchant = isGeneric(existingSameTimeTx.merchant) && !isGeneric(merchant)
+          ? merchant
+          : existingSameTimeTx.merchant;
+
+        const istriAcc = (accounts || []).find((a) => a.owner === 'istri');
+        const targetIstriAccountId = direction === 'out' && istriAcc?.id ? istriAcc.id : existingSameTimeTx.account_id;
+        const previousAccountId = existingSameTimeTx.account_id;
+
+        await supabase
+          .from('transactions')
+          .update({
+            merchant: bestMerchant,
+            source_device: direction === 'out' ? 'istri' : existingSameTimeTx.source_device,
+            account_id: targetIstriAccountId,
+            raw_notification: `${existingSameTimeTx.raw_notification} | [Notif Ganda Istri] ${safeTitle}: ${safeContent}`,
+          })
+          .eq('id', existingSameTimeTx.id);
+
+        if (previousAccountId && previousAccountId !== targetIstriAccountId) {
+          await syncAccountBalance(supabase, previousAccountId);
+        }
+        if (targetIstriAccountId && previousAccountId !== targetIstriAccountId) {
+          await syncAccountBalance(supabase, targetIstriAccountId);
         }
 
         return NextResponse.json(
@@ -384,7 +404,7 @@ export async function POST(req: NextRequest) {
             duplicate: true,
             review_alert: null,
             budget_alert: null,
-            message: 'Notifikasi konfirmasi kedua pada waktu dan nominal bersamaan disatukan otomatis.',
+            message: 'Notifikasi konfirmasi kedua pada waktu dan nominal bersamaan disatukan otomatis sebagai pengeluaran Istri.',
             dedupe_hash: dedupeHash,
           },
           { status: 200, headers: corsHeaders }

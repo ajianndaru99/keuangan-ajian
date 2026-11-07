@@ -20,6 +20,7 @@ import {
   formatReceiptScanSuccessMessage,
   formatInternalTransferAlertMessage,
   formatTodayExpensesMessage,
+  formatDaily11AMReportMessage,
 } from '../src/lib/telegram/formatters.ts';
 import {
   findMatchingAccount,
@@ -51,8 +52,15 @@ import {
   parseSetGajianCommand,
   processFinancialChatWithAI,
   handleLocalDeterministicFallback,
+  isTodayExpenseQuery,
 } from '../src/lib/telegram/nlp-chat.ts';
 import type { FinancialContext } from '../src/lib/telegram/nlp-chat.ts';
+import { deduplicateSimultaneousExpenses } from '../src/lib/telegram/commands.ts';
+import {
+  getIndonesianHolidayInfo,
+  generateDailyDynamicCaption,
+  mapWeatherCodeToIndonesian,
+} from '../src/lib/telegram/weather.ts';
 import { isSafePromoKeyword } from '../src/lib/ai/adaptive-rules.ts';
 import { syncAccountBalance, applyAccountBalanceDelta } from '../src/lib/account-balance.ts';
 
@@ -607,12 +615,133 @@ describe('Telegram Bot: NLP Parser & Perintah Cepat', () => {
         { time: '12:15 WIB', merchant: 'Ayam Geprek', amount: 28000, categoryName: 'Makan & Jajan' },
       ],
     };
-    const resToday = await processFinancialChatWithAI('pengeluaran hari ini apa saja?', contextWithToday);
+    const resToday = await processFinancialChatWithAI('berapa pngeluaran hari ini', contextWithToday);
     assert.strictEqual(resToday.type, 'chat_answer');
-    assert.ok(resToday.replyText.includes('Pengeluaran Hari Ini'));
+    assert.ok(resToday.replyText.includes('PENGELUARAN HARI INI'));
+    assert.ok(resToday.replyText.includes('Urutan Waktu:'));
+    assert.ok(resToday.replyText.includes('Per Kategori:'));
     assert.ok(resToday.replyText.includes('Tukang Sayur'));
     assert.ok(resToday.replyText.includes('45.000'));
     assert.ok(resToday.replyText.includes('73.000'));
+  });
+
+  it('isTodayExpenseQuery mengenali berbagai variasi kalimat & typo tanpa menangkap transaksi bernominal', () => {
+    assert.strictEqual(isTodayExpenseQuery('berapa pngeluaran hari ini'), true);
+    assert.strictEqual(isTodayExpenseQuery('pengeluaran hari ini apa saja?'), true);
+    assert.strictEqual(isTodayExpenseQuery('hari ini habis brp'), true);
+    assert.strictEqual(isTodayExpenseQuery('rincian blanja hr ini'), true);
+    assert.strictEqual(isTodayExpenseQuery('hari ini beli bakso 25rb'), false);
+    assert.strictEqual(isTodayExpenseQuery('saldo gopay berapa'), false);
+  });
+
+  it('deduplicateSimultaneousExpenses menyatukan 2 notifikasi nominal sama pada waktu bersamaan sebagai pengeluaran Istri', async () => {
+    const rawItems = [
+      {
+        id: 'tx-1',
+        merchant: 'PT Tokopedia',
+        amount: 25080,
+        transaction_date: '2026-11-07T02:15:00.000Z',
+        source_device: 'suami',
+        categories: { name: 'Kebutuhan Rumah' },
+        accounts: { name: 'Dana Suami' },
+      },
+      {
+        id: 'tx-2',
+        merchant: 'Jago',
+        amount: 13500,
+        transaction_date: '2026-11-07T11:05:00.000Z',
+        source_device: 'suami',
+        categories: { name: 'Lainnya' },
+        accounts: { name: 'Dana Suami' },
+      },
+      {
+        id: 'tx-3',
+        merchant: 'NURUL HAFIZA RAHIMA',
+        amount: 13500,
+        transaction_date: '2026-11-07T11:06:10.000Z',
+        source_device: 'istri',
+        categories: { name: 'Lainnya' },
+        accounts: { name: 'Dana Suami' },
+      },
+    ];
+
+    const mockSupabase = { from: () => ({}) } as any;
+    const deduplicated = await deduplicateSimultaneousExpenses(
+      mockSupabase,
+      'hh-1',
+      rawItems,
+      { id: 'acc-istri', name: 'Dana Istri' }
+    );
+
+    assert.strictEqual(deduplicated.length, 2);
+    const merged13500 = deduplicated.find((t) => t.amount === 13500);
+    assert.ok(merged13500);
+    assert.strictEqual(merged13500.merchant, 'NURUL HAFIZA RAHIMA');
+    assert.strictEqual(merged13500.source_device, 'istri');
+    assert.strictEqual(merged13500.accounts?.name, 'Dana Istri');
+  });
+
+  it('Laporan 11:00 WIB memuat cuaca Yogyakarta, info libur resmi pemerintah, dan motivasi berbeda setiap hari', () => {
+    const weather = mapWeatherCodeToIndonesian(1, 20);
+    const holiday = getIndonesianHolidayInfo(new Date('2026-11-07T04:00:00Z'));
+    const capDay1 = generateDailyDynamicCaption({
+      date: new Date('2026-11-07T04:00:00Z'),
+      monthPercentage: 45,
+      todaySpent: 50000,
+      safeDailySpend: 100000,
+    });
+    const capDay2 = generateDailyDynamicCaption({
+      date: new Date('2026-11-08T04:00:00Z'),
+      monthPercentage: 45,
+      todaySpent: 50000,
+      safeDailySpend: 100000,
+    });
+
+    assert.notStrictEqual(capDay1, capDay2);
+    assert.ok(holiday.summaryText.includes('Libur'));
+
+    const reportMsg = formatDaily11AMReportMessage({
+      dateLabel: 'Sabtu, 7 Nov 2026',
+      weather: {
+        city: 'Yogyakarta',
+        temperature: 30,
+        minTemp: 24,
+        maxTemp: 32,
+        rainProbability: 20,
+        condition: weather.condition,
+        emoji: weather.emoji,
+        tip: weather.tip,
+      },
+      holiday,
+      accounts: [
+        { name: 'Dana Suami', owner: 'Suami', balance: 1500000 },
+        { name: 'Dana Istri', owner: 'Istri', balance: 1200000 },
+      ],
+      totalBalance: 2700000,
+      todayItems: [
+        {
+          time: '09:15 WIB',
+          merchant: 'NURUL HAFIZA RAHIMA',
+          amount: 13500,
+          categoryName: 'Belanja Dapur',
+          accountName: 'Dana Istri',
+          ownerLabel: 'Istri',
+        },
+      ],
+      todaySpent: 13500,
+      totalSpentMonth: 850000,
+      totalBudgetLimit: 3000000,
+      monthPercentage: 28,
+      daysRemaining: 18,
+      safeDailySpend: 119000,
+      dailyCaption: capDay1,
+    });
+
+    assert.ok(reportMsg.includes('LAPORAN HARIAN PUKUL 11:00 WIB'));
+    assert.ok(reportMsg.includes('Cuaca Yogyakarta'));
+    assert.ok(reportMsg.includes('Libur'));
+    assert.ok(reportMsg.includes('Motivasi Keuangan Hari Ini'));
+    assert.ok(reportMsg.includes('NURUL HAFIZA RAHIMA'));
   });
 
   it('isDirectCategoryFeedback mengenali instruksi koreksi kategori pos belanja', () => {

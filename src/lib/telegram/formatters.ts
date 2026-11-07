@@ -4,6 +4,8 @@
 // ==============================================================================
 
 import { formatRupiah, formatDateWIB } from '../utils.ts';
+import { matchTargetCategory } from '../budget/budget-guard.ts';
+import type { WeatherInfo, HolidayInfo } from './weather.ts';
 
 export interface AccountBalanceItem {
   name: string;
@@ -47,12 +49,29 @@ export interface TodayExpenseItem {
   amount: number;
   categoryName: string;
   accountName: string;
+  ownerLabel?: string;
 }
 
 export interface TodayExpensesData {
   dateLabel: string;
   items: TodayExpenseItem[];
   totalAmount: number;
+}
+
+export interface Daily11AMReportData {
+  dateLabel: string;
+  weather: WeatherInfo;
+  holiday: HolidayInfo;
+  accounts: AccountBalanceItem[];
+  totalBalance: number;
+  todayItems: TodayExpenseItem[];
+  todaySpent: number;
+  totalSpentMonth: number;
+  totalBudgetLimit: number;
+  monthPercentage: number;
+  daysRemaining: number;
+  safeDailySpend: number;
+  dailyCaption: string;
 }
 
 export interface InboxSummaryData {
@@ -224,7 +243,7 @@ export function formatRekapMessage(data: RekapSummaryData): string {
 }
 
 /**
- * Format Pesan Perintah /hariini atau /today (Hanya Pengeluaran Hari Berjalan)
+ * Format Pesan Perintah /hariini atau /today (Urutan Kronologis per Waktu + Ringkasan per Kategori)
  */
 export function formatTodayExpensesMessage(data: TodayExpensesData): string {
   const lines: string[] = [];
@@ -238,13 +257,109 @@ export function formatTodayExpensesMessage(data: TodayExpensesData): string {
     return lines.join('\n');
   }
 
-  for (const item of data.items) {
-    lines.push(`• \`${item.time}\` *${item.merchant}* (\`${formatRupiah(item.amount)}\`)`);
-    lines.push(`  📁 ${item.categoryName} • 🏦 ${item.accountName}`);
+  lines.push(`🕒 *Urutan Waktu:*`);
+  const categoryAgg = new Map<string, { name: string; emoji: string; count: number; total: number }>();
+
+  data.items.forEach((item, idx) => {
+    const targetCat = matchTargetCategory(item.categoryName);
+    const catEmoji = targetCat.emoji || '📁';
+    const catLabel = item.categoryName || targetCat.name || 'Lainnya';
+    const ownerTag = item.ownerLabel ? ` (${item.ownerLabel})` : '';
+    const accDisplay = item.accountName.toLowerCase().includes((item.ownerLabel || '').toLowerCase())
+      ? item.accountName
+      : `${item.accountName}${ownerTag}`;
+
+    lines.push(`${idx + 1}. \`${item.time}\` • *${item.merchant}* — \`${formatRupiah(item.amount)}\``);
+    lines.push(`   ${catEmoji} ${catLabel} • 🏦 ${accDisplay}`);
+
+    const key = catLabel.toLowerCase();
+    const prev = categoryAgg.get(key);
+    if (prev) {
+      prev.count += 1;
+      prev.total += item.amount;
+    } else {
+      categoryAgg.set(key, {
+        name: catLabel,
+        emoji: catEmoji,
+        count: 1,
+        total: item.amount,
+      });
+    }
+  });
+
+  const sortedCategories = Array.from(categoryAgg.values()).sort((a, b) => b.total - a.total);
+  lines.push(`\n📁 *Per Kategori:*`);
+  for (const cat of sortedCategories) {
+    lines.push(`• ${cat.emoji} *${cat.name}* _(${cat.count}x)_: \`${formatRupiah(cat.total)}\``);
   }
 
   lines.push(`\n💰 *Total Hari Ini:* \`${formatRupiah(data.totalAmount)}\` _(${data.items.length} transaksi)_`);
-  lines.push(`👉 _Ketik \`/status\` untuk kas keseluruhan atau \`/rekap\` untuk tren mingguan._`);
+  lines.push(`👉 _Balas "masuk dapur" pada notifikasi transaksi untuk ubah kategori, atau ketik \`/anggaran\` untuk cek kuota._`);
+  return lines.join('\n');
+}
+
+/**
+ * Format Laporan Harian Siang Pukul 11:00 WIB (Ringkasan Kas, Pengeluaran, Cuaca Yogyakarta, Libur Pemerintah & Motivasi Harian)
+ */
+export function formatDaily11AMReportMessage(data: Daily11AMReportData): string {
+  const lines: string[] = [];
+
+  lines.push(`☀️ *LAPORAN HARIAN PUKUL 11:00 WIB*`);
+  lines.push(`_${data.dateLabel}_`);
+
+  // 1. Info Cuaca Yogyakarta & Hari Libur Resmi Pemerintah
+  lines.push(`\n${data.weather.emoji} *Cuaca ${data.weather.city}:* *${data.weather.condition}* (\`${data.weather.temperature}°C\` • Rentang \`${data.weather.minTemp}°–${data.weather.maxTemp}°C\`)`);
+  lines.push(`🌧️ *Peluang Hujan:* \`${data.weather.rainProbability}%\` — _${data.weather.tip}_`);
+  lines.push(`${data.holiday.summaryText}`);
+
+  // 2. Ringkasan Posisi Kas & Anggaran
+  lines.push(`\n💼 *Ringkasan Kas Keluarga:*`);
+  for (const acc of data.accounts) {
+    lines.push(`• *${acc.name}:* \`${formatRupiah(acc.balance)}\``);
+  }
+  lines.push(`💰 *Total Kas Siap Pakai:* \`${formatRupiah(data.totalBalance)}\``);
+
+  const bar = generateProgressBar(data.monthPercentage, 10);
+  lines.push(`\n📊 *Status Anggaran Bulan Ini:*`);
+  lines.push(`\`${bar}\` *${data.monthPercentage}%*`);
+  lines.push(`• Terpakai: \`${formatRupiah(data.totalSpentMonth)}\` dari \`${formatRupiah(data.totalBudgetLimit)}\``);
+  lines.push(`• Batas Aman Harian: \`${formatRupiah(data.safeDailySpend)} / hari\` _(${data.daysRemaining} hari menuju gajian)_`);
+
+  // 3. Rincian Pengeluaran Hari Ini (Urutan Waktu + Per Kategori)
+  lines.push(`\n🕒 *Pengeluaran Hari Ini (s.d. Siang):*`);
+  if (data.todayItems.length === 0) {
+    lines.push(`✅ _Belum ada pengeluaran tercatat hari ini (Rp 0)._`);
+  } else {
+    const categoryAgg = new Map<string, { name: string; emoji: string; count: number; total: number }>();
+
+    data.todayItems.forEach((item, idx) => {
+      const targetCat = matchTargetCategory(item.categoryName);
+      const catEmoji = targetCat.emoji || '📁';
+      const catLabel = item.categoryName || targetCat.name || 'Lainnya';
+      lines.push(`${idx + 1}. \`${item.time}\` • *${item.merchant}* — \`${formatRupiah(item.amount)}\` (${catEmoji} ${catLabel})`);
+
+      const key = catLabel.toLowerCase();
+      const prev = categoryAgg.get(key);
+      if (prev) {
+        prev.count += 1;
+        prev.total += item.amount;
+      } else {
+        categoryAgg.set(key, { name: catLabel, emoji: catEmoji, count: 1, total: item.amount });
+      }
+    });
+
+    const sortedCategories = Array.from(categoryAgg.values()).sort((a, b) => b.total - a.total);
+    lines.push(`\n📁 *Per Kategori Hari Ini:*`);
+    for (const cat of sortedCategories) {
+      lines.push(`• ${cat.emoji} *${cat.name}* _(${cat.count}x)_: \`${formatRupiah(cat.total)}\``);
+    }
+    lines.push(`💸 *Total Belanja Hari Ini:* \`${formatRupiah(data.todaySpent)}\` _(${data.todayItems.length} transaksi)_`);
+  }
+
+  // 4. Caption Motivasi Keuangan Harian
+  lines.push(`\n💡 *Motivasi Keuangan Hari Ini:*`);
+  lines.push(`_"${data.dailyCaption}"_`);
+
   return lines.join('\n');
 }
 
@@ -285,7 +400,8 @@ Halo! Saya bot asisten keuangan yang terhubung langsung ke dasbor keluarga Anda.
 
 📋 *Menu Laporan & Status:*
 📊 \`/status\` — Ringkasan kas, belanja & batas aman harian
-📅 \`/hariini\` — Rincian belanja pengeluaran khusus hari ini
+📅 \`/hariini\` — Rincian pengeluaran hari ini (urutan waktu & kategori)
+☀️ \`/laporansiang\` — Laporan 11:00 WIB, cuaca Yogyakarta & libur nasional
 📋 \`/anggaran\` — Kuota belanja 8 kategori (lengkap dengan status pos diset / belum)
 📈 \`/rekap\` — Pengeluaran 7 hari & tren vs minggu lalu
 📥 \`/inbox\` — Cek mutasi gantung yang butuh konfirmasi

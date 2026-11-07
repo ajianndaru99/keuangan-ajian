@@ -6,7 +6,7 @@
     },
     {
       "path": "/api/cron/financial-nudges",
-      "schedule": "0 1 * * *"
+      "schedule": "0 4 * * *"
     }
   ]
 }

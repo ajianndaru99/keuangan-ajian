@@ -4,6 +4,8 @@
 // ==============================================================================
 
 import { formatRupiah } from '../utils.ts';
+import { formatTodayExpensesMessage } from './formatters.ts';
+import { getTodayRangeWIB } from '../date-utils.ts';
 
 export interface FinancialContext {
   accounts: Array<{ name: string; owner: string; balance: number }>;
@@ -16,7 +18,14 @@ export interface FinancialContext {
   periodLabel: string;
   pendingCount?: number;
   todaySpent?: number;
-  todayTransactions?: Array<{ time: string; merchant: string; amount: number; categoryName: string }>;
+  todayTransactions?: Array<{
+    time: string;
+    merchant: string;
+    amount: number;
+    categoryName: string;
+    accountName?: string;
+    ownerLabel?: string;
+  }>;
 }
 
 export interface ExtractedTransaction {
@@ -182,6 +191,33 @@ export function parseSetGajianCommand(rawText: string): number | null {
 }
 
 /**
+ * Mendeteksi apakah teks pengguna menanyakan pengeluaran hari ini (toleran typo seperti "berapa pngeluaran hari ini")
+ * Tidak menangkap kalimat pencatatan transaksi ber-nominal (misal: "hari ini beli bakso 25rb")
+ */
+export function isTodayExpenseQuery(text: string): boolean {
+  const clean = text.trim().toLowerCase();
+  if (!clean) return false;
+
+  // Abaikan jika mengandung nominal transaksi (contoh: "25rb", "50.000", "100k", "1jt")
+  if (
+    /\b\d+(?:[.,]\d+)?\s*(?:rb|ribu|k|jt|juta)\b/i.test(clean) ||
+    /\b(?:rp\.?\s*)?\d{1,3}(?:[.,]\d{3})+\b/i.test(clean) ||
+    /\b\d{4,}\b/.test(clean)
+  ) {
+    return false;
+  }
+
+  const hasTodayWord = /\b(?:hari\s+ini|hr\s+ini|hri\s+ini|hariini|today)\b/i.test(clean);
+  if (!hasTodayWord) return false;
+
+  const hasExpenseOrAskWord = /\b(?:p[ae]?ng[e]?luaran|pngeluaran|pengluaran|b[e]?lanja|blanja|rekap|mutasi|transaksi|habis|keluar|berapa|brp|apa\s+saja|apa\s+aja|rincian|daftar|list|total|cek|info|laporan)\b/i.test(
+    clean
+  );
+
+  return hasExpenseOrAskWord;
+}
+
+/**
  * Prompt instruksi sistem untuk Google Gemini Flash (Chat NLP Finansial & Guardrail)
  */
 function buildSystemPrompt(context: FinancialContext): string {
@@ -206,8 +242,9 @@ Tugas Anda:
    Ekstrak: accountName (nama akun spesifik atau "total_kas") dan amount (angka nominal target).
 3. PERTANYAAN & KONSULTASI KEUANGAN (type: "chat_answer"):
    Jika pesan pengguna menanyakan data keuangan keluarga (saldo, pengeluaran, sisa pagu, safe daily spend) ATAU konsultasi keuangan keluarga (tips menabung, evaluasi belanja, dana darurat, investasi, utang, perencanaan keuangan).
-   PENTING: Jika pengguna menanyakan pengeluaran hari ini ("pengeluaran hari ini apa saja", "hari ini habis berapa", "belanja hari ini"), jawab HANYA dengan rincian pengeluaran hari ini di bawah, JANGAN mencampur dengan total pengeluaran satu bulan.
-   Jawab langsung berbasis data riil keluarga di bawah ini secara ringkas, to-the-point, dan santun (maksimal 2-3 kalimat).
+   PENTING:
+   - Jika pengguna menanyakan pengeluaran hari ini ("pengeluaran hari ini apa saja", "berapa pengeluaran hari ini", "belanja hari ini"), jawab HANYA dengan rincian pengeluaran hari ini di bawah, JANGAN mencampur dengan total pengeluaran satu bulan.
+   - Saat merinci daftar pengeluaran, susun dengan baris baru (bullet/penomoran) yang rapi: urutkan per waktu (jam WIB) dan kelompokkan per kategori agar mudah dibaca, JANGAN digabung dalam satu paragraf panjang.
 4. DI LUAR TOPIK KEUANGAN / NON-FINANSIAL (type: "off_topic"):
    Jika pesan pengguna TIDAK ADA HUBUNGANNYA SAMA SEKALI DENGAN KEUANGAN (contoh: tanya cuaca, resep masakan, politik, coding, kesehatan umum non-biaya, tugas sekolah umum, gosip, atau topik di luar finansial).
    Tolak secara santun dan ramah: jelaskan bahwa Anda adalah asisten khusus keuangan keluarga Ajian, dan undang mereka untuk menanyakan seputar catatan transaksi, saldo, pagu belanja, atau perencanaan finansial keluarga.
@@ -269,6 +306,11 @@ export async function processFinancialChatWithAI(
   context: FinancialContext,
   options?: { apiKey?: string; modelName?: string }
 ): Promise<NLPProcessResult> {
+  // Jika pertanyaan tentang pengeluaran hari ini, langsung gunakan formatter deterministik (0 Token Gemini & tampilan rapi)
+  if (isTodayExpenseQuery(userText)) {
+    return handleLocalDeterministicFallback(userText, context);
+  }
+
   const apiKey = options?.apiKey || process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY;
 
   // Fallback lokal deterministik jika API key belum disetel
@@ -388,8 +430,9 @@ export function handleLocalDeterministicFallback(userText: string, context: Fina
     };
   }
 
-  // 0.5. Cek pola tanya pengeluaran hari ini
+  // 0.5. Cek pola tanya pengeluaran hari ini (Urutan Waktu + Per Kategori)
   if (
+    isTodayExpenseQuery(userText) ||
     lower.includes('hari ini') ||
     lower.includes('hariini') ||
     lower.includes('today') ||
@@ -397,18 +440,23 @@ export function handleLocalDeterministicFallback(userText: string, context: Fina
     lower.includes('belanja hari ini') ||
     lower.includes('habis berapa hari ini')
   ) {
-    if (context.todayTransactions && context.todayTransactions.length > 0) {
-      const lines = context.todayTransactions.map(
-        (t) => `• \`${t.time}\` *${t.merchant}* (\`${formatRupiah(t.amount)}\`) • ${t.categoryName}`
-      );
-      return {
-        type: 'chat_answer',
-        replyText: `📅 *Pengeluaran Hari Ini:*\n\n${lines.join('\n')}\n\n💰 *Total Hari Ini:* \`${formatRupiah(context.todaySpent || 0)}\` _(${context.todayTransactions.length} transaksi)_`,
-      };
-    }
+    const todayRange = getTodayRangeWIB(new Date());
+    const items = (context.todayTransactions || []).map((t) => ({
+      time: t.time,
+      merchant: t.merchant,
+      amount: t.amount,
+      categoryName: t.categoryName,
+      accountName: t.accountName || 'Rekening Keluarga',
+      ownerLabel: t.ownerLabel,
+    }));
+
     return {
       type: 'chat_answer',
-      replyText: `📅 *Pengeluaran Hari Ini:*\n\n✅ Belum ada pengeluaran yang tercatat untuk hari ini. Kas belanja keluarga tetap aman! 🎯`,
+      replyText: formatTodayExpensesMessage({
+        dateLabel: todayRange.label,
+        items,
+        totalAmount: context.todaySpent || items.reduce((s, i) => s + i.amount, 0),
+      }),
     };
   }
 

@@ -18,6 +18,7 @@ import {
   handleRekapCommand,
   handleInboxCommand,
   handleTodayExpensesCommand,
+  handleDailyReportCommand,
   buildFinancialContext,
 } from '@/lib/telegram/commands.ts';
 import {
@@ -27,7 +28,7 @@ import {
 import {
   handleTelegramPhotoMessage,
 } from '@/lib/telegram/photo-handler.ts';
-import { processFinancialChatWithAI } from '@/lib/telegram/nlp-chat.ts';
+import { processFinancialChatWithAI, isTodayExpenseQuery } from '@/lib/telegram/nlp-chat.ts';
 import {
   handleCustomRejectionReply,
   handleSetSaldoFlow,
@@ -104,6 +105,12 @@ async function handleSlashCommands(
       await handleTodayExpensesCommand(chatId, supabase, householdId);
       break;
     }
+    case '/laporansiang':
+    case '/report':
+    case '/cuaca': {
+      await handleDailyReportCommand(chatId, supabase, householdId, monthStartDay);
+      break;
+    }
     case '/anggaran':
     case '/budget': {
       await handleAnggaranCommand(chatId, supabase, householdId, monthStartDay);
@@ -150,13 +157,8 @@ async function handleNaturalLanguageFlow(
   householdId: string,
   monthStartDay: number
 ): Promise<void> {
-  // 0. Cek pertanyaan langsung pengeluaran hari ini
-  if (
-    /^(?:pengeluaran|belanja|rekap)\s+(?:hari\s+ini|today)\s*[?!.]*$/i.test(rawText) ||
-    /^(?:hari\s+ini|today)\s+(?:habis|pengeluaran|belanja|beli\s+apa)\s*(?:berapa|saja|aja)?\s*[?!.]*$/i.test(rawText) ||
-    /^(?:pengeluaran|belanja)\s+hari\s+ini\s+(?:apa\s+saja|apa\s+aja|berapa)\s*[?!.]*$/i.test(rawText) ||
-    /^(?:apa\s+saja\s+pengeluaran|daftar\s+pengeluaran)\s+hari\s+ini\s*[?!.]*$/i.test(rawText)
-  ) {
+  // 0. Cek pertanyaan langsung pengeluaran hari ini (toleran variasi kalimat & typo seperti "berapa pngeluaran hari ini")
+  if (isTodayExpenseQuery(rawText)) {
     await handleTodayExpensesCommand(message.chat.id, supabase, householdId);
     return;
   }

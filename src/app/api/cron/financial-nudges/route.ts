@@ -1,6 +1,6 @@
 // ==============================================================================
 // CRON ROUTE: src/app/api/cron/financial-nudges/route.ts
-// Mesin Pengingat Finansial Otomatis Terjadwal (08:00 WIB)
+// Mesin Laporan Harian Pukul 11:00 WIB (Cuaca Yogyakarta, Libur Pemerintah & Motivasi)
 // ==============================================================================
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -12,6 +12,7 @@ import {
   formatBillReminderNudge,
   formatMidMonthNudge,
 } from '@/lib/telegram/formatters';
+import { buildDaily11AMReportText } from '@/lib/telegram/commands';
 import { getWeeklyRange, getMonthlyRange, calculateComparison } from '@/lib/date-utils';
 
 export const dynamic = 'force-dynamic';
@@ -82,6 +83,14 @@ async function handleNudgeExecution(req: NextRequest) {
     const currentDateOfMonth = nowWib.getDate();
 
     const dispatchedNudges: string[] = [];
+
+    // =========================================================================
+    // KONDISI 0: Laporan Harian Siang Pukul 11:00 WIB (Setiap Hari)
+    // Memuat Cuaca Yogyakarta, Libur Resmi Pemerintah, Ringkasan Kas & Motivasi Harian
+    // =========================================================================
+    const daily11Report = await buildDaily11AMReportText(supabase, householdId, monthStartDay);
+    await broadcastToAllowedChats(daily11Report);
+    dispatchedNudges.push('daily_11am_report');
 
     // =========================================================================
     // KONDISI 1: Senin Pagi -> Rekap Finansial Mingguan (Weekly Digest)

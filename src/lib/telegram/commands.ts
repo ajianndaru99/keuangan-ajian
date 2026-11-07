@@ -11,6 +11,7 @@ import {
   formatRekapMessage,
   formatInboxMessage,
   formatTodayExpensesMessage,
+  formatDaily11AMReportMessage,
 } from './formatters.ts';
 import type {
   CategoryBudgetItem,
@@ -24,15 +25,152 @@ import {
 } from '../date-utils.ts';
 import { formatTimeWIB } from '../utils.ts';
 import { TARGET_BUDGET_CATEGORIES, matchTargetCategory } from '../budget/budget-guard.ts';
+import { syncAccountBalance } from '../account-balance.ts';
+import {
+  fetchTodayWeatherInfo,
+  getIndonesianHolidayInfo,
+  generateDailyDynamicCaption,
+} from './weather.ts';
 import type { FinancialContext } from './nlp-chat.ts';
 
 interface TxCatRelation {
+  id?: string;
   amount?: number | null;
   merchant?: string | null;
   category_id?: string | null;
+  account_id?: string | null;
+  source_device?: string | null;
   transaction_date?: string | null;
   categories?: { name: string } | null;
   accounts?: { name: string } | null;
+}
+
+/**
+ * Mengecek apakah nama merchant adalah nama aplikasi/bank/kantong generik (misal "Jago", "Daily Pocket", "QRIS")
+ */
+export function isGenericMerchantName(merchant?: string | null): boolean {
+  const clean = (merchant || '').trim();
+  if (!clean) return true;
+  return (
+    /^(?:jago|bank\s*jago|bca|mandiri|bri|bni|bsi|seabank|qris|pembayaran(?:\s*qris)?|daily\s*pocket|your\s*daily\s*pocket|kantong(?:\s*utama|\s*bersama)?|saldo|dana|gopay|ovo|shopeepay|linkaja|rekening|merchant(?:\s*transaksi)?|transaksi(?:\s*digital)?|umum|pengeluaran)$/i.test(
+      clean
+    ) || /daily\s*pocket|kantong\s*bersama|merchant\s*transaksi|transaksi\s*digital/i.test(clean)
+  );
+}
+
+/**
+ * Menyatukan transaksi pengeluaran kembar pada waktu bersamaan (<= 5 menit) dan nominal sama.
+ * Aturan keluarga: jika ada 2 notifikasi di waktu bersamaan dengan nominal sama (mis. Rp 13.500 di NURUL HAFIZA RAHIMA & Rp 13.500 di Jago),
+ * maka itu adalah 1 transaksi dari pengeluaran Istri (dialokasikan ke akun Istri & gunakan nama merchant spesifik).
+ */
+export async function deduplicateSimultaneousExpenses(
+  supabase: SupabaseClient,
+  householdId: string,
+  items: TxCatRelation[],
+  istriAccount?: { id?: string; name: string } | null
+): Promise<TxCatRelation[]> {
+  // Urutkan kronologis dari waktu paling awal ke paling akhir
+  const sorted = [...items].sort((a, b) => {
+    const timeA = a.transaction_date ? new Date(a.transaction_date).getTime() : 0;
+    const timeB = b.transaction_date ? new Date(b.transaction_date).getTime() : 0;
+    return timeA - timeB;
+  });
+
+  const ignoredIndexes = new Set<number>();
+  const accountsToSync = new Set<string>();
+
+  for (let i = 0; i < sorted.length; i++) {
+    if (ignoredIndexes.has(i)) continue;
+
+    for (let j = i + 1; j < sorted.length; j++) {
+      if (ignoredIndexes.has(j)) continue;
+
+      const txA = sorted[i];
+      const txB = sorted[j];
+      const amtA = Number(txA.amount || 0);
+      const amtB = Number(txB.amount || 0);
+
+      if (amtA <= 0 || amtA !== amtB) continue;
+      if (!txA.transaction_date || !txB.transaction_date) continue;
+
+      const timeA = new Date(txA.transaction_date).getTime();
+      const timeB = new Date(txB.transaction_date).getTime();
+      const diffMs = Math.abs(timeB - timeA);
+
+      // Rentang waktu bersamaan <= 5 menit (300.000 ms)
+      if (diffMs <= 5 * 60 * 1000) {
+        const aIsGeneric = isGenericMerchantName(txA.merchant);
+        const bIsGeneric = isGenericMerchantName(txB.merchant);
+
+        // Utamakan yang memiliki nama merchant spesifik (contoh: 'NURUL HAFIZA RAHIMA' dibanding 'Jago')
+        const keepIndex = aIsGeneric && !bIsGeneric ? j : i;
+        const dropIndex = keepIndex === i ? j : i;
+
+        const keepTx = sorted[keepIndex];
+        const dropTx = sorted[dropIndex];
+
+        // Tandai sebagai pengeluaran Istri sesuai aturan keluarga
+        keepTx.source_device = 'istri';
+        if (istriAccount) {
+          if (keepTx.account_id && keepTx.account_id !== istriAccount.id) {
+            accountsToSync.add(keepTx.account_id);
+          }
+          if (istriAccount.id) {
+            keepTx.account_id = istriAccount.id;
+            accountsToSync.add(istriAccount.id);
+          }
+          keepTx.accounts = { name: istriAccount.name };
+        }
+
+        if (dropTx.account_id) {
+          accountsToSync.add(dropTx.account_id);
+        }
+
+        ignoredIndexes.add(dropIndex);
+
+        // Bersihkan permanen di database jika kedua ID tersedia
+        if (dropTx.id && keepTx.id) {
+          try {
+            const txTable: any = supabase.from('transactions');
+            if (txTable && typeof txTable.update === 'function') {
+              await txTable
+                .update({
+                  status: 'ignored',
+                  notes: `Duplikat waktu bersamaan (${amtA}) disatukan ke ${keepTx.merchant || 'transaksi Istri'}`,
+                })
+                .eq('id', dropTx.id)
+                .eq('household_id', householdId);
+
+              const updateKeepPayload: Record<string, any> = {
+                source_device: 'istri',
+                merchant: keepTx.merchant,
+              };
+              if (istriAccount?.id) {
+                updateKeepPayload.account_id = istriAccount.id;
+              }
+
+              await txTable
+                .update(updateKeepPayload)
+                .eq('id', keepTx.id)
+                .eq('household_id', householdId);
+            }
+          } catch {
+            // Abaikan jika dipanggil dari unit test mock sederhana
+          }
+        }
+      }
+    }
+  }
+
+  for (const accId of accountsToSync) {
+    try {
+      await syncAccountBalance(supabase, accId);
+    } catch {
+      // Abaikan jika mock test
+    }
+  }
+
+  return sorted.filter((_, idx) => !ignoredIndexes.has(idx));
 }
 
 /**
@@ -50,7 +188,7 @@ export async function buildFinancialContext(
   // 1. Ambil Saldo Rekening
   const { data: accounts, error: accErr } = await supabase
     .from('accounts')
-    .select('name, owner, balance, initial_balance')
+    .select('id, name, owner, balance, initial_balance')
     .eq('household_id', householdId)
     .eq('is_active', true);
 
@@ -58,19 +196,16 @@ export async function buildFinancialContext(
     console.error('[Commands buildFinancialContext Account Error]:', accErr.message);
   }
 
-  const accountItems = (accounts || []).map((acc) => ({
-    name: acc.name,
-    owner: acc.owner === 'suami' ? 'Suami' : 'Istri',
-    balance: Number(acc.balance ?? acc.initial_balance ?? 0),
-  }));
-
-  const totalBalance = accountItems.reduce((sum, a) => sum + a.balance, 0);
+  const istriAccRecord = (accounts || []).find((a: any) => a.owner === 'istri');
+  const istriAccount = istriAccRecord
+    ? { id: (istriAccRecord as any).id as string | undefined, name: istriAccRecord.name }
+    : null;
 
   // 2. Ambil Pengeluaran Transaksi Bulan Ini (HANYA 'reconciled' belanja sah)
   // Kecualikan koreksi saldo administratif dan transfer internal antar rekening
   let txQuery = supabase
     .from('transactions')
-    .select('amount, merchant, category_id, transaction_date, categories(name)')
+    .select('id, amount, merchant, category_id, account_id, source_device, transaction_date, categories(name), accounts(name)')
     .eq('household_id', householdId)
     .eq('direction', 'out')
     .eq('status', 'reconciled');
@@ -90,10 +225,19 @@ export async function buildFinancialContext(
     console.error('[Commands buildFinancialContext Tx Error]:', txErr.message);
   }
 
-  // Filter in-memory cadangan
+  // Filter in-memory cadangan + deduplikasi otomatis waktu bersamaan (pengeluaran Istri)
   const rawTxList = (txList || []) as unknown as TxCatRelation[];
-  const validTxs = rawTxList.filter((t) => !/^(koreksi saldo|transfer internal)/i.test(t.merchant || ''));
+  const filteredTxs = rawTxList.filter((t) => !/^(koreksi saldo|transfer internal)/i.test(t.merchant || ''));
+  const validTxs = await deduplicateSimultaneousExpenses(supabase, householdId, filteredTxs, istriAccount);
   const totalSpentMonth = validTxs.reduce((sum, t) => sum + Number(t.amount || 0), 0);
+
+  const accountItems = (accounts || []).map((acc) => ({
+    name: acc.name,
+    owner: acc.owner === 'suami' ? 'Suami' : 'Istri',
+    balance: Number(acc.balance ?? acc.initial_balance ?? 0),
+  }));
+
+  const totalBalance = accountItems.reduce((sum, a) => sum + a.balance, 0);
 
   // Ambil transaksi pending untuk catatan konteks
   const { count: pendingCount } = await supabase
@@ -158,6 +302,8 @@ export async function buildFinancialContext(
     merchant: t.merchant || 'Transaksi',
     amount: Number(t.amount || 0),
     categoryName: (t.categories?.name || 'Lainnya'),
+    accountName: t.accounts?.name || (t.source_device?.includes('istri') ? 'Dana Istri' : 'Dana Suami'),
+    ownerLabel: t.source_device?.includes('istri') ? 'Istri' : (t.source_device?.includes('suami') ? 'Suami' : undefined),
   }));
 
   return {
@@ -377,7 +523,7 @@ export async function handleInboxCommand(
 }
 
 /**
- * Handler Perintah /hariini atau /today (Hanya Pengeluaran Hari Berjalan)
+ * Handler Perintah /hariini atau /today (Hanya Pengeluaran Hari Berjalan, Terurut Waktu & Per Kategori)
  */
 export async function handleTodayExpensesCommand(
   chatId: number | string,
@@ -386,9 +532,20 @@ export async function handleTodayExpensesCommand(
 ): Promise<void> {
   const todayRange = getTodayRangeWIB(new Date());
 
+  const { data: accounts } = await supabase
+    .from('accounts')
+    .select('id, name, owner')
+    .eq('household_id', householdId)
+    .eq('is_active', true);
+
+  const istriAccRecord = (accounts || []).find((a: any) => a.owner === 'istri');
+  const istriAccount = istriAccRecord
+    ? { id: (istriAccRecord as any).id as string | undefined, name: istriAccRecord.name }
+    : null;
+
   let query = supabase
     .from('transactions')
-    .select('amount, merchant, transaction_date, category_id, categories(name), accounts(name)')
+    .select('id, amount, merchant, transaction_date, category_id, account_id, source_device, categories(name), accounts(name)')
     .eq('household_id', householdId)
     .eq('direction', 'out')
     .eq('status', 'reconciled')
@@ -409,16 +566,20 @@ export async function handleTodayExpensesCommand(
   }
 
   const rawItems = (rawList || []) as unknown as TxCatRelation[];
-  const validItems = rawItems.filter(
+  const filteredItems = rawItems.filter(
     (t) => !/^(koreksi saldo|transfer internal)/i.test(t.merchant || '')
   );
+
+  // Deduplikasi otomatis transaksi kembar waktu bersamaan (dialokasikan ke Istri)
+  const validItems = await deduplicateSimultaneousExpenses(supabase, householdId, filteredItems, istriAccount);
 
   const items = validItems.map((t) => ({
     time: formatTimeWIB(t.transaction_date || ''),
     merchant: t.merchant || 'Pengeluaran',
     amount: Number(t.amount || 0),
     categoryName: t.categories?.name || 'Lainnya',
-    accountName: t.accounts?.name || 'Akun',
+    accountName: t.accounts?.name || (t.source_device?.includes('istri') ? 'Dana Istri' : 'Akun Keluarga'),
+    ownerLabel: t.source_device?.includes('istri') ? 'Istri' : (t.source_device?.includes('suami') ? 'Suami' : undefined),
   }));
 
   const totalAmount = items.reduce((sum, item) => sum + item.amount, 0);
@@ -429,5 +590,71 @@ export async function handleTodayExpensesCommand(
     totalAmount,
   });
 
+  await sendTelegramMessage(chatId, text);
+}
+
+/**
+ * Membangun Teks Laporan Harian Pukul 11:00 WIB (Cuaca Yogyakarta, Libur Resmi Pemerintah, Kas, Pengeluaran & Motivasi)
+ */
+export async function buildDaily11AMReportText(
+  supabase: SupabaseClient,
+  householdId: string,
+  monthStartDay: number
+): Promise<string> {
+  const now = new Date();
+  const [context, weather] = await Promise.all([
+    buildFinancialContext(supabase, householdId, monthStartDay),
+    fetchTodayWeatherInfo(),
+  ]);
+
+  const holiday = getIndonesianHolidayInfo(now);
+  const todayRange = getTodayRangeWIB(now);
+  const monthPercentage = context.totalBudgetLimit > 0
+    ? Math.round((context.totalSpentMonth / context.totalBudgetLimit) * 100)
+    : 0;
+
+  const dailyCaption = generateDailyDynamicCaption({
+    date: now,
+    monthPercentage,
+    todaySpent: context.todaySpent || 0,
+    safeDailySpend: context.safeDailySpend,
+  });
+
+  const todayItems = (context.todayTransactions || []).map((t) => ({
+    time: t.time,
+    merchant: t.merchant,
+    amount: t.amount,
+    categoryName: t.categoryName,
+    accountName: t.accountName || 'Rekening Keluarga',
+    ownerLabel: t.ownerLabel,
+  }));
+
+  return formatDaily11AMReportMessage({
+    dateLabel: todayRange.label,
+    weather,
+    holiday,
+    accounts: context.accounts as AccountBalanceItem[],
+    totalBalance: context.totalBalance,
+    todayItems,
+    todaySpent: context.todaySpent || 0,
+    totalSpentMonth: context.totalSpentMonth,
+    totalBudgetLimit: context.totalBudgetLimit,
+    monthPercentage,
+    daysRemaining: context.daysRemaining,
+    safeDailySpend: context.safeDailySpend,
+    dailyCaption,
+  });
+}
+
+/**
+ * Handler Perintah /laporansiang atau /report (Laporan Siang 11:00 WIB + Cuaca Yogyakarta + Libur Pemerintah)
+ */
+export async function handleDailyReportCommand(
+  chatId: number | string,
+  supabase: SupabaseClient,
+  householdId: string,
+  monthStartDay: number
+): Promise<void> {
+  const text = await buildDaily11AMReportText(supabase, householdId, monthStartDay);
   await sendTelegramMessage(chatId, text);
 }

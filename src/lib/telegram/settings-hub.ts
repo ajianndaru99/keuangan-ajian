@@ -15,6 +15,7 @@ import { TARGET_BUDGET_CATEGORIES } from '../budget/budget-guard.ts';
 import { getMonthlyRange, getBudgetPeriodKey } from '../date-utils.ts';
 import { syncAccountBalance } from '../account-balance.ts';
 import { parseNominal } from './nlp-chat.ts';
+import { buildDaily11AMReportText } from './commands.ts';
 
 export interface TelegramCallbackQuery {
   id: string;
@@ -47,6 +48,7 @@ Silakan pilih modul pengaturan yang ingin Anda kelola:
 • 🗓️ *Tanggal Gajian:* Sinkronisasi siklus finansial bulanan
 • 🛡️ *Filter Spam & Promo:* Kelola kata kunci blokir otomatis
 • 🧹 *Bersihkan Sampah:* Hapus log promo yang diabaikan
+• ☀️ *Laporan 11:00 WIB:* Tampilkan ringkasan harian, cuaca Yogyakarta & libur resmi
 
 _Pilih menu di bawah ini:_`;
 }
@@ -63,7 +65,10 @@ export function getSettingsHubInlineKeyboard() {
         { text: '🛡️ Filter Spam', callback_data: 'cfg:spam' },
       ],
       [
+        { text: '☀️ Laporan 11:00', callback_data: 'cfg:report11' },
         { text: '🧹 Hapus Sampah', callback_data: 'cfg:clean' },
+      ],
+      [
         { text: '❌ Tutup', callback_data: 'cfg:close' },
       ],
     ],
@@ -732,6 +737,25 @@ export async function handleSettingsHubCallback(
       `🔒 *Menu Pengaturan Ditutup*\nKetik \`/pengaturan\` kapan saja untuk membuka kembali pusat kendali ini.`,
       { reply_markup: { inline_keyboard: [] } }
     );
+    return true;
+  }
+
+  // 2.5. Laporan Harian Pukul 11:00 WIB (Cuaca Yogyakarta, Libur Pemerintah & Motivasi)
+  if (data === 'cfg:report11') {
+    const { data: settingData } = await supabase
+      .from('settings')
+      .select('month_start_day')
+      .eq('household_id', householdId)
+      .maybeSingle();
+    const monthStartDay = settingData?.month_start_day || 1;
+    const reportText = await buildDaily11AMReportText(supabase, householdId, monthStartDay);
+    await editTelegramMessageText(chatId, messageId, reportText, {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '⬅️ Kembali', callback_data: 'cfg:menu' }],
+        ],
+      },
+    });
     return true;
   }
 
