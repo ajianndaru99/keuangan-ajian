@@ -62,7 +62,11 @@ import {
   mapWeatherCodeToIndonesian,
 } from '../src/lib/telegram/weather.ts';
 import { isSafePromoKeyword } from '../src/lib/ai/adaptive-rules.ts';
-import { syncAccountBalance, applyAccountBalanceDelta } from '../src/lib/account-balance.ts';
+import {
+  syncAccountBalance,
+  applyAccountBalanceDelta,
+  setAccountBalanceToTarget,
+} from '../src/lib/account-balance.ts';
 
 describe('Telegram Bot: Visual Formatters & Tipografi Finansial', () => {
   it('generateProgressBar membentuk visual progress bar karakter monospaced dengan tepat', () => {
@@ -797,10 +801,13 @@ describe('Telegram Bot: NLP Parser & Perintah Cepat', () => {
                 },
               }),
             }),
-            update: (payload: { balance: number }) => ({
+            update: (payload: { balance: number; initial_balance?: number }) => ({
               eq: async (_col: string, val: string) => {
                 if (val === 'acc-1') {
                   currentAccount.balance = payload.balance;
+                  if (payload.initial_balance !== undefined) {
+                    currentAccount.initial_balance = payload.initial_balance;
+                  }
                   return { error: null };
                 }
                 return { error: { message: 'Not found' } };
@@ -835,7 +842,23 @@ describe('Telegram Bot: NLP Parser & Perintah Cepat', () => {
     assert.strictEqual(resDelta.success, true);
     assert.strictEqual(resDelta.newBalance, 600000);
 
-    // 3. Akun tidak ditemukan
+    // 3. Auto-heal: jika initial_balance masih dummy migrasi lama (7.700.000) sedangkan balance nyata 300.000
+    currentAccount = { id: 'acc-1', initial_balance: 7700000, balance: 300000 };
+    const healRes = await syncAccountBalance(mockSupabase, 'acc-1');
+    assert.strictEqual(healRes.success, true);
+    assert.strictEqual(healRes.newBalance, 300000);
+    assert.strictEqual(currentAccount.balance, 300000);
+    // initial_balance + netTx (+100.000) == 300.000 -> initial_balance harus menjadi 200.000
+    assert.strictEqual(currentAccount.initial_balance + 100000, 300000);
+
+    // 4. setAccountBalanceToTarget menyelaraskan initial_balance dan balance sekaligus
+    const setRes = await setAccountBalanceToTarget(mockSupabase, 'hh-test', 'acc-1', 750000);
+    assert.strictEqual(setRes.success, true);
+    assert.strictEqual(setRes.newBalance, 750000);
+    assert.strictEqual(currentAccount.balance, 750000);
+    assert.strictEqual(currentAccount.initial_balance + 100000, 750000);
+
+    // 5. Akun tidak ditemukan
     const resNotFound = await syncAccountBalance(mockSupabase, 'acc-missing');
     assert.strictEqual(resNotFound.success, false);
   });
@@ -1232,6 +1255,9 @@ describe('Telegram Bot: NLP Parser & Perintah Cepat', () => {
 
     const sampleCategoryMenuCallback = 'tx_cat:123e4567-e89b-12d3-a456-426614174000';
     assert.ok(Buffer.byteLength(sampleCategoryMenuCallback, 'utf8') <= 64);
+
+    const sampleBalanceEditCallback = 'cfg:abaledit:12345678';
+    assert.ok(Buffer.byteLength(sampleBalanceEditCallback, 'utf8') <= 64);
 
     // 4. Pengujian Perintah Chat Tambah & Nonaktifkan Akun
     let insertedAcc: any = null;

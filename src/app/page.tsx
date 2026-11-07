@@ -22,6 +22,9 @@ import { TransactionItem } from '@/components/inbox/TransactionCard';
 import { Category } from '@/components/inbox/CategoryChipList';
 import { usePrivacy, formatMaskedRupiah } from '@/lib/privacy';
 import { formatFullWIB, formatRelativeWIB } from '@/lib/utils';
+import { getMonthlyRange } from '@/lib/date-utils';
+import { syncAllHouseholdAccountBalances } from '@/lib/account-balance';
+import { deduplicateSimultaneousExpenses } from '@/lib/telegram/commands';
 import {
   ArrowUpRight,
   ArrowDownLeft,
@@ -70,6 +73,12 @@ export default function DashboardPage() {
 
   const [accounts, setAccounts] = useState<AccountSummary[]>([]);
   const [recentTransactions, setRecentTransactions] = useState<TransactionItem[]>([]);
+  const [monthlyCashflow, setMonthlyCashflow] = useState<{ monthlyIn: number; monthlyOut: number; net: number }>({
+    monthlyIn: 0,
+    monthlyOut: 0,
+    net: 0,
+  });
+  const [currentHouseholdId, setCurrentHouseholdId] = useState<string | null>(null);
   const [pendingCount, setPendingCount] = useState<number>(0);
   const [categories, setCategories] = useState<Category[]>(defaultCategories);
 
@@ -104,26 +113,58 @@ export default function DashboardPage() {
         setDisplayName(profile.display_name);
 
         const householdId = profile.household_id;
+        setCurrentHouseholdId(householdId);
 
-        // 2. Daftar Akun & Saldo
-        const { data: accData } = await supabase
-          .from('accounts')
-          .select('id, name, type, owner, initial_balance, balance')
+        // 2. Daftar Akun & Saldo Terpadu (Selaras 100% dengan /accounts, Database, dan Telegram)
+        const syncedAccounts = await syncAllHouseholdAccountBalances(supabase, householdId);
+        const activeAccounts = syncedAccounts.filter((a) => a.is_active);
+        setAccounts(
+          activeAccounts.map((a) => ({
+            id: a.id,
+            name: a.name,
+            type: a.type,
+            owner: a.owner,
+            current_balance: a.current_balance,
+          }))
+        );
+
+        // 2.5. Siklus Finansial Bulanan & Arus Kas Bulan Ini (Selaras dengan Telegram /status)
+        const { data: settingData } = await supabase
+          .from('settings')
+          .select('month_start_day')
           .eq('household_id', householdId)
-          .eq('is_active', true)
-          .order('owner', { ascending: true });
+          .maybeSingle();
 
-        if (accData) {
-          setAccounts(
-            accData.map((a: any) => ({
-              id: a.id,
-              name: a.name,
-              type: a.type,
-              owner: a.owner,
-              current_balance: Number(a.balance ?? a.initial_balance ?? 0),
-            }))
-          );
-        }
+        const monthStartDay = settingData?.month_start_day || 1;
+        const cycleRange = getMonthlyRange(0, monthStartDay);
+
+        const { data: cycleTxs } = await supabase
+          .from('transactions')
+          .select('id, amount, direction, merchant, category_id, account_id, source_device, transaction_date, status')
+          .eq('household_id', householdId)
+          .eq('status', 'reconciled')
+          .not('merchant', 'ilike', 'Koreksi Saldo%')
+          .not('merchant', 'ilike', 'Transfer Internal%')
+          .gte('transaction_date', cycleRange.startDate.toISOString())
+          .lte('transaction_date', cycleRange.endDate.toISOString());
+
+        const istriAcc = activeAccounts.find((a) => a.owner === 'istri');
+        const outTxs = (cycleTxs || []).filter((t: any) => t.direction === 'out');
+        const inTxs = (cycleTxs || []).filter((t: any) => t.direction === 'in');
+        const dedupedOut = await deduplicateSimultaneousExpenses(
+          supabase,
+          householdId,
+          outTxs as any[],
+          istriAcc ? { id: istriAcc.id, name: istriAcc.name } : null
+        );
+
+        const monthlyIn = inTxs.reduce((sum: number, t: any) => sum + Number(t.amount || 0), 0);
+        const monthlyOut = dedupedOut.reduce((sum: number, t: any) => sum + Number(t.amount || 0), 0);
+        setMonthlyCashflow({
+          monthlyIn,
+          monthlyOut,
+          net: monthlyIn - monthlyOut,
+        });
 
         // 3. Riwayat Transaksi Terkini (Recent History: 10 transaksi terakhir)
         const { data: txData } = await supabase
@@ -200,6 +241,27 @@ export default function DashboardPage() {
       )
       .on(
         'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'transactions' },
+        () => {
+          fetchData();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'transactions' },
+        () => {
+          fetchData();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'accounts' },
+        () => {
+          fetchData();
+        }
+      )
+      .on(
+        'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'raw_notifications' },
         (payload) => {
           const raw = payload.new as any;
@@ -245,21 +307,8 @@ export default function DashboardPage() {
     return { totalAll, totalSuami, totalIstri };
   }, [accounts]);
 
-  // Kalkulasi Cashflow dari Transaksi Reconciled
-  const cashflowSummary = useMemo(() => {
-    let monthlyIn = 0;
-    let monthlyOut = 0;
-
-    recentTransactions.forEach((tx) => {
-      if (tx.status === 'reconciled') {
-        const amt = Number(tx.amount || 0);
-        if (tx.direction === 'in') monthlyIn += amt;
-        else monthlyOut += amt;
-      }
-    });
-
-    return { monthlyIn, monthlyOut, net: monthlyIn - monthlyOut };
-  }, [recentTransactions]);
+  // Kalkulasi Cashflow dari Transaksi Reconciled Siklus Berjalan (Selaras dengan Telegram)
+  const cashflowSummary = monthlyCashflow;
 
   // Tindakan Kategori dari Modal Detail
   const handleCategorize = async (transactionId: string, categoryId: string) => {
@@ -273,6 +322,9 @@ export default function DashboardPage() {
           needs_review: false,
         })
         .eq('id', transactionId);
+      if (currentHouseholdId) {
+        await syncAllHouseholdAccountBalances(supabase, currentHouseholdId);
+      }
     }
     fetchData();
   };
@@ -284,6 +336,9 @@ export default function DashboardPage() {
         .from('transactions')
         .update({ status: 'ignored' })
         .eq('id', transactionId);
+      if (currentHouseholdId) {
+        await syncAllHouseholdAccountBalances(supabase, currentHouseholdId);
+      }
     }
     fetchData();
   };
@@ -300,6 +355,9 @@ export default function DashboardPage() {
         .from('transactions')
         .update({ amount, merchant, direction, needs_review: false })
         .eq('id', transactionId);
+      if (currentHouseholdId) {
+        await syncAllHouseholdAccountBalances(supabase, currentHouseholdId);
+      }
     }
     fetchData();
   };

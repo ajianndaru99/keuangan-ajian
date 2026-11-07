@@ -12,6 +12,8 @@ import RemainingBudgetDonut from '@/components/budget/RemainingBudgetDonut';
 import CategoryBudgetCard, { CategoryBudgetItem } from '@/components/budget/CategoryBudgetCard';
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
 import { getMonthlyRange, getBudgetPeriodKey } from '@/lib/date-utils';
+import { matchTargetCategory } from '@/lib/budget/budget-guard';
+import { deduplicateSimultaneousExpenses } from '@/lib/telegram/commands';
 import { RefreshCw, Bot, CheckCircle2 } from 'lucide-react';
 
 const targetCategories = [
@@ -96,14 +98,14 @@ export default function BudgetPage() {
       const { data: txList } = await supabase
         .from('transactions')
         .select(`
-          category_id, amount, direction, status,
+          id, category_id, account_id, source_device, merchant, transaction_date, amount, direction, status,
           categories (name)
         `)
         .eq('household_id', profile.household_id)
         .eq('direction', 'out')
         .eq('status', 'reconciled')
-        .not('merchant', 'ilike', 'Koreksi Saldo:%')
-        .not('merchant', 'ilike', 'Transfer Internal:%')
+        .not('merchant', 'ilike', 'Koreksi Saldo%')
+        .not('merchant', 'ilike', 'Transfer Internal%')
         .gte('transaction_date', startOfCycle)
         .lte('transaction_date', endOfCycle);
 
@@ -120,27 +122,18 @@ export default function BudgetPage() {
         });
       }
 
-      const spentByNameMap: Record<string, number> = {};
+      const spentByIdMap: Record<string, number> = {};
       if (txList) {
-        interface TxBudgetRow {
-          categories: { name: string } | null;
-          amount: number;
-        }
-        (txList as unknown as TxBudgetRow[]).forEach((tx) => {
-          const catName = tx.categories?.name || '';
-          if (catName) {
-            let matchedKey = 'Lainnya';
-            for (const tc of targetCategories) {
-              if (
-                catName.toLowerCase().includes(tc.name.toLowerCase()) ||
-                tc.name.toLowerCase().includes(catName.toLowerCase())
-              ) {
-                matchedKey = tc.name;
-                break;
-              }
-            }
-            spentByNameMap[matchedKey] = (spentByNameMap[matchedKey] || 0) + Number(tx.amount || 0);
-          }
+        const dedupedTxs = await deduplicateSimultaneousExpenses(
+          supabase,
+          profile.household_id,
+          txList as any[],
+          null
+        );
+        dedupedTxs.forEach((tx: any) => {
+          const catName = tx.categories?.name || tx.category_id || '';
+          const matchedTarget = matchTargetCategory(catName);
+          spentByIdMap[matchedTarget.id] = (spentByIdMap[matchedTarget.id] || 0) + Number(tx.amount || 0);
         });
       }
 
@@ -149,7 +142,7 @@ export default function BudgetPage() {
         name: c.name,
         emoji: c.emoji,
         budgetLimit: savedLimits[c.id] || 0,
-        spentAmount: spentByNameMap[c.name] || 0,
+        spentAmount: spentByIdMap[c.id] || 0,
         periodName: periodMonthName,
       }));
 
@@ -171,6 +164,26 @@ export default function BudgetPage() {
 
   useEffect(() => {
     fetchBudgetData();
+
+    if (!isSupabaseConfigured()) return;
+
+    const supabase = createClient();
+    const channel = supabase
+      .channel('realtime:budget_page')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'category_budgets' }, () => {
+        fetchBudgetData();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions' }, () => {
+        fetchBudgetData();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'settings' }, () => {
+        fetchBudgetData();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [fetchBudgetData]);
 
   const totalBudget = useMemo(() => {

@@ -13,7 +13,7 @@ import {
 import { formatRupiah } from '../utils.ts';
 import { TARGET_BUDGET_CATEGORIES } from '../budget/budget-guard.ts';
 import { getMonthlyRange, getBudgetPeriodKey } from '../date-utils.ts';
-import { syncAccountBalance } from '../account-balance.ts';
+import { syncAccountBalance, syncAllHouseholdAccountBalances } from '../account-balance.ts';
 import { parseNominal } from './nlp-chat.ts';
 import { buildDaily11AMReportText } from './commands.ts';
 
@@ -97,17 +97,13 @@ async function handleAccountSettingsMenu(
   supabase: SupabaseClient,
   householdId: string
 ): Promise<void> {
-  const { data: accounts } = await supabase
-    .from('accounts')
-    .select('id, name, owner, balance, is_active')
-    .eq('household_id', householdId)
-    .order('owner', { ascending: true });
+  const syncedAccounts = await syncAllHouseholdAccountBalances(supabase, householdId);
 
-  const activeAccounts = (accounts || []).filter((a) => a.is_active);
-  const totalKas = activeAccounts.reduce((sum, a) => sum + Number(a.balance || 0), 0);
+  const activeAccounts = syncedAccounts.filter((a) => a.is_active);
+  const totalKas = activeAccounts.reduce((sum, a) => sum + Number(a.current_balance || 0), 0);
 
   const accLines = activeAccounts.map(
-    (a) => `• *${a.name}* (${a.owner === 'istri' ? 'Istri' : 'Suami'}): \`${formatRupiah(Number(a.balance || 0))}\``
+    (a) => `• *${a.name}* (${a.owner === 'istri' ? 'Istri' : 'Suami'}): \`${formatRupiah(Number(a.current_balance || 0))}\``
   );
 
   const text = `🏦 *KELOLA REKENING & SALDO KELUARGA*
@@ -126,7 +122,7 @@ ${accLines.join('\n') || '- Belum ada rekening aktif-'}
   const buttons = activeAccounts.map((a) => [
     {
       text: `✏️ Ubah Saldo: ${a.name}`,
-      callback_data: `sask:${a.id.slice(0, 8)}:${a.balance || 0}`,
+      callback_data: `cfg:abaledit:${a.id.slice(0, 8)}`,
     },
   ]);
 
@@ -136,6 +132,64 @@ ${accLines.join('\n') || '- Belum ada rekening aktif-'}
   buttons.push([
     { text: '⬅️ Kembali', callback_data: 'cfg:menu' },
   ]);
+
+  await editTelegramMessageText(chatId, messageId, text, {
+    reply_markup: { inline_keyboard: buttons },
+  });
+}
+
+/**
+ * Menampilkan Pilihan Nominal Baru saat Pengguna Menekan "✏️ Ubah Saldo: <Nama Akun>"
+ */
+async function handleAccountBalanceEditMenu(
+  chatId: number | string,
+  messageId: number,
+  shortAccId: string,
+  supabase: SupabaseClient,
+  householdId: string
+): Promise<void> {
+  const syncedAccounts = await syncAllHouseholdAccountBalances(supabase, householdId);
+  const target = syncedAccounts.find((a) => a.id === shortAccId || a.id.startsWith(shortAccId));
+
+  if (!target) {
+    await handleAccountSettingsMenu(chatId, messageId, supabase, householdId);
+    return;
+  }
+
+  const currentBal = Number(target.current_balance || 0);
+  const shortId = target.id.slice(0, 8);
+  const ownerLabel = target.owner === 'istri' ? 'Istri' : 'Suami';
+  const plus100k = currentBal + 100000;
+  const minus100k = Math.max(0, currentBal - 100000);
+
+  const text = `✏️ *UBAH SALDO: ${target.name.toUpperCase()} (${ownerLabel})*
+
+💰 *Saldo Saat Ini:* \`${formatRupiah(currentBal)}\`
+
+Pilih nominal saldo baru secara instan di bawah ini, atau ketik nominal bebas di chat dengan format:
+\`set saldo ${target.name.toLowerCase()} 750rb\``;
+
+  const buttons = [
+    [
+      { text: '➕ +Rp 100rb', callback_data: `sask:${shortId}:${plus100k}` },
+      { text: '➖ -Rp 100rb', callback_data: `sask:${shortId}:${minus100k}` },
+    ],
+    [
+      { text: 'Rp 250 Ribu', callback_data: `sask:${shortId}:250000` },
+      { text: 'Rp 500 Ribu', callback_data: `sask:${shortId}:500000` },
+    ],
+    [
+      { text: 'Rp 1 Juta', callback_data: `sask:${shortId}:1000000` },
+      { text: 'Rp 2 Juta', callback_data: `sask:${shortId}:2000000` },
+    ],
+    [
+      { text: 'Rp 5 Juta', callback_data: `sask:${shortId}:5000000` },
+      { text: 'Rp 7,6 Juta', callback_data: `sask:${shortId}:7600000` },
+    ],
+    [
+      { text: '⬅️ Kembali ke Rekening', callback_data: 'cfg:acc' },
+    ],
+  ];
 
   await editTelegramMessageText(chatId, messageId, text, {
     reply_markup: { inline_keyboard: buttons },
@@ -762,6 +816,12 @@ export async function handleSettingsHubCallback(
   // 3. Modul Rekening & Saldo
   if (data === 'cfg:acc') {
     await handleAccountSettingsMenu(chatId, messageId, supabase, householdId);
+    return true;
+  }
+
+  if (data.startsWith('cfg:abaledit:')) {
+    const shortAccId = data.replace('cfg:abaledit:', '').trim();
+    await handleAccountBalanceEditMenu(chatId, messageId, shortAccId, supabase, householdId);
     return true;
   }
 

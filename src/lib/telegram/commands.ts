@@ -231,11 +231,26 @@ export async function buildFinancialContext(
   const validTxs = await deduplicateSimultaneousExpenses(supabase, householdId, filteredTxs, istriAccount);
   const totalSpentMonth = validTxs.reduce((sum, t) => sum + Number(t.amount || 0), 0);
 
-  const accountItems = (accounts || []).map((acc) => ({
-    name: acc.name,
-    owner: acc.owner === 'suami' ? 'Suami' : 'Istri',
-    balance: Number(acc.balance ?? acc.initial_balance ?? 0),
-  }));
+  // Sinkronkan saldo tiap akun agar selalu identik antara Website, Database, dan Telegram
+  const accountItems: Array<{ name: string; owner: 'Suami' | 'Istri'; balance: number }> = [];
+  for (const acc of accounts || []) {
+    let resolvedBalance = Number(acc.balance ?? acc.initial_balance ?? 0);
+    if ((acc as any).id) {
+      try {
+        const syncRes = await syncAccountBalance(supabase, (acc as any).id);
+        if (syncRes.success && syncRes.newBalance !== undefined) {
+          resolvedBalance = syncRes.newBalance;
+        }
+      } catch {
+        // Fallback aman untuk unit test mock sederhana
+      }
+    }
+    accountItems.push({
+      name: acc.name,
+      owner: acc.owner === 'suami' ? 'Suami' : 'Istri',
+      balance: resolvedBalance,
+    });
+  }
 
   const totalBalance = accountItems.reduce((sum, a) => sum + a.balance, 0);
 

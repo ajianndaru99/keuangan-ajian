@@ -15,7 +15,7 @@ import {
 } from './formatters.ts';
 import { formatRupiah, formatDateWIB } from '../utils.ts';
 import { extractPromoKeywordsFromText } from '../ai/adaptive-rules.ts';
-import { syncAccountBalance } from '../account-balance.ts';
+import { syncAccountBalance, setAccountBalanceToTarget } from '../account-balance.ts';
 import { handleSettingsHubCallback } from './settings-hub.ts';
 import { assignTransactionCategory } from './category-helper.ts';
 
@@ -117,12 +117,14 @@ export async function handleTelegramCallbackQuery(
     const accId = parts[0];
     const targetBalance = Number(parts[1] || 0);
 
-    const { data: targetAccount, error: accErr } = await supabase
+    const { data: accounts, error: accErr } = await supabase
       .from('accounts')
       .select('id, name, owner, balance')
-      .eq('id', accId)
-      .eq('household_id', householdId)
-      .maybeSingle();
+      .eq('household_id', householdId);
+
+    const targetAccount = (accounts || []).find(
+      (a) => a.id === accId || a.id.startsWith(accId)
+    );
 
     if (accErr || !targetAccount) {
       await answerCallbackQuery(cq.id, '⚠️ Rekening tidak ditemukan.', true);
@@ -132,37 +134,27 @@ export async function handleTelegramCallbackQuery(
     const currentBalance = Number(targetAccount.balance || 0);
     const diff = targetBalance - currentBalance;
 
-    if (diff !== 0) {
-      const owner = targetAccount.owner === 'istri' ? 'istri' : 'suami';
-      const { error: insErr } = await supabase.from('transactions').insert({
-        household_id: householdId,
-        account_id: targetAccount.id,
-        amount: Math.abs(diff),
-        direction: diff > 0 ? 'in' : 'out',
-        merchant: `Koreksi Saldo: ${targetAccount.name}`,
-        raw_notification: `Penyesuaian saldo terkonfirmasi via Telegram: ${targetAccount.name} menjadi ${formatRupiah(targetBalance)} (Selisih: ${formatRupiah(diff)})`,
-        source_device: owner,
-        transaction_date: new Date().toISOString(),
-        status: 'reconciled',
-        dedupe_hash: `adj_${targetAccount.id}_${Date.now()}`,
-        needs_review: false,
-      });
+    const syncRes = await setAccountBalanceToTarget(
+      supabase,
+      householdId,
+      targetAccount.id,
+      targetBalance
+    );
 
-      if (insErr) {
-        console.error('[Callback sok Insert Error]:', insErr.message);
-        await answerCallbackQuery(cq.id, '⚠️ Gagal menyimpan transaksi koreksi saldo.', true);
-        return;
-      }
+    if (!syncRes.success) {
+      console.error('[Callback sok Sync Error]:', syncRes.error);
+      await answerCallbackQuery(cq.id, '⚠️ Gagal memperbarui saldo rekening.', true);
+      return;
     }
 
-    await syncAccountBalance(supabase, targetAccount.id);
     await answerCallbackQuery(cq.id, '✅ Saldo berhasil disinkronkan!');
 
     const successText = `💰 *SALDO BERHASIL DIPERBARUI* ✅\n\n` +
       `Akun: *${targetAccount.name}* (${targetAccount.owner === 'istri' ? 'Istri' : 'Suami'})\n` +
       `Saldo Sekarang: \`${formatRupiah(targetBalance)}\`\n` +
-      `Selisih Tercatat: \`${diff >= 0 ? '+' : ''}${formatRupiah(diff)}\`\n` +
-      `Dikonfirmasi oleh: *${cq.from.first_name || 'Keluarga'}*`;
+      `Selisih Penyesuaian: \`${diff >= 0 ? '+' : ''}${formatRupiah(diff)}\`\n` +
+      `Dikonfirmasi oleh: *${cq.from.first_name || 'Keluarga'}*\n\n` +
+      `_Seluruh tampilan di Website, Database, dan Telegram telah disinkronkan otomatis._`;
 
     await editTelegramMessageText(chatId, messageId, successText, {
       reply_markup: { inline_keyboard: [] },

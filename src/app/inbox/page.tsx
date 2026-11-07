@@ -27,6 +27,7 @@ import { TransactionItem } from '@/components/inbox/TransactionCard';
 import { Category } from '@/components/inbox/CategoryChipList';
 import { extractNominal, extractMerchant, detectAccountInfo, extractNotificationDate } from '@/lib/ai/notification-parser';
 import { extractPromoKeywordsFromText } from '@/lib/ai/adaptive-rules';
+import { syncAllHouseholdAccountBalances, preserveBalanceBeforeBulkDelete } from '@/lib/account-balance';
 import { formatRupiah } from '@/lib/utils';
 import { CheckCircle2, Smartphone, AlertTriangle, Trash2, Clock, X } from 'lucide-react';
 
@@ -150,14 +151,19 @@ export default function InboxTransactionsPage() {
 
         if (catData && catData.length > 0) setCategories(catData);
 
-        // 2. Ambil Akun
-        const { data: accData } = await supabase
-          .from('accounts')
-          .select('id, name, type, owner')
-          .eq('household_id', householdId)
-          .eq('is_active', true);
-
-        if (accData) setAccounts(accData);
+        // 2. Ambil & Sinkronkan Akun (agar saldo Website, Database, dan Telegram selalu 100% selaras)
+        const syncedAccs = await syncAllHouseholdAccountBalances(supabase, householdId);
+        const activeAccs = syncedAccs.filter((a) => a.is_active);
+        if (activeAccs.length > 0) {
+          setAccounts(activeAccs);
+        } else {
+          const { data: accData } = await supabase
+            .from('accounts')
+            .select('id, name, type, owner')
+            .eq('household_id', householdId)
+            .eq('is_active', true);
+          if (accData) setAccounts(accData);
+        }
 
         // 3. Ambil Transaksi (Filter Tanggal jika ada)
         let query = supabase
@@ -284,6 +290,20 @@ export default function InboxTransactionsPage() {
             sourceDevice: newTx.source_device || 'suami',
             rawNotification: newTx.raw_notification,
           });
+          fetchData();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'transactions' },
+        () => {
+          fetchData();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'transactions' },
+        () => {
           fetchData();
         }
       )
@@ -487,6 +507,10 @@ export default function InboxTransactionsPage() {
           .from('transactions')
           .delete()
           .in('id', idsToDelete);
+
+        if (householdId) {
+          await syncAllHouseholdAccountBalances(supabase, householdId);
+        }
       } catch (err) {
         console.error('Gagal menghapus data promo:', err);
       } finally {
@@ -507,6 +531,9 @@ export default function InboxTransactionsPage() {
           needs_review: false,
         })
         .eq('id', transactionId);
+      if (currentHouseholdId) {
+        await syncAllHouseholdAccountBalances(supabase, currentHouseholdId);
+      }
     }
     fetchData();
   };
@@ -539,6 +566,7 @@ export default function InboxTransactionsPage() {
         .from('transactions')
         .update({ status: 'ignored' })
         .eq('id', transactionId);
+      await syncAllHouseholdAccountBalances(supabase, currentHouseholdId);
     }
     fetchData();
   };
@@ -547,7 +575,13 @@ export default function InboxTransactionsPage() {
     if (!confirm('Apakah Anda yakin ingin menghapus catatan transaksi ini?')) return;
     if (isSupabaseConfigured()) {
       const supabase = createClient();
+      if (currentHouseholdId) {
+        await preserveBalanceBeforeBulkDelete(supabase, currentHouseholdId, [transactionId]);
+      }
       await supabase.from('transactions').delete().eq('id', transactionId);
+      if (currentHouseholdId) {
+        await syncAllHouseholdAccountBalances(supabase, currentHouseholdId);
+      }
     }
     setSelectedIds((prev) => prev.filter((id) => id !== transactionId));
     fetchData();
@@ -617,10 +651,16 @@ export default function InboxTransactionsPage() {
       setLoading(true);
       const supabase = createClient();
       try {
+        if (currentHouseholdId) {
+          await preserveBalanceBeforeBulkDelete(supabase, currentHouseholdId, idsToDelete);
+        }
         await supabase.from('transactions').delete().in('id', idsToDelete);
+        if (currentHouseholdId) {
+          await syncAllHouseholdAccountBalances(supabase, currentHouseholdId);
+        }
         setFeedbackToast({
           title: `${idsToDelete.length} Transaksi Dihapus`,
-          message: 'Seluruh transaksi yang dipilih telah berhasil dihapus dari daftar.',
+          message: 'Seluruh transaksi yang dipilih telah dihapus dan saldo kas tetap tersinkronisasi.',
         });
       } catch (err) {
         console.error('Gagal menghapus transaksi massal:', err);
@@ -642,6 +682,9 @@ export default function InboxTransactionsPage() {
         .from('transactions')
         .update({ amount, merchant, direction, needs_review: false })
         .eq('id', transactionId);
+      if (currentHouseholdId) {
+        await syncAllHouseholdAccountBalances(supabase, currentHouseholdId);
+      }
     }
     fetchData();
   };
@@ -689,6 +732,7 @@ export default function InboxTransactionsPage() {
         .from('transactions')
         .update({ status: 'ignored', needs_review: false })
         .eq('id', target.id);
+      await syncAllHouseholdAccountBalances(supabase, currentHouseholdId);
     }
 
     setFeedbackToast({

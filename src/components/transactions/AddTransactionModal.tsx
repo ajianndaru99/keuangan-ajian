@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 // ==============================================================================
 // COMPONENT: src/components/transactions/AddTransactionModal.tsx
@@ -262,6 +262,11 @@ export default function AddTransactionModal({
               .from('raw_notifications')
               .update({ validated_at: new Date().toISOString() })
               .eq('id', preloadedData.rawNotificationId);
+          }
+
+          if (payload.account_id) {
+            const { syncAccountBalance } = await import('@/lib/account-balance');
+            await syncAccountBalance(supabase, payload.account_id);
           }
         }
       }

@@ -10,6 +10,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
 import AppShell from '@/components/layout/AppShell';
 import { usePrivacy, formatMaskedRupiah } from '@/lib/privacy';
+import { syncAllHouseholdAccountBalances } from '@/lib/account-balance';
 import {
   Wallet,
   RefreshCw,
@@ -31,27 +32,6 @@ export interface AccountBalanceItem {
   is_active: boolean;
 }
 
-interface AccountBalanceRpcRow {
-  account_id?: string;
-  id?: string;
-  name: string;
-  type: 'bank' | 'ewallet';
-  owner: 'suami' | 'istri';
-  initial_balance?: number | string | null;
-  current_balance?: number | string | null;
-  is_active: boolean;
-}
-
-interface AccountTableRow {
-  id: string;
-  name: string;
-  type: 'bank' | 'ewallet';
-  owner: 'suami' | 'istri';
-  initial_balance?: number | string | null;
-  balance?: number | string | null;
-  is_active: boolean;
-}
-
 export default function AccountsPage() {
   const { isHideBalance, togglePrivacy } = usePrivacy();
   const [accounts, setAccounts] = useState<AccountBalanceItem[]>([]);
@@ -60,7 +40,7 @@ export default function AccountsPage() {
   const [loading, setLoading] = useState(false);
   const [filterOwner, setFilterOwner] = useState<'all' | 'suami' | 'istri'>('all');
 
-  // Ambil saldo akun dari database Supabase
+  // Ambil dan sinkronkan saldo akun dari database Supabase (selaras 100% dengan Telegram & Beranda)
   const fetchAccounts = useCallback(async () => {
     if (!isSupabaseConfigured()) return;
 
@@ -80,46 +60,19 @@ export default function AccountsPage() {
           setUserRole(profile.role);
           setDisplayName(profile.display_name);
 
-          // Panggil RPC get_account_balances
-          const { data: balanceData, error: balanceError } = await supabase
-            .rpc('get_account_balances', { p_household_id: profile.household_id });
-
-          if (!balanceError && balanceData && balanceData.length > 0) {
-            setAccounts(
-              (balanceData as AccountBalanceRpcRow[]).map((a: AccountBalanceRpcRow) => ({
-                id: a.account_id || a.id || '',
-                name: a.name,
-                type: a.type,
-                owner: a.owner,
-                initial_balance: Number(a.initial_balance || 0),
-                current_balance: Number(a.current_balance || 0),
-                is_active: a.is_active,
-              }))
-            );
-          } else {
-            // Fallback query tabel accounts biasa
-            const { data: rawAccounts } = await supabase
-              .from('accounts')
-              .select('*')
-              .eq('household_id', profile.household_id)
-              .order('owner', { ascending: true });
-
-            if (rawAccounts && rawAccounts.length > 0) {
-              setAccounts(
-                (rawAccounts as AccountTableRow[]).map((a: AccountTableRow) => ({
-                  id: a.id,
-                  name: a.name,
-                  type: a.type,
-                  owner: a.owner,
-                  initial_balance: Number(a.initial_balance || 0),
-                  current_balance: Number(a.balance ?? a.initial_balance ?? 0),
-                  is_active: a.is_active,
-                }))
-              );
-            } else {
-              setAccounts([]);
-            }
-          }
+          // Sinkronkan secara idempoten (termasuk auto-heal initial_balance lama) agar RPC, kolom balance, dan Telegram identik
+          const syncedAccounts = await syncAllHouseholdAccountBalances(supabase, profile.household_id);
+          setAccounts(
+            syncedAccounts.map((a) => ({
+              id: a.id,
+              name: a.name,
+              type: a.type,
+              owner: a.owner,
+              initial_balance: a.initial_balance,
+              current_balance: a.current_balance,
+              is_active: a.is_active,
+            }))
+          );
         }
       }
     } catch (err) {
@@ -132,6 +85,24 @@ export default function AccountsPage() {
 
   useEffect(() => {
     fetchAccounts();
+
+    if (!isSupabaseConfigured()) return;
+
+    // Realtime Listener agar perubahan saldo dari Telegram / halaman lain langsung terpantul otomatis
+    const supabase = createClient();
+    const channel = supabase
+      .channel('realtime:accounts_page')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'accounts' }, () => {
+        fetchAccounts();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions' }, () => {
+        fetchAccounts();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [fetchAccounts]);
 
   // Kalkulasi Total Saldo
