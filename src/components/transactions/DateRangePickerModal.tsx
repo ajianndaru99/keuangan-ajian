@@ -8,7 +8,7 @@
 import { useState } from 'react';
 import { Calendar, X, Check } from 'lucide-react';
 
-export type DateFilterPreset = 'all' | 'today' | 'last7days' | 'thisMonth' | 'custom';
+export type DateFilterPreset = 'all' | 'today' | 'last7days' | 'thisMonth' | 'lastMonth' | 'custom';
 
 export interface DateRangeValue {
   preset: DateFilterPreset;
@@ -73,6 +73,16 @@ export default function DateRangePickerModal({
         endDate: end,
         label: now.toLocaleString('id-ID', { month: 'long', year: 'numeric' }),
       });
+    } else if (selectedPreset === 'lastMonth') {
+      const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const start = toLocalYmd(lastMonthDate);
+      const end = toLocalYmd(new Date(now.getFullYear(), now.getMonth(), 0));
+      onApply({
+        preset: 'lastMonth',
+        startDate: start,
+        endDate: end,
+        label: lastMonthDate.toLocaleString('id-ID', { month: 'long', year: 'numeric' }),
+      });
     } else if (selectedPreset === 'custom' && customStart && customEnd) {
       label = `${customStart} s/d ${customEnd}`;
       onApply({
@@ -118,6 +128,7 @@ export default function DateRangePickerModal({
             { id: 'today', label: 'Hari Ini' },
             { id: 'last7days', label: '7 Hari Terakhir' },
             { id: 'thisMonth', label: 'Bulan Ini' },
+            { id: 'lastMonth', label: 'Bulan Lalu' },
             { id: 'custom', label: 'Rentang Kustom' },
           ].map((preset) => {
             const isSelected = selectedPreset === preset.id;

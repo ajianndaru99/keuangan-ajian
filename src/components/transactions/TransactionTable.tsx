@@ -51,6 +51,9 @@ interface TransactionTableProps {
   onEditTransaction: (item: MonexaTransactionRow) => void;
   onDeleteTransaction?: (id: string) => void;
   onMarkAsPromoSpam?: (item: MonexaTransactionRow) => void;
+  selectedIds?: string[];
+  onToggleSelect?: (id: string) => void;
+  onToggleSelectAll?: () => void;
 }
 
 export default function TransactionTable({
@@ -59,6 +62,9 @@ export default function TransactionTable({
   onEditTransaction,
   onDeleteTransaction,
   onMarkAsPromoSpam,
+  selectedIds = [],
+  onToggleSelect,
+  onToggleSelectAll,
 }: TransactionTableProps) {
   const { isHideBalance } = usePrivacy();
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
@@ -138,6 +144,9 @@ export default function TransactionTable({
     );
   };
 
+  const isAllSelected =
+    transactions.length > 0 && transactions.every((tx) => selectedIds.includes(tx.id));
+
   return (
     <div className="space-y-3">
       {/* =========================================================================
@@ -148,6 +157,17 @@ export default function TransactionTable({
           <table className="w-full text-left text-xs">
             <thead className="bg-[var(--surface-2)]/80 text-[var(--text-muted)] border-b border-[var(--border-color)] font-semibold select-none">
               <tr>
+                {onToggleSelect && (
+                  <th className="py-3.5 pl-4 pr-2 w-10 text-center">
+                    <input
+                      type="checkbox"
+                      checked={isAllSelected}
+                      onChange={() => onToggleSelectAll?.()}
+                      className="w-4 h-4 rounded border-[var(--border-color)] accent-[var(--accent-color)] cursor-pointer"
+                      title="Pilih / Batal Pilih Semua Transaksi yang Ditampilkan"
+                    />
+                  </th>
+                )}
                 <th className="py-3.5 px-4 font-semibold whitespace-nowrap">Transaction Date</th>
                 <th className="py-3.5 px-4 font-semibold whitespace-nowrap">Transaction Name</th>
                 <th className="py-3.5 px-4 font-semibold whitespace-nowrap">Total Amount</th>
@@ -177,13 +197,35 @@ export default function TransactionTable({
                 const isIncome = tx.direction === 'in';
                 const isPending = tx.status === 'pending';
                 const isExpanded = expandAllNotifs || expandedNotifId === tx.id;
+                const isSelected = selectedIds.includes(tx.id);
 
                 return (
                   <tr
                     key={tx.id}
-                    className="hover:bg-[var(--surface-2)]/60 transition-colors group cursor-pointer"
+                    className={`transition-colors group cursor-pointer ${
+                      isSelected
+                        ? 'bg-[var(--accent-color)]/10 hover:bg-[var(--accent-color)]/15'
+                        : 'hover:bg-[var(--surface-2)]/60'
+                    }`}
                     onClick={() => onSelectTransaction(tx)}
                   >
+                    {onToggleSelect && (
+                      <td
+                        className="py-3.5 pl-4 pr-2 w-10 text-center align-top"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onToggleSelect(tx.id);
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => {}}
+                          className="w-4 h-4 rounded border-[var(--border-color)] accent-[var(--accent-color)] cursor-pointer mt-0.5"
+                          title="Pilih transaksi ini"
+                        />
+                      </td>
+                    )}
                     {/* 1. Transaction Date */}
                     <td className="py-3.5 px-4 font-medium text-[var(--text-muted)] whitespace-nowrap angka-keuangan align-top">
                       {formatTableDate(tx.transaction_date)}
@@ -444,16 +486,38 @@ export default function TransactionTable({
         {transactions.map((tx) => {
           const isIncome = tx.direction === 'in';
           const isPending = tx.status === 'pending';
+          const isSelected = selectedIds.includes(tx.id);
 
           return (
             <div
               key={`mobile-${tx.id}`}
               onClick={() => onSelectTransaction(tx)}
-              className="p-3.5 rounded-xl bg-[var(--surface-1)] border border-[var(--border-color)] shadow-2xs space-y-2 active:scale-[0.99] transition-all cursor-pointer"
+              className={`p-3.5 rounded-xl border shadow-2xs space-y-2 active:scale-[0.99] transition-all cursor-pointer ${
+                isSelected
+                  ? 'bg-[var(--accent-color)]/10 border-[var(--accent-color)] ring-1 ring-[var(--accent-color)]/40'
+                  : 'bg-[var(--surface-1)] border-[var(--border-color)]'
+              }`}
             >
-              {/* Baris 1: Ikon + Merchant & Waktu + Nominal */}
+              {/* Baris 1: Checkbox + Ikon + Merchant & Waktu + Nominal */}
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-2.5 min-w-0">
+                  {onToggleSelect && (
+                    <div
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onToggleSelect(tx.id);
+                      }}
+                      className="p-1 -ml-1 flex items-center justify-center shrink-0"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => {}}
+                        className="w-4 h-4 rounded border-[var(--border-color)] accent-[var(--accent-color)] cursor-pointer"
+                        title="Pilih transaksi ini"
+                      />
+                    </div>
+                  )}
                   <div
                     className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
                       isIncome

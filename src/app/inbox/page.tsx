@@ -99,10 +99,13 @@ export default function InboxTransactionsPage() {
   const [isAiModalOpen, setIsAiModalOpen] = useState<boolean>(false);
   const [confirmingCleanPromo, setConfirmingCleanPromo] = useState<boolean>(false);
 
-  // State Promo / Spam (Closed-Loop Learning)
+  // State Promo / Spam (Closed-Loop Learning) & Bulk Selection
   const [promoSpamTarget, setPromoSpamTarget] = useState<MonexaTransactionRow | TransactionItem | null>(null);
   const [isPromoSpamModalOpen, setIsPromoSpamModalOpen] = useState<boolean>(false);
   const [feedbackToast, setFeedbackToast] = useState<{ title: string; message: string } | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [confirmingBulkDelete, setConfirmingBulkDelete] = useState<boolean>(false);
+  const [autoSelectOnLoad, setAutoSelectOnLoad] = useState<boolean>(false);
 
   // Auto-dismiss feedback toast setelah 4 detik
   useEffect(() => {
@@ -347,6 +350,33 @@ export default function InboxTransactionsPage() {
       }));
   }, [transactions, flowFilter, searchQuery]);
 
+  // Daftar ID transaksi bulan lalu (atau sebelum awal bulan berjalan) pada tampilan saat ini
+  const previousMonthTxIds = useMemo(() => {
+    const now = new Date();
+    const startOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+    return filteredTransactions
+      .filter((tx) => {
+        const txTime = new Date(tx.transaction_date).getTime();
+        return !Number.isNaN(txTime) && txTime < startOfCurrentMonth;
+      })
+      .map((tx) => tx.id);
+  }, [filteredTransactions]);
+
+  // Sinkronisasi selectedIds ketika daftar transaksi terfilter berubah
+  useEffect(() => {
+    const validSet = new Set(filteredTransactions.map((t) => t.id));
+    if (autoSelectOnLoad && filteredTransactions.length > 0) {
+      setSelectedIds(filteredTransactions.map((t) => t.id));
+      setAutoSelectOnLoad(false);
+      return;
+    }
+    setSelectedIds((prev) => {
+      const next = prev.filter((id) => validSet.has(id));
+      return next.length === prev.length ? prev : next;
+    });
+    setConfirmingBulkDelete(false);
+  }, [filteredTransactions, autoSelectOnLoad]);
+
   // Ringkasan Finansial Ribbon Widescreen Desktop
   const transactionSummary = useMemo(() => {
     let totalIn = 0;
@@ -519,7 +549,85 @@ export default function InboxTransactionsPage() {
       const supabase = createClient();
       await supabase.from('transactions').delete().eq('id', transactionId);
     }
+    setSelectedIds((prev) => prev.filter((id) => id !== transactionId));
     fetchData();
+  };
+
+  // Handler Bulk Pilih Satu Baris
+  const handleToggleSelect = (transactionId: string) => {
+    setConfirmingBulkDelete(false);
+    setSelectedIds((prev) =>
+      prev.includes(transactionId)
+        ? prev.filter((id) => id !== transactionId)
+        : [...prev, transactionId]
+    );
+  };
+
+  // Handler Bulk Pilih Semua / Batal Pilih Semua pada daftar terfilter
+  const handleToggleSelectAll = () => {
+    setConfirmingBulkDelete(false);
+    const allIds = filteredTransactions.map((t) => t.id);
+    const isAllSelected = allIds.length > 0 && allIds.every((id) => selectedIds.includes(id));
+    if (isAllSelected) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(allIds);
+    }
+  };
+
+  // Handler Pilih Cepat Transaksi Bulan Lalu
+  const handleSelectPreviousMonths = () => {
+    setConfirmingBulkDelete(false);
+    if (previousMonthTxIds.length > 0) {
+      setSelectedIds(previousMonthTxIds);
+      return;
+    }
+    // Jika saat ini berada di filter "Bulan Ini", otomatis pindah ke "Bulan Lalu" dan pilih semua
+    const now = new Date();
+    const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const start = toLocalYmd(lastMonthDate);
+    const end = toLocalYmd(new Date(now.getFullYear(), now.getMonth(), 0));
+    setAutoSelectOnLoad(true);
+    setDateRange({
+      preset: 'lastMonth',
+      startDate: start,
+      endDate: end,
+      label: lastMonthDate.toLocaleString('id-ID', { month: 'long', year: 'numeric' }),
+    });
+  };
+
+  // Handler Bulk Hapus Transaksi Terpilih (Konfirmasi 2-Klik Aman Tanpa Blokir Popup)
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+
+    if (!confirmingBulkDelete) {
+      setConfirmingBulkDelete(true);
+      setTimeout(() => setConfirmingBulkDelete(false), 5000);
+      return;
+    }
+
+    const idsToDelete = [...selectedIds];
+    setConfirmingBulkDelete(false);
+    setSelectedIds([]);
+
+    // Optimistic UI update
+    setTransactions((prev) => prev.filter((t) => !idsToDelete.includes(t.id)));
+
+    if (isSupabaseConfigured()) {
+      setLoading(true);
+      const supabase = createClient();
+      try {
+        await supabase.from('transactions').delete().in('id', idsToDelete);
+        setFeedbackToast({
+          title: `${idsToDelete.length} Transaksi Dihapus`,
+          message: 'Seluruh transaksi yang dipilih telah berhasil dihapus dari daftar.',
+        });
+      } catch (err) {
+        console.error('Gagal menghapus transaksi massal:', err);
+      } finally {
+        fetchData();
+      }
+    }
   };
 
   const handleUpdate = async (
@@ -833,8 +941,109 @@ export default function InboxTransactionsPage() {
             pendingCount={globalPendingCount}
           />
 
+          {/* Bar Pilih Massal (Bulk Pilih & Hapus Transaksi) */}
+          {(filteredTransactions.length > 0 || dateRange.preset === 'thisMonth') && (
+            <div
+              className={`mb-3 p-3 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 transition-all ${
+                selectedIds.length > 0
+                  ? 'bg-[var(--accent-color)]/10 border-[var(--accent-color)]/40 shadow-xs'
+                  : 'bg-[var(--surface-1)] border-[var(--border-color)]'
+              }`}
+            >
+              <div className="flex items-center gap-2 flex-wrap">
+                {filteredTransactions.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleToggleSelectAll}
+                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[var(--surface-2)] hover:bg-[var(--surface-3)] border border-[var(--border-color)] text-xs font-semibold text-[var(--text-main)] transition-colors cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={
+                        filteredTransactions.length > 0 &&
+                        filteredTransactions.every((t) => selectedIds.includes(t.id))
+                      }
+                      onChange={() => {}}
+                      className="w-3.5 h-3.5 rounded accent-[var(--accent-color)] pointer-events-none"
+                    />
+                    <span>
+                      {filteredTransactions.length > 0 &&
+                      filteredTransactions.every((t) => selectedIds.includes(t.id))
+                        ? `Batal Pilih Semua (${filteredTransactions.length})`
+                        : `Pilih Semua (${filteredTransactions.length})`}
+                    </span>
+                  </button>
+                )}
+
+                {previousMonthTxIds.length > 0 ? (
+                  <button
+                    type="button"
+                    onClick={handleSelectPreviousMonths}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-600 dark:text-amber-300 text-xs font-bold transition-colors"
+                  >
+                    <Clock className="w-3.5 h-3.5" />
+                    <span>Pilih Transaksi Bulan Lalu ({previousMonthTxIds.length})</span>
+                  </button>
+                ) : (
+                  dateRange.preset === 'thisMonth' && (
+                    <button
+                      type="button"
+                      onClick={handleSelectPreviousMonths}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--surface-2)] hover:bg-[var(--surface-3)] border border-[var(--border-color)] text-[var(--text-muted)] hover:text-[var(--text-main)] text-xs font-semibold transition-colors"
+                    >
+                      <Clock className="w-3.5 h-3.5 text-amber-500" />
+                      <span>Tampilkan & Pilih Bulan Lalu</span>
+                    </button>
+                  )
+                )}
+
+                {selectedIds.length > 0 && (
+                  <div className="inline-flex items-center gap-2 pl-1">
+                    <span className="text-xs font-bold text-[var(--accent-color)]">
+                      {selectedIds.length} dipilih
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedIds([]);
+                        setConfirmingBulkDelete(false);
+                      }}
+                      className="text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text-main)] underline"
+                    >
+                      Reset
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {selectedIds.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleBulkDelete}
+                    className={`w-full sm:w-auto px-3.5 py-2 rounded-xl text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-xs ${
+                      confirmingBulkDelete
+                        ? 'bg-red-700 ring-2 ring-red-400 animate-pulse'
+                        : 'bg-rose-600 hover:bg-rose-700'
+                    }`}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>
+                      {confirmingBulkDelete
+                        ? `Yakin Hapus ${selectedIds.length} Transaksi? (Klik Sekali Lagi)`
+                        : `Hapus Terpilih (${selectedIds.length})`}
+                    </span>
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
           <TransactionTable
             transactions={filteredTransactions}
+            selectedIds={selectedIds}
+            onToggleSelect={handleToggleSelect}
+            onToggleSelectAll={handleToggleSelectAll}
             onSelectTransaction={(row) => {
               const found = transactions.find((t) => t.id === row.id);
               if (found) {
