@@ -252,12 +252,22 @@ export async function POST(req: NextRequest) {
     // A. Terapkan Pasangan Transfer Internal
     for (const pair of aiResult.internalTransfers) {
       if (pair.outTxId && pair.inTxId && validPendingIds.has(pair.outTxId) && validPendingIds.has(pair.inTxId)) {
+        const outTx = pendingTxs.find((t) => t.id === pair.outTxId);
+        const inTx = pendingTxs.find((t) => t.id === pair.inTxId);
+        const outAccRaw = outTx?.accounts;
+        const fromAcc = (Array.isArray(outAccRaw) ? outAccRaw[0]?.name : (outAccRaw as any)?.name) || 'Rekening';
+        const inAccRaw = inTx?.accounts;
+        const toAcc = (Array.isArray(inAccRaw) ? inAccRaw[0]?.name : (inAccRaw as any)?.name) || 'Dompet';
+        const transferMerchant = `Transfer Internal: ${fromAcc} ➔ ${toAcc}`;
+
         await clientToUse
           .from('transactions')
           .update({
             status: 'reconciled',
-            category_id: transferCategory?.id || null,
+            merchant: transferMerchant,
+            category_id: null,
             needs_review: false,
+            notes: 'Dipasangkan oleh rekonsiliasi harian AI sebagai transfer internal',
           })
           .eq('household_id', householdId)
           .in('id', [pair.outTxId, pair.inTxId]);

@@ -48,27 +48,71 @@ export interface ReviewAlert {
 }
 
 /**
+ * Memeriksa apakah suatu transaksi atau kategori merupakan transfer internal atau perpindahan kas sesama rekening
+ */
+export function isInternalTransferCategoryOrMerchant(
+  categoryName?: string | null,
+  merchant?: string | null
+): boolean {
+  const m = (merchant || '').trim();
+  const c = (categoryName || '').trim().toLowerCase();
+
+  if (/^(?:transfer\s*internal|koreksi\s*saldo):/i.test(m)) return true;
+  if (/^transfer\s+(?:ke|to)\s+(?:gopay|dana|ovo|shopeepay|linkaja|jago|bca|mandiri|bri|bni|seabank)/i.test(m)) return true;
+  if (c === 'transfer keluarga' || c === 'transfer internal' || c.includes('transfer internal')) return true;
+
+  return false;
+}
+
+/**
  * Mencocokkan nama atau kata kunci kategori ke 8 kategori anggaran keluarga
  */
 export function matchTargetCategory(categoryNameOrId: string): TargetCategory {
   const lower = (categoryNameOrId || '').toLowerCase().trim();
+  if (!lower) {
+    return TARGET_BUDGET_CATEGORIES[7]; // Lainnya (default untuk input kosong, jangan cocokkan loop includes(""))
+  }
+
+  // 1. Pencocokan ID atau nama persis
   for (const tc of TARGET_BUDGET_CATEGORIES) {
     if (tc.id === lower || tc.name.toLowerCase() === lower) {
       return tc;
     }
-    if (lower.includes(tc.name.toLowerCase()) || tc.name.toLowerCase().includes(lower)) {
+  }
+
+  // 2. Pemetaan eksplisit untuk kategori default sistem/database Supabase
+  if (lower === 'transfer keluarga' || lower === 'transfer internal') {
+    return TARGET_BUDGET_CATEGORIES[7]; // Di tingkat kalkulasi dibebaskan oleh isInternalTransferCategoryOrMerchant
+  }
+  if (lower === 'belanja online' || lower === 'anak' || lower === 'pendidikan/anak') {
+    return TARGET_BUDGET_CATEGORIES[4]; // Kebutuhan Rumah
+  }
+  if (lower === 'kesehatan') {
+    return TARGET_BUDGET_CATEGORIES[6]; // Keperluan Mendadak
+  }
+
+  // 3. Pencocokan substring kategori spesifik (0 s/d 6, lewati 'Lainnya' terlebih dahulu agar tidak mendominasi)
+  for (let i = 0; i < 7; i++) {
+    const tc = TARGET_BUDGET_CATEGORIES[i];
+    const tcLower = tc.name.toLowerCase();
+    if (lower.includes(tcLower) || (lower.length >= 3 && tcLower.includes(lower))) {
       return tc;
     }
   }
 
-  // Pencocokan kata kunci kontekstual
-  if (lower.includes('dapur') || lower.includes('sembako') || lower.includes('sayur')) return TARGET_BUDGET_CATEGORIES[0];
-  if (lower.includes('makan') || lower.includes('jajan') || lower.includes('resto') || lower.includes('kopi')) return TARGET_BUDGET_CATEGORIES[1];
-  if (lower.includes('bensin') || lower.includes('transpor') || lower.includes('ojek') || lower.includes('parkir')) return TARGET_BUDGET_CATEGORIES[2];
-  if (lower.includes('tagih') || lower.includes('listrik') || lower.includes('pln') || lower.includes('wifi') || lower.includes('pulsa')) return TARGET_BUDGET_CATEGORIES[3];
-  if (lower.includes('rumah') || lower.includes('perabot')) return TARGET_BUDGET_CATEGORIES[4];
-  if (lower.includes('liburan') || lower.includes('jalan') || lower.includes('hiburan')) return TARGET_BUDGET_CATEGORIES[5];
-  if (lower.includes('darurat') || lower.includes('sakit') || lower.includes('obat') || lower.includes('dokter')) return TARGET_BUDGET_CATEGORIES[6];
+  // 4. Pencocokan kata kunci kontekstual spesifik
+  if (/\b(?:dapur|sembako|sayur|pasar|bumbu|beras|minyak|daging|ayam|telur)\b/i.test(lower)) return TARGET_BUDGET_CATEGORIES[0];
+  if (/\b(?:makan|jajan|resto|kopi|kafe|cafe|warung|mie|bakso|snack|gofood|grabfood|shopeefood)\b/i.test(lower)) return TARGET_BUDGET_CATEGORIES[1];
+  if (/\b(?:bensin|bbm|pertamax|pertalite|spbu|transpor|ojek|gojek|grab|maxim|parkir|toll|tol|kereta|krl|mrt|bus)\b/i.test(lower)) return TARGET_BUDGET_CATEGORIES[2];
+  if (/\b(?:tagih|listrik|pln|wifi|indihome|pulsa|paket\s*data|air|pdam|bpjs|iuran)\b/i.test(lower)) return TARGET_BUDGET_CATEGORIES[3];
+  if (/\b(?:rumah|perabot|online|tokopedia|shopee|lazada|elektronik|alat|anak|popok|susu)\b/i.test(lower)) return TARGET_BUDGET_CATEGORIES[4];
+  if (/\b(?:liburan|jalan|hiburan|wisata|nonton|bioskop|hotel|tiket)\b/i.test(lower)) return TARGET_BUDGET_CATEGORIES[5];
+  if (/\b(?:darurat|sakit|obat|dokter|klinik|apotek|kesehatan|rs|rumah\s*sakit)\b/i.test(lower)) return TARGET_BUDGET_CATEGORIES[6];
+
+  // 5. Cek apakah pengguna secara eksplisit menyebut kata 'lainnya'
+  if (lower.includes('lainnya') || lower.includes('lain-lain') || lower.includes('fleksibel')) {
+    return TARGET_BUDGET_CATEGORIES[7];
+  }
 
   return TARGET_BUDGET_CATEGORIES[7]; // Lainnya
 }
@@ -103,6 +147,23 @@ export async function evaluateBudgetAlert(
     return null;
   }
 
+  // Ambil daftar kategori riil untuk pemetaan id -> nama yang tahan banting terhadap bentuk relasi array
+  let allCategories: Array<{ id: string; name: string }> | null = null;
+  try {
+    const catQuery: any = supabase.from('categories');
+    if (catQuery && typeof catQuery.select === 'function') {
+      const res = await catQuery.select('id, name').eq('household_id', householdId);
+      allCategories = res?.data || null;
+    }
+  } catch {
+    // Abaikan jika mock test tidak menyediakan tabel categories
+  }
+
+  const categoryMap = new Map<string, string>();
+  (allCategories || []).forEach((c) => {
+    if (c.id && c.name) categoryMap.set(c.id, c.name);
+  });
+
   // 2. Hitung total pengeluaran kategori bulan ini (hanya belanja riil)
   const startOfPeriod = dateRange.startDate.toISOString();
   const endOfPeriod = dateRange.endDate.toISOString();
@@ -132,13 +193,15 @@ export async function evaluateBudgetAlert(
       amount: number;
       merchant?: string;
       category_id: string | null;
-      categories: { name: string } | null;
+      categories: { name: string } | Array<{ name: string }> | null;
     }
     (txList as unknown as TxRow[]).forEach((tx) => {
-      const m = tx.merchant || '';
-      if (/^(koreksi saldo|transfer internal):/i.test(m)) return;
+      const rawCat = tx.categories;
+      const relCatName = Array.isArray(rawCat) ? rawCat[0]?.name : rawCat?.name;
+      const catName = relCatName || (tx.category_id ? categoryMap.get(tx.category_id) : '') || '';
 
-      const catName = tx.categories?.name || tx.category_id || '';
+      if (isInternalTransferCategoryOrMerchant(catName, tx.merchant)) return;
+
       const matched = matchTargetCategory(catName);
       if (matched.id === targetCategory.id) {
         totalSpent += Number(tx.amount || 0);

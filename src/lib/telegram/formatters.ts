@@ -183,6 +183,81 @@ export function formatAnggaranMessage(categories: CategoryBudgetItem[], periodLa
 }
 
 /**
+ * Format Pesan Status Anggaran Pos Spesifik (Contoh: "Lainnya", "Belanja Dapur")
+ */
+export function formatSpecificCategoryBudgetMessage(data: {
+  categoryName: string;
+  limit: number;
+  spent: number;
+  periodLabel: string;
+  transactions?: Array<{ date: string; merchant: string; amount: number }>;
+}): string {
+  const { categoryName, limit, spent, periodLabel, transactions = [] } = data;
+  const remaining = Math.max(0, limit - spent);
+  const percentage = limit > 0 ? Math.round((spent / limit) * 100) : 0;
+
+  const lines: string[] = [];
+  lines.push(`*[STATUS ANGGARAN: ${categoryName}]*`);
+  lines.push(`Pos Belanja: *${categoryName}*`);
+  lines.push(`Periode Finansial: _${periodLabel}_\n`);
+
+  if (limit > 0) {
+    lines.push(`*Pagu Bulanan:* \`${formatRupiah(limit)}\``);
+    lines.push(`*Total Terpakai:* \`${formatRupiah(spent)}\``);
+    lines.push(`*Sisa Pagu:* \`${formatRupiah(remaining)}\``);
+    lines.push(`*Utilisasi:* ${generateProgressBar(percentage)}\n`);
+  } else {
+    lines.push(`*Pagu Bulanan:* _Belum ditentukan_`);
+    lines.push(`*Total Terpakai:* \`${formatRupiah(spent)}\`\n`);
+  }
+
+  if (transactions.length > 0) {
+    lines.push(`*Rincian Transaksi Terhitung (${transactions.length}):*`);
+    for (const tx of transactions.slice(0, 10)) {
+      lines.push(`• ${tx.date} • ${tx.merchant}: \`${formatRupiah(tx.amount)}\``);
+    }
+    if (transactions.length > 10) {
+      lines.push(`_...dan ${transactions.length - 10} transaksi lainnya._`);
+    }
+  } else {
+    lines.push(`_Belum ada transaksi pengeluaran yang terhitung pada pos ini._`);
+  }
+
+  return lines.join('\n');
+}
+
+/**
+ * Merapikan teks balasan chat AI agar selalu memakai backtick monospaced pada nominal Rupiah
+ * dan memecah daftar rincian transaksi yang tergabung dalam satu baris menjadi bullet point rapi
+ */
+export function formatStructuredChatReply(rawReply: string): string {
+  if (!rawReply) return '';
+
+  let text = rawReply.trim();
+
+  // 1. Bungkus nominal uang yang belum dibungkus backtick
+  // Contoh: Rp 95.580 atau Rp. 10.000 atau Rp100.000
+  text = text.replace(/(?<!`)\b(?:rp\.?\s*)(\d{1,3}(?:[.,]\d{3})+(?:[.,]\d+)?|\d+)\b(?!`)/gi, '`Rp $1`');
+
+  // 2. Jika ada rincian kalimat panjang yang dipisahkan koma dan memuat "Rp ... di ...", ubah ke bullet list
+  if (/[Rr]inciannya:/i.test(text)) {
+    text = text.replace(/([Rr]inciannya:)\s*(.+)$/s, (_, label, rest) => {
+      const items = rest
+        .split(/(?:,\s*(?:dan\s+)?|\s+dan\s+)(?=`?Rp)/i)
+        .map((s: string) => s.trim().replace(/\.$/, ''))
+        .filter(Boolean);
+
+      if (items.length > 1) {
+        return `${label}\n` + items.map((i: string) => `- ${i}`).join('\n');
+      }
+      return `${label}\n- ${rest}`;
+    });
+  }
+
+  return text;
+}
+
+/**
  * Format Pesan Konfirmasi Pembaruan Anggaran Disertai Status Kelengkapan Pos
  */
 export function formatBudgetUpdatedWithStatusMessage(

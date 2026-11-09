@@ -99,6 +99,19 @@ export async function assignTransactionCategory(
     await syncAccountBalance(supabase, targetAccountId);
   }
 
+  // Jika dipindahkan keluar dari kategori 'Lainnya', bersihkan alert log 'b-lain' lama
+  if (cat.name.toLowerCase() !== 'lainnya') {
+    try {
+      await supabase
+        .from('notification_alert_logs')
+        .delete()
+        .eq('household_id', householdId)
+        .eq('category_id', 'b-lain');
+    } catch {
+      // Abaikan jika tabel tidak tersedia
+    }
+  }
+
   return { success: true, categoryName: cat.name, emoji: cat.emoji };
 }
 

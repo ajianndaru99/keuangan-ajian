@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   matchTargetCategory,
   evaluateBudgetAlert,
+  isInternalTransferCategoryOrMerchant,
   TARGET_BUDGET_CATEGORIES,
 } from '../src/lib/budget/budget-guard.ts';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -32,6 +33,25 @@ describe('Budget Guard & Alert Engine', () => {
     assert.equal(matchTargetCategory('Tiket Liburan Dufan').id, 'b-jalan');
     assert.equal(matchTargetCategory('Biaya Dokter & Obat Apotek').id, 'b-darurat');
     assert.equal(matchTargetCategory('Pembelian Random Tidak Jelas').id, 'b-lain');
+    // Input kosong / null jatuh ke Lainnya, TIDAK ke Belanja Dapur
+    assert.equal(matchTargetCategory('').id, 'b-lain');
+    assert.equal(matchTargetCategory('   ').id, 'b-lain');
+    // Pemetaan kategori default database Supabase
+    assert.equal(matchTargetCategory('Belanja Online').id, 'b-rumah');
+    assert.equal(matchTargetCategory('Anak').id, 'b-rumah');
+    assert.equal(matchTargetCategory('Kesehatan').id, 'b-darurat');
+    // Substring 'lainnya' tidak mendominasi kategori tujuan spesifik
+    assert.equal(matchTargetCategory('pindahkan dari lainnya ke kebutuhan rumah').id, 'b-rumah');
+    assert.equal(matchTargetCategory('sesuaikan dari lainnya ke belanja dapur').id, 'b-dapur');
+  });
+
+  test('isInternalTransferCategoryOrMerchant mengenali mutasi transfer internal dan membedakannya dari belanja riil', () => {
+    assert.equal(isInternalTransferCategoryOrMerchant('Transfer Keluarga', 'Transfer ke GoPay'), true);
+    assert.equal(isInternalTransferCategoryOrMerchant('Transfer Internal', 'GoPay'), true);
+    assert.equal(isInternalTransferCategoryOrMerchant(null, 'Transfer Internal: Bank Jago ➔ GoPay'), true);
+    assert.equal(isInternalTransferCategoryOrMerchant('Lainnya', 'Koreksi Saldo: Penyelarasan Kas'), true);
+    assert.equal(isInternalTransferCategoryOrMerchant('Transportasi/Bensin', 'NURUL HAFIZA RAHIMA'), false);
+    assert.equal(isInternalTransferCategoryOrMerchant('Lainnya', 'ES COKELAT EYANG PUTRI'), false);
   });
 
   test('evaluateBudgetAlert mengabaikan jika batas anggaran bernilai 0 atau belum disetel', async () => {

@@ -8,6 +8,7 @@ import { sendTelegramMessage } from './bot.ts';
 import {
   formatStatusMessage,
   formatAnggaranMessage,
+  formatSpecificCategoryBudgetMessage,
   formatRekapMessage,
   formatInboxMessage,
   formatTodayExpensesMessage,
@@ -24,7 +25,12 @@ import {
   calculateComparison,
 } from '../date-utils.ts';
 import { formatTimeWIB } from '../utils.ts';
-import { TARGET_BUDGET_CATEGORIES, matchTargetCategory } from '../budget/budget-guard.ts';
+import {
+  TARGET_BUDGET_CATEGORIES,
+  matchTargetCategory,
+  isInternalTransferCategoryOrMerchant,
+  type TargetCategory,
+} from '../budget/budget-guard.ts';
 import { syncAccountBalance } from '../account-balance.ts';
 import {
   fetchTodayWeatherInfo,
@@ -97,19 +103,66 @@ export async function deduplicateSimultaneousExpenses(
       const timeB = new Date(txB.transaction_date).getTime();
       const diffMs = Math.abs(timeB - timeA);
 
-      // Rentang waktu bersamaan <= 5 menit (300.000 ms)
-      if (diffMs <= 5 * 60 * 1000) {
+      // Rentang waktu bersamaan <= 10 menit (600.000 ms)
+      if (diffMs <= 10 * 60 * 1000) {
         const aIsGeneric = isGenericMerchantName(txA.merchant);
         const bIsGeneric = isGenericMerchantName(txB.merchant);
 
-        // Utamakan yang memiliki nama merchant spesifik (contoh: 'NURUL HAFIZA RAHIMA' dibanding 'Jago')
+        // Kasus 1: Pasangan Transfer Antar Akun Sendiri (Bank -> E-Wallet) vs Belanja Merchant Riil
+        // Contoh: Transfer Rp 13.500 dari Jago ke GoPay, lalu beli Bensin Rp 13.500 di NURUL HAFIZA RAHIMA.
+        // Keduanya BUKAN duplikat! Transaksi generik adalah Transfer Internal, sedangkan transaksi spesifik adalah Pengeluaran riil.
+        if ((aIsGeneric && !bIsGeneric) || (!aIsGeneric && bIsGeneric)) {
+          const genericTx = aIsGeneric ? txA : txB;
+          const specificTx = aIsGeneric ? txB : txA;
+
+          // Tandai transaksi bank/dompet generik sebagai Transfer Internal jika belum
+          if (!/^(?:transfer\s*internal|koreksi\s*saldo)/i.test(genericTx.merchant || '')) {
+            const fromAcc = genericTx.accounts?.name || genericTx.merchant || 'Bank Jago';
+            const toAcc = specificTx.accounts?.name || 'GoPay';
+            genericTx.merchant = `Transfer Internal: ${fromAcc} ➔ ${toAcc}`;
+            genericTx.category_id = null;
+            genericTx.categories = null;
+
+            if (genericTx.id) {
+              try {
+                const txTable: any = supabase.from('transactions');
+                if (txTable && typeof txTable.update === 'function') {
+                  await txTable
+                    .update({
+                      merchant: genericTx.merchant,
+                      category_id: null,
+                      notes: 'Dikonversi otomatis sebagai transfer internal (pasangan belanja waktu bersamaan)',
+                    })
+                    .eq('id', genericTx.id)
+                    .eq('household_id', householdId);
+                }
+              } catch {
+                // Abaikan jika unit test mock
+              }
+            }
+          }
+
+          // Keluarkan transaksi transfer internal dari daftar pengeluaran (ignoredIndexes),
+          // tetapi jangan tandai 'ignored' di database agar saldo kedua akun tetap seimbang
+          const genericIndex = aIsGeneric ? i : j;
+          ignoredIndexes.add(genericIndex);
+          continue;
+        }
+
+        // Kasus 2: Kedua transaksi memiliki nama merchant spesifik yang berbeda (Merchant A vs Merchant B)
+        // Keduanya adalah transaksi belanja riil yang berbeda, jangan disatukan
+        if (!aIsGeneric && !bIsGeneric && txA.merchant?.toLowerCase() !== txB.merchant?.toLowerCase()) {
+          continue;
+        }
+
+        // Kasus 3: Nama merchant sama persis atau notifikasi duplikat dari multi-listener
+        // Satukan menjadi transaksi Istri sesuai aturan keluarga
         const keepIndex = aIsGeneric && !bIsGeneric ? j : i;
         const dropIndex = keepIndex === i ? j : i;
 
         const keepTx = sorted[keepIndex];
         const dropTx = sorted[dropIndex];
 
-        // Tandai sebagai pengeluaran Istri sesuai aturan keluarga
         keepTx.source_device = 'istri';
         if (istriAccount) {
           if (keepTx.account_id && keepTx.account_id !== istriAccount.id) {
@@ -225,9 +278,30 @@ export async function buildFinancialContext(
     console.error('[Commands buildFinancialContext Tx Error]:', txErr.message);
   }
 
-  // Filter in-memory cadangan + deduplikasi otomatis waktu bersamaan (pengeluaran Istri)
+  // Ambil daftar kategori riil untuk resolusi aman (tahan banting terhadap format array PostgREST)
+  const catMap = new Map<string, string>();
+  try {
+    const catQuery: any = supabase.from('categories');
+    if (catQuery && typeof catQuery.select === 'function') {
+      const { data: dbCategories } = await catQuery
+        .select('id, name')
+        .eq('household_id', householdId);
+      (dbCategories || []).forEach((c: any) => {
+        if (c.id && c.name) catMap.set(c.id, c.name);
+      });
+    }
+  } catch {
+    // Abaikan jika mock test tidak menyediakan tabel categories
+  }
+
+  // Filter in-memory cadangan + deduplikasi otomatis waktu bersamaan
   const rawTxList = (txList || []) as unknown as TxCatRelation[];
-  const filteredTxs = rawTxList.filter((t) => !/^(koreksi saldo|transfer internal)/i.test(t.merchant || ''));
+  const filteredTxs = rawTxList.filter((t) => {
+    const rawCat = t.categories;
+    const relCatName = Array.isArray(rawCat) ? rawCat[0]?.name : rawCat?.name;
+    const catName = relCatName || (t.category_id ? catMap.get(t.category_id) : '') || '';
+    return !isInternalTransferCategoryOrMerchant(catName, t.merchant);
+  });
   const validTxs = await deduplicateSimultaneousExpenses(supabase, householdId, filteredTxs, istriAccount);
   const totalSpentMonth = validTxs.reduce((sum, t) => sum + Number(t.amount || 0), 0);
 
@@ -278,7 +352,12 @@ export async function buildFinancialContext(
   const spentMap = new Map<string, number>();
   validTxs.forEach((tx) => {
     const item = tx as unknown as TxCatRelation;
-    const catName = item.categories?.name || item.category_id || '';
+    const rawCat = item.categories;
+    const relCatName = Array.isArray(rawCat) ? rawCat[0]?.name : rawCat?.name;
+    const catName = relCatName || (item.category_id ? catMap.get(item.category_id) : '') || '';
+
+    if (isInternalTransferCategoryOrMerchant(catName, item.merchant)) return;
+
     const target = matchTargetCategory(catName);
     spentMap.set(target.id, (spentMap.get(target.id) || 0) + Number(item.amount || 0));
   });
@@ -307,6 +386,11 @@ export async function buildFinancialContext(
   const todayRange = getTodayRangeWIB(now);
   const todayTxs = validTxs.filter((t) => {
     if (!t.transaction_date) return false;
+    const rawCat = t.categories;
+    const relCatName = Array.isArray(rawCat) ? rawCat[0]?.name : rawCat?.name;
+    const catName = relCatName || (t.category_id ? catMap.get(t.category_id) : '') || '';
+    if (isInternalTransferCategoryOrMerchant(catName, t.merchant)) return false;
+
     const txTime = new Date(t.transaction_date).getTime();
     return txTime >= todayRange.startDate.getTime() && txTime <= todayRange.endDate.getTime();
   });
@@ -392,6 +476,74 @@ export async function handleAnggaranCommand(
   });
 
   const text = formatAnggaranMessage(categoryItems, context.periodLabel);
+  await sendTelegramMessage(chatId, text);
+}
+
+/**
+ * Handler Pemeriksaan Status Anggaran untuk Kategori Spesifik (Contoh: "Lainnya", "Belanja Dapur")
+ */
+export async function handleSpecificCategoryBudgetCommand(
+  chatId: number | string,
+  supabase: SupabaseClient,
+  householdId: string,
+  targetCategory: TargetCategory,
+  monthStartDay: number
+): Promise<void> {
+  const context = await buildFinancialContext(supabase, householdId, monthStartDay);
+  const catBudget = context.categoryBudgets.find((b) => b.name.toLowerCase() === targetCategory.name.toLowerCase());
+  const limit = catBudget?.limit || 0;
+  const spent = catBudget?.spent || 0;
+
+  const dateRange = getMonthlyRange(0, monthStartDay);
+  const { data: dbCategories } = await supabase
+    .from('categories')
+    .select('id, name')
+    .eq('household_id', householdId);
+
+  const catMap = new Map<string, string>();
+  (dbCategories || []).forEach((c) => {
+    if (c.id && c.name) catMap.set(c.id, c.name);
+  });
+
+  const { data: txList } = await supabase
+    .from('transactions')
+    .select('amount, merchant, category_id, transaction_date, categories(name)')
+    .eq('household_id', householdId)
+    .eq('direction', 'out')
+    .neq('status', 'ignored')
+    .gte('transaction_date', dateRange.startDate.toISOString())
+    .lte('transaction_date', dateRange.endDate.toISOString())
+    .order('transaction_date', { ascending: false });
+
+  const matchedTxs: Array<{ date: string; merchant: string; amount: number }> = [];
+
+  (txList || []).forEach((t: any) => {
+    const rawCat = t.categories;
+    const relCatName = Array.isArray(rawCat) ? rawCat[0]?.name : rawCat?.name;
+    const catName = relCatName || (t.category_id ? catMap.get(t.category_id) : '') || '';
+
+    if (isInternalTransferCategoryOrMerchant(catName, t.merchant)) return;
+
+    const matched = matchTargetCategory(catName);
+    if (matched.id === targetCategory.id) {
+      const dt = t.transaction_date ? new Date(t.transaction_date) : new Date();
+      const dateStr = `${String(dt.getDate()).padStart(2, '0')}/${String(dt.getMonth() + 1).padStart(2, '0')}`;
+      matchedTxs.push({
+        date: dateStr,
+        merchant: t.merchant || 'Transaksi',
+        amount: Number(t.amount || 0),
+      });
+    }
+  });
+
+  const text = formatSpecificCategoryBudgetMessage({
+    categoryName: targetCategory.name,
+    limit,
+    spent,
+    periodLabel: context.periodLabel,
+    transactions: matchedTxs,
+  });
+
   await sendTelegramMessage(chatId, text);
 }
 

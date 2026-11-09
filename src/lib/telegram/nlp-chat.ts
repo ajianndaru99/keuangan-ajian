@@ -4,8 +4,17 @@
 // ==============================================================================
 
 import { formatRupiah } from '../utils.ts';
-import { formatTodayExpensesMessage } from './formatters.ts';
+import {
+  formatTodayExpensesMessage,
+  formatAnggaranMessage,
+  formatSpecificCategoryBudgetMessage,
+  formatStructuredChatReply,
+} from './formatters.ts';
 import { getTodayRangeWIB } from '../date-utils.ts';
+import {
+  TARGET_BUDGET_CATEGORIES,
+  type TargetCategory,
+} from '../budget/budget-guard.ts';
 
 export interface FinancialContext {
   accounts: Array<{ name: string; owner: string; balance: number }>;
@@ -191,7 +200,7 @@ export function parseSetGajianCommand(rawText: string): number | null {
 }
 
 /**
- * Mendeteksi apakah teks pengguna menanyakan pengeluaran hari ini (toleran typo seperti "berapa pngeluaran hari ini")
+ * Mendeteksi apakah teks pengguna menanyakan pengeluaran hari ini (toleran typo seperti "berapa pngeluaran hari....")
  * Tidak menangkap kalimat pencatatan transaksi ber-nominal (misal: "hari ini beli bakso 25rb")
  */
 export function isTodayExpenseQuery(text: string): boolean {
@@ -207,14 +216,78 @@ export function isTodayExpenseQuery(text: string): boolean {
     return false;
   }
 
-  const hasTodayWord = /\b(?:hari\s+ini|hr\s+ini|hri\s+ini|hariini|today)\b/i.test(clean);
+  const hasTodayWord =
+    /\b(?:hari\s*ini|hr\s*ini|hri\s*ini|hariini|today|harian)\b/i.test(clean) ||
+    /\bhari(?:\.{2,}|…)/i.test(clean) ||
+    /\b(?:pengeluaran|pngeluaran|pengluaran|belanja)\s+hari\b/i.test(clean);
+
   if (!hasTodayWord) return false;
 
-  const hasExpenseOrAskWord = /\b(?:p[ae]?ng[e]?luaran|pngeluaran|pengluaran|b[e]?lanja|blanja|rekap|mutasi|transaksi|habis|keluar|berapa|brp|apa\s+saja|apa\s+aja|rincian|daftar|list|total|cek|info|laporan)\b/i.test(
-    clean
-  );
+  const hasExpenseOrAskWord =
+    /\b(?:p[ae]?ng[e]?luaran|pngeluaran|pengluaran|b[e]?lanja|blanja|rekap|mutasi|transaksi|habis|keluar|berapa|brp|apa\s+saja|apa\s+aja|rincian|daftar|list|total|cek|info|laporan)\b/i.test(
+      clean
+    );
 
   return hasExpenseOrAskWord;
+}
+
+/**
+ * Mendeteksi apakah teks pengguna menanyakan atau memeriksa status anggaran / pagu
+ * Contoh: "Sekarang cek lagi batas anggaran 'lainnya'...", "batas anggaran untuk apa ini?", "sisa pagu bensin"
+ */
+export function isBudgetStatusQuery(text: string): { matched: boolean; targetCategory?: TargetCategory } {
+  const clean = text.trim().toLowerCase();
+  if (!clean) return { matched: false };
+
+  // Abaikan jika perintah set anggaran eksplisit (misal: "set anggaran dapur 500rb")
+  if (/^(?:\/setanggaran|(?:set|ubah|atur)\s+anggaran)\b/i.test(clean)) {
+    return { matched: false };
+  }
+
+  const hasBudgetWord = /\b(?:anggaran|pagu|budget|pos\s+belanja)\b/i.test(clean);
+  const hasCheckWord = /\b(?:cek|lihat|info|status|sisa|berapa|brp|tampilkan|rincian|untuk\s+apa|maksud|maksudnya|lagi)\b/i.test(clean);
+
+  // Pola pertanyaan anggaran
+  const isQueryPattern =
+    (hasBudgetWord && hasCheckWord) ||
+    /\b(?:batas\s+anggaran|pagu\s+anggaran|sisa\s+anggaran|sisa\s+pagu)\b/i.test(clean) ||
+    /\banggaran\s+(?:untuk\s+apa|habis|darurat|aman)\b/i.test(clean) ||
+    /\bcek\s+(?:lagi\s+)?(?:batas\s+)?anggaran\b/i.test(clean);
+
+  if (!isQueryPattern) {
+    return { matched: false };
+  }
+
+  // Periksa apakah menanyakan kategori spesifik
+  let detectedTarget: TargetCategory | undefined;
+
+  for (const tc of TARGET_BUDGET_CATEGORIES) {
+    const tcLower = tc.name.toLowerCase();
+    // Khusus 'Lainnya', pastikan cocok kata utuh "lainnya"
+    if (tc.id === 'b-lain') {
+      if (/\b(?:kategori\s+)?["']?lainnya["']?\b/i.test(clean) || /\bpos\s+lainnya\b/i.test(clean)) {
+        detectedTarget = tc;
+        break;
+      }
+    } else {
+      if (clean.includes(tcLower)) {
+        detectedTarget = tc;
+        break;
+      }
+    }
+  }
+
+  if (!detectedTarget) {
+    if (/\b(?:dapur|sembako)\b/i.test(clean)) detectedTarget = TARGET_BUDGET_CATEGORIES[0];
+    else if (/\b(?:makan|jajan|kopi)\b/i.test(clean)) detectedTarget = TARGET_BUDGET_CATEGORIES[1];
+    else if (/\b(?:bensin|bbm|spbu|transport)\b/i.test(clean)) detectedTarget = TARGET_BUDGET_CATEGORIES[2];
+    else if (/\b(?:tagihan|listrik|pln|wifi|pulsa)\b/i.test(clean)) detectedTarget = TARGET_BUDGET_CATEGORIES[3];
+    else if (/\b(?:rumah|perabot)\b/i.test(clean)) detectedTarget = TARGET_BUDGET_CATEGORIES[4];
+    else if (/\b(?:liburan|jalan|wisata)\b/i.test(clean)) detectedTarget = TARGET_BUDGET_CATEGORIES[5];
+    else if (/\b(?:darurat|sakit|obat)\b/i.test(clean)) detectedTarget = TARGET_BUDGET_CATEGORIES[6];
+  }
+
+  return { matched: true, targetCategory: detectedTarget };
 }
 
 /**
@@ -225,9 +298,12 @@ function buildSystemPrompt(context: FinancialContext): string {
     .map((a) => `- ${a.name} (${a.owner}): ${formatRupiah(a.balance)}`)
     .join('\n');
 
-  const budgetLines = context.categoryBudgets
-    .map((b) => `- ${b.name}: Terpakai ${formatRupiah(b.spent)} dari pagu ${formatRupiah(b.limit)} (Sisa: ${formatRupiah(b.remaining)})`)
-    .join('\n');
+  const configuredBudgets = context.categoryBudgets.filter((b) => b.limit > 0 || b.spent > 0);
+  const budgetLines = configuredBudgets.length > 0
+    ? configuredBudgets
+        .map((b) => `- ${b.name}: Terpakai ${formatRupiah(b.spent)} dari pagu ${formatRupiah(b.limit)} (Sisa: ${formatRupiah(b.remaining)})`)
+        .join('\n')
+    : '- Belum ada pos anggaran aktif yang diset';
 
   return `Anda adalah asisten keuangan keluarga Indonesia cerdas, ramah, dan teliti untuk keluarga Ajian.
 Tugas Anda:
@@ -241,15 +317,18 @@ Tugas Anda:
    Jika pengguna ingin mengubah atau mengoreksi saldo rekening atau total kas (contoh: "total kas ganti 1jt", "atur saldo jago jadi 2jt", "ganti saldo dana suami 500rb"):
    Ekstrak: accountName (nama akun spesifik atau "total_kas") dan amount (angka nominal target).
 3. PERTANYAAN & KONSULTASI KEUANGAN (type: "chat_answer"):
-   Jika pesan pengguna menanyakan data keuangan keluarga (saldo, pengeluaran, sisa pagu, safe daily spend) ATAU konsultasi keuangan keluarga (tips menabung, evaluasi belanja, dana darurat, investasi, utang, perencanaan keuangan).
+   Jika pesan pengguna menanyakan data keuangan keluarga (saldo, pengeluaran, sisa pagu, safe daily spend) ATAU konsultasi keuangan keluarga.
    PENTING:
-   - Jika pengguna menanyakan pengeluaran hari ini ("pengeluaran hari ini apa saja", "berapa pengeluaran hari ini", "belanja hari ini"), jawab HANYA dengan rincian pengeluaran hari ini di bawah, JANGAN mencampur dengan total pengeluaran satu bulan.
-   - Saat merinci daftar pengeluaran, susun dengan baris baru (bullet/penomoran) yang rapi: urutkan per waktu (jam WIB) dan kelompokkan per kategori agar mudah dibaca, JANGAN digabung dalam satu paragraf panjang.
+   - Gunakan selalu format kartu Telegram yang terstruktur dan mudah dibaca di layar HP:
+     * Baris pertama: Judul kartu dengan tanda kurung siku tebal, contoh: *[STATUS ANGGARAN]* atau *[PENGELUARAN HARI INI]*.
+     * Rincian data: Gunakan bullet point ("- ") dengan satu entri per baris.
+     * Nominal uang: SELALU bungkus dengan tanda kutip backtick, contoh: \`Rp 50.000\`.
+     * DILARANG KERAS menggabungkan rincian transaksi atau pos anggaran ke dalam satu paragraf panjang tanpa baris baru.
 4. DI LUAR TOPIK KEUANGAN / NON-FINANSIAL (type: "off_topic"):
-   Jika pesan pengguna TIDAK ADA HUBUNGANNYA SAMA SEKALI DENGAN KEUANGAN (contoh: tanya cuaca, resep masakan, politik, coding, kesehatan umum non-biaya, tugas sekolah umum, gosip, atau topik di luar finansial).
-   Tolak secara santun dan ramah: jelaskan bahwa Anda adalah asisten khusus keuangan keluarga Ajian, dan undang mereka untuk menanyakan seputar catatan transaksi, saldo, pagu belanja, atau perencanaan finansial keluarga.
+   Jika pesan pengguna TIDAK ADA HUBUNGANNYA SAMA SEKALI DENGAN KEUANGAN (contoh: tanya cuaca, resep masakan, politik, coding, kesehatan umum non-biaya, gosip).
+   Tolak secara santun dan ramah: jelaskan bahwa Anda adalah asisten khusus keuangan keluarga Ajian.
 5. SALAM & SAPAAN (type: "chat_answer"):
-   Jika pengguna menyapa (halo, selamat pagi, assalamu'alaikum), balas ramah dan ingatkan bahwa Anda siap membantu mencatat mutasi atau mengecek kondisi finansial keluarga.
+   Jika pengguna menyapa (halo, selamat pagi, assalamu'alaikum), balas ramah dan ingatkan bahwa Anda siap membantu.
 
 KONTEKS FINANSIAL KELUARGA BULAN INI (${context.periodLabel}):
 - Saldo Rekening Saat Ini:
@@ -262,8 +341,8 @@ ${(context.todayTransactions || []).length > 0 ? (context.todayTransactions || [
 - Total Batas Anggaran: ${formatRupiah(context.totalBudgetLimit)}
 - Sisa Waktu Menuju Gajian: ${context.daysRemaining} hari lagi
 - Rekomendasi Belanja Aman Harian: ${formatRupiah(context.safeDailySpend)} / hari
-- Rincian Pagu Anggaran per Kategori:
-${budgetLines || '- Tidak ada data pagu'}
+- Rincian Pagu Anggaran Aktif:
+${budgetLines}
 
 DAFTAR KATEGORI VALID:
 Belanja Dapur, Makan & Jajan, Transportasi/Bensin, Tagihan & Utilitas, Kebutuhan Rumah, Jalan-jalan, Keperluan Mendadak, Kesehatan, Pendidikan/Anak, Gaji/Pemasukan, Lainnya.
@@ -304,11 +383,19 @@ function cleanGeminiJsonResponse(rawText: string): string {
 export async function processFinancialChatWithAI(
   userText: string,
   context: FinancialContext,
-  options?: { apiKey?: string; modelName?: string }
+  options?: { apiKey?: string; modelName?: string; rawUserText?: string }
 ): Promise<NLPProcessResult> {
+  const textToCheck = options?.rawUserText || userText;
+
   // Jika pertanyaan tentang pengeluaran hari ini, langsung gunakan formatter deterministik (0 Token Gemini & tampilan rapi)
-  if (isTodayExpenseQuery(userText)) {
-    return handleLocalDeterministicFallback(userText, context);
+  if (isTodayExpenseQuery(textToCheck)) {
+    return handleLocalDeterministicFallback(textToCheck, context);
+  }
+
+  // Jika pertanyaan tentang status anggaran / pagu, langsung gunakan formatter deterministik berstruktur kartu
+  const budgetQuery = isBudgetStatusQuery(textToCheck);
+  if (budgetQuery.matched) {
+    return handleLocalDeterministicFallback(textToCheck, context);
   }
 
   const apiKey = options?.apiKey || process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY;
@@ -402,7 +489,7 @@ export async function processFinancialChatWithAI(
     if (parsed.type === 'chat_answer' && parsed.answer) {
       return {
         type: 'chat_answer',
-        replyText: parsed.answer,
+        replyText: formatStructuredChatReply(parsed.answer),
       };
     }
 
@@ -459,6 +546,39 @@ export function handleLocalDeterministicFallback(userText: string, context: Fina
     };
   }
 
+  // 0.7. Cek pola tanya anggaran / pagu pos belanja
+  const budgetQuery = isBudgetStatusQuery(userText);
+  if (budgetQuery.matched) {
+    if (budgetQuery.targetCategory) {
+      const b = context.categoryBudgets.find(
+        (cb) => cb.name.toLowerCase() === budgetQuery.targetCategory!.name.toLowerCase()
+      );
+      const catSpent = b ? b.spent : 0;
+      const catLimit = b ? b.limit : 0;
+      return {
+        type: 'chat_answer',
+        replyText: formatSpecificCategoryBudgetMessage({
+          categoryName: budgetQuery.targetCategory.name,
+          limit: catLimit,
+          spent: catSpent,
+          periodLabel: context.periodLabel,
+        }),
+      };
+    } else {
+      const mappedBudgets = context.categoryBudgets.map((b) => ({
+        name: b.name,
+        emoji: '💳',
+        spent: b.spent,
+        limit: b.limit,
+        percentage: b.limit > 0 ? Math.round((b.spent / b.limit) * 100) : 0,
+      }));
+      return {
+        type: 'chat_answer',
+        replyText: formatAnggaranMessage(mappedBudgets, context.periodLabel),
+      };
+    }
+  }
+
   // 1. Cek pola tanya saldo
   if (lower.includes('saldo')) {
     const accLines = context.accounts.map((a) => `• *${a.name}:* \`${formatRupiah(a.balance)}\``).join('\n');
@@ -468,7 +588,7 @@ export function handleLocalDeterministicFallback(userText: string, context: Fina
     };
   }
 
-  // 2. Cek pola tanya anggaran / pagu
+  // 2. Cek pola tanya umum anggaran / pagu (fallback keyword)
   if (lower.includes('anggaran') || lower.includes('pagu') || lower.includes('sisa')) {
     const matchedCategory = context.categoryBudgets.find((b) => lower.includes(b.name.toLowerCase()));
     if (matchedCategory) {

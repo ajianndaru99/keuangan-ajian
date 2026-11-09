@@ -15,6 +15,7 @@ import { matchTargetCategory } from '@/lib/budget/budget-guard.ts';
 import {
   handleStatusCommand,
   handleAnggaranCommand,
+  handleSpecificCategoryBudgetCommand,
   handleRekapCommand,
   handleInboxCommand,
   handleTodayExpensesCommand,
@@ -28,7 +29,11 @@ import {
 import {
   handleTelegramPhotoMessage,
 } from '@/lib/telegram/photo-handler.ts';
-import { processFinancialChatWithAI, isTodayExpenseQuery } from '@/lib/telegram/nlp-chat.ts';
+import {
+  processFinancialChatWithAI,
+  isTodayExpenseQuery,
+  isBudgetStatusQuery,
+} from '@/lib/telegram/nlp-chat.ts';
 import {
   handleCustomRejectionReply,
   handleSetSaldoFlow,
@@ -157,9 +162,26 @@ async function handleNaturalLanguageFlow(
   householdId: string,
   monthStartDay: number
 ): Promise<void> {
-  // 0. Cek pertanyaan langsung pengeluaran hari ini (toleran variasi kalimat & typo seperti "berapa pngeluaran hari ini")
+  // 0. Cek pertanyaan langsung pengeluaran hari ini (toleran variasi kalimat & typo seperti "berapa pngeluaran hari....")
   if (isTodayExpenseQuery(rawText)) {
     await handleTodayExpensesCommand(message.chat.id, supabase, householdId);
+    return;
+  }
+
+  // 0.1. Cek pertanyaan status anggaran / pagu pos belanja
+  const budgetQuery = isBudgetStatusQuery(rawText);
+  if (budgetQuery.matched) {
+    if (budgetQuery.targetCategory) {
+      await handleSpecificCategoryBudgetCommand(
+        message.chat.id,
+        supabase,
+        householdId,
+        budgetQuery.targetCategory,
+        monthStartDay
+      );
+    } else {
+      await handleAnggaranCommand(message.chat.id, supabase, householdId, monthStartDay);
+    }
     return;
   }
 
@@ -168,7 +190,7 @@ async function handleNaturalLanguageFlow(
   const promptInput = repliedText
     ? `[Konteks pesan yang dibalas: "${repliedText.slice(0, 300)}"]\nBalasan pengguna: ${rawText}`
     : rawText;
-  const nlpResult = await processFinancialChatWithAI(promptInput, context);
+  const nlpResult = await processFinancialChatWithAI(promptInput, context, { rawUserText: rawText });
 
   // 1. Intent Ubah Saldo / Total Kas (Dua Langkah dengan Konfirmasi)
   if (nlpResult.type === 'set_balance_intent') {

@@ -354,5 +354,28 @@ describe('Notification Smart Parser & Chat/Promo Filter', () => {
     assert.equal(danaPocketTx.amount, 37000);
     assert.notEqual(danaPocketTx.merchant.toLowerCase(), 'your daily pocket');
     assert.equal(danaPocketTx.accountName, 'DANA');
+
+    // 7. Notifikasi Bank Jago transfer/top-up ke GoPay mengekstrak 'GoPay' dan bukan nama kantong atau fallback 'Jago'
+    const jagoTopUpTx = await parseNotificationPayload(
+      'com.jago.bank',
+      'Bank Jago',
+      'Kamu telah membayar Rp 13.500 dari Kantong Utama ke GoPay'
+    );
+    assert.equal(jagoTopUpTx.isTransaction, true);
+    assert.equal(jagoTopUpTx.amount, 13500);
+    assert.equal(jagoTopUpTx.direction, 'out');
+    assert.equal(jagoTopUpTx.accountName, 'Jago');
+    assert.equal(jagoTopUpTx.merchant, 'GoPay');
+
+    // 8. Notifikasi GoPay belanja bensin mengekstrak merchant spesifik 'NURUL HAFIZA RAHIMA'
+    const gopayBensinTx = await parseNotificationPayload(
+      'com.gojek.app',
+      'GoPay',
+      'Kamu telah membayar Rp 13.500 di NURUL HAFIZA RAHIMA'
+    );
+    assert.equal(gopayBensinTx.isTransaction, true);
+    assert.equal(gopayBensinTx.amount, 13500);
+    assert.equal(gopayBensinTx.direction, 'out');
+    assert.equal(gopayBensinTx.merchant, 'NURUL HAFIZA RAHIMA');
   });
 });

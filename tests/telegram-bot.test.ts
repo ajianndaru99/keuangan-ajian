@@ -53,7 +53,12 @@ import {
   processFinancialChatWithAI,
   handleLocalDeterministicFallback,
   isTodayExpenseQuery,
+  isBudgetStatusQuery,
 } from '../src/lib/telegram/nlp-chat.ts';
+import {
+  formatStructuredChatReply,
+  formatSpecificCategoryBudgetMessage,
+} from '../src/lib/telegram/formatters.ts';
 import type { FinancialContext } from '../src/lib/telegram/nlp-chat.ts';
 import { deduplicateSimultaneousExpenses } from '../src/lib/telegram/commands.ts';
 import {
@@ -631,6 +636,8 @@ describe('Telegram Bot: NLP Parser & Perintah Cepat', () => {
 
   it('isTodayExpenseQuery mengenali berbagai variasi kalimat & typo tanpa menangkap transaksi bernominal', () => {
     assert.strictEqual(isTodayExpenseQuery('berapa pngeluaran hari ini'), true);
+    assert.strictEqual(isTodayExpenseQuery('@Ajian_finance_bot berapa pngeluaran hari....'), true);
+    assert.strictEqual(isTodayExpenseQuery('pengeluaran harian'), true);
     assert.strictEqual(isTodayExpenseQuery('pengeluaran hari ini apa saja?'), true);
     assert.strictEqual(isTodayExpenseQuery('hari ini habis brp'), true);
     assert.strictEqual(isTodayExpenseQuery('rincian blanja hr ini'), true);
@@ -638,7 +645,32 @@ describe('Telegram Bot: NLP Parser & Perintah Cepat', () => {
     assert.strictEqual(isTodayExpenseQuery('saldo gopay berapa'), false);
   });
 
-  it('deduplicateSimultaneousExpenses menyatukan 2 notifikasi nominal sama pada waktu bersamaan sebagai pengeluaran Istri', async () => {
+  it('isBudgetStatusQuery mengenali pertanyaan cek status pagu pos spesifik dan umum', () => {
+    const qLain = isBudgetStatusQuery('Sekarang cek lagi batas anggaran "lainnya" karena sudah saya sesuaikan pengeluaran tersebut ke pos lainnya');
+    assert.strictEqual(qLain.matched, true);
+    assert.strictEqual(qLain.targetCategory?.id, 'b-lain');
+
+    const qApa = isBudgetStatusQuery('Batas anggaran untuk apa ini?');
+    assert.strictEqual(qApa.matched, true);
+
+    const qDapur = isBudgetStatusQuery('cek sisa pagu belanja dapur');
+    assert.strictEqual(qDapur.matched, true);
+    assert.strictEqual(qDapur.targetCategory?.id, 'b-dapur');
+
+    const qSet = isBudgetStatusQuery('set anggaran dapur 500rb');
+    assert.strictEqual(qSet.matched, false); // Bukan query, tapi perintah set
+  });
+
+  it('formatStructuredChatReply merapikan rincian panjang menjadi bullet point ber-backtick', () => {
+    const raw = 'Total pengeluaran hari ini adalah Rp 95.580 dari 5 transaksi. Rinciannya: Rp 25.080 di PT Tokopedia (Kebutuhan Rumah), Rp 34.000 di ES COKELAT EYANG PUTRI (Tagihan & Utilitas), Rp 9.500 di TOKO BAROKAH JAYA, DEPOK (Lainnya), Rp 13.500 di NURUL HAFIZA RAHIMA (Lainnya), dan Rp 13.500 di Jago (Lainnya).';
+    const structured = formatStructuredChatReply(raw);
+    assert.ok(structured.includes('Rinciannya:\n- `Rp 25.080` di PT Tokopedia'));
+    assert.ok(structured.includes('- `Rp 34.000` di ES COKELAT EYANG PUTRI'));
+    assert.ok(structured.includes('- `Rp 13.500` di NURUL HAFIZA RAHIMA'));
+    assert.ok(structured.includes('- `Rp 13.500` di Jago'));
+  });
+
+  it('deduplicateSimultaneousExpenses memisahkan mutasi internal bank vs belanja keluar riil bernominal sama', async () => {
     const rawItems = [
       {
         id: 'tx-1',
@@ -656,20 +688,20 @@ describe('Telegram Bot: NLP Parser & Perintah Cepat', () => {
         transaction_date: '2026-11-07T11:05:00.000Z',
         source_device: 'suami',
         categories: { name: 'Lainnya' },
-        accounts: { name: 'Dana Suami' },
+        accounts: { name: 'Bank Jago' },
       },
       {
         id: 'tx-3',
         merchant: 'NURUL HAFIZA RAHIMA',
         amount: 13500,
         transaction_date: '2026-11-07T11:06:10.000Z',
-        source_device: 'istri',
-        categories: { name: 'Lainnya' },
-        accounts: { name: 'Dana Suami' },
+        source_device: 'suami',
+        categories: { name: 'Transportasi/Bensin' },
+        accounts: { name: 'GoPay' },
       },
     ];
 
-    const mockSupabase = { from: () => ({}) } as any;
+    const mockSupabase = { from: () => ({ update: () => ({ eq: () => ({ eq: async () => ({}) }) }) }) } as any;
     const deduplicated = await deduplicateSimultaneousExpenses(
       mockSupabase,
       'hh-1',
@@ -677,12 +709,13 @@ describe('Telegram Bot: NLP Parser & Perintah Cepat', () => {
       { id: 'acc-istri', name: 'Dana Istri' }
     );
 
+    // Hasil belanja riil hanya 2 (PT Tokopedia & NURUL HAFIZA RAHIMA).
+    // Transaksi 'Jago' dikonversi menjadi Transfer Internal Bank Jago ➔ GoPay dan dikeluarkan dari daftar pengeluaran.
     assert.strictEqual(deduplicated.length, 2);
-    const merged13500 = deduplicated.find((t) => t.amount === 13500);
-    assert.ok(merged13500);
-    assert.strictEqual(merged13500.merchant, 'NURUL HAFIZA RAHIMA');
-    assert.strictEqual(merged13500.source_device, 'istri');
-    assert.strictEqual(merged13500.accounts?.name, 'Dana Istri');
+    const specific13500 = deduplicated.find((t) => t.amount === 13500);
+    assert.ok(specific13500);
+    assert.strictEqual(specific13500.merchant, 'NURUL HAFIZA RAHIMA');
+    assert.strictEqual(specific13500.accounts?.name, 'GoPay');
   });
 
   it('Laporan 11:00 WIB memuat cuaca Yogyakarta, info libur resmi pemerintah, dan motivasi berbeda setiap hari', () => {

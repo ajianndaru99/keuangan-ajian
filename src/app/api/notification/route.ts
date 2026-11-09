@@ -373,42 +373,70 @@ export async function POST(req: NextRequest) {
             (m || '').trim()
           ) || /daily\s*pocket|kantong|saldo|dana|gopay|ovo|shopeepay|rekening|merchant\s*transaksi|transaksi\s*digital/i.test(m || '');
 
-        const bestMerchant = isGeneric(existingSameTimeTx.merchant) && !isGeneric(merchant)
-          ? merchant
-          : existingSameTimeTx.merchant;
+        const existingIsGeneric = isGeneric(existingSameTimeTx.merchant) || /transfer\s*internal/i.test(existingSameTimeTx.merchant);
+        const incomingIsGeneric = isGeneric(merchant);
 
-        const istriAcc = (accounts || []).find((a) => a.owner === 'istri');
-        const targetIstriAccountId = direction === 'out' && istriAcc?.id ? istriAcc.id : existingSameTimeTx.account_id;
-        const previousAccountId = existingSameTimeTx.account_id;
+        // KASUS A: Pasangan Transfer Antar Rekening Sendiri (Bank -> E-Wallet) vs Pengeluaran Merchant Riil (E-Wallet -> Merchant)
+        // Contoh: Transfer Rp 13.500 dari Jago ke GoPay, lalu beli Bensin Rp 13.500 di NURUL HAFIZA RAHIMA.
+        // Jumlah sama, tapi satu adalah mutasi rekening sendiri dan satu lagi belanja keluar riil.
+        if ((existingIsGeneric && !incomingIsGeneric) || (!existingIsGeneric && incomingIsGeneric)) {
+          // Jika transaksi sebelumnya adalah akun bank/dompet generik, pastikan tercatat sebagai Transfer Internal
+          if (existingIsGeneric && !/transfer\s*internal/i.test(existingSameTimeTx.merchant)) {
+            const fromName = existingSameTimeTx.merchant || 'Bank Jago';
+            const toName = accountName || app_name || 'GoPay';
+            await supabase
+              .from('transactions')
+              .update({
+                merchant: `Transfer Internal: ${fromName} ➔ ${toName}`,
+                category_id: null,
+                notes: 'Dikonversi otomatis sebagai transfer internal (pasangan belanja waktu bersamaan)',
+              })
+              .eq('id', existingSameTimeTx.id);
+          }
+          // JANGAN disatukan, biarkan transaksi incoming lanjut diproses sebagai transaksi pengeluaran baru!
+        } else if (!existingIsGeneric && !incomingIsGeneric && (existingSameTimeTx.merchant || '').toLowerCase() !== (merchant || '').toLowerCase()) {
+          // KASUS B: Dua transaksi belanja dengan nama merchant spesifik yang BERBEDA (Merchant A vs Merchant B)
+          // Keduanya adalah pengeluaran sah terpisah, jangan disatukan
+        } else {
+          // KASUS C: Nama merchant sama persis (atau keduanya generik) dari notifikasi duplikat / multi-listener
+          // Satukan menjadi 1 transaksi milik Istri sesuai aturan keluarga
+          const bestMerchant = existingIsGeneric && !incomingIsGeneric
+            ? merchant
+            : existingSameTimeTx.merchant;
 
-        await supabase
-          .from('transactions')
-          .update({
-            merchant: bestMerchant,
-            source_device: direction === 'out' ? 'istri' : existingSameTimeTx.source_device,
-            account_id: targetIstriAccountId,
-            raw_notification: `${existingSameTimeTx.raw_notification} | [Notif Ganda Istri] ${safeTitle}: ${safeContent}`,
-          })
-          .eq('id', existingSameTimeTx.id);
+          const istriAcc = (accounts || []).find((a) => a.owner === 'istri');
+          const targetIstriAccountId = direction === 'out' && istriAcc?.id ? istriAcc.id : existingSameTimeTx.account_id;
+          const previousAccountId = existingSameTimeTx.account_id;
 
-        if (previousAccountId && previousAccountId !== targetIstriAccountId) {
-          await syncAccountBalance(supabase, previousAccountId);
+          await supabase
+            .from('transactions')
+            .update({
+              merchant: bestMerchant,
+              source_device: direction === 'out' ? 'istri' : existingSameTimeTx.source_device,
+              account_id: targetIstriAccountId,
+              raw_notification: `${existingSameTimeTx.raw_notification} | [Notif Ganda Istri] ${safeTitle}: ${safeContent}`,
+            })
+            .eq('id', existingSameTimeTx.id);
+
+          if (previousAccountId && previousAccountId !== targetIstriAccountId) {
+            await syncAccountBalance(supabase, previousAccountId);
+          }
+          if (targetIstriAccountId && previousAccountId !== targetIstriAccountId) {
+            await syncAccountBalance(supabase, targetIstriAccountId);
+          }
+
+          return NextResponse.json(
+            {
+              status: 'success',
+              duplicate: true,
+              review_alert: null,
+              budget_alert: null,
+              message: 'Notifikasi konfirmasi kedua pada waktu dan nominal bersamaan disatukan otomatis sebagai pengeluaran Istri.',
+              dedupe_hash: dedupeHash,
+            },
+            { status: 200, headers: corsHeaders }
+          );
         }
-        if (targetIstriAccountId && previousAccountId !== targetIstriAccountId) {
-          await syncAccountBalance(supabase, targetIstriAccountId);
-        }
-
-        return NextResponse.json(
-          {
-            status: 'success',
-            duplicate: true,
-            review_alert: null,
-            budget_alert: null,
-            message: 'Notifikasi konfirmasi kedua pada waktu dan nominal bersamaan disatukan otomatis sebagai pengeluaran Istri.',
-            dedupe_hash: dedupeHash,
-          },
-          { status: 200, headers: corsHeaders }
-        );
       }
 
       // Ambil tanggal siklus gajian dari settings
@@ -455,10 +483,14 @@ export async function POST(req: NextRequest) {
       const hasDistinctTargetWallet = walletMatches.some((w) => !currentSourceName.includes(w.toLowerCase()));
 
       const isTopUpKeyword =
-        !isSelfAccountMerchant &&
-        ((/\b(top\s*up|isi\s*saldo|isi\s*ulang)\b/i.test(textToScan) && (hasDistinctTargetWallet || !/\b(gopay|dana|ovo|shopeepay|linkaja)\b/i.test(currentSourceName))) ||
-          (/\b(transfer\s*(?:ke)?|trsf)\b/i.test(textToScan) && /\b(gopay|dana|ovo|shopeepay|linkaja|kantong)/i.test(textToScan) && hasDistinctTargetWallet) ||
-          (/\b(gopay|dana|ovo|shopeepay|linkaja)\b/i.test(merchant) && direction === 'out'));
+        (hasDistinctTargetWallet &&
+          (/\b(top\s*up|isi\s*saldo|isi\s*ulang)\b/i.test(textToScan) ||
+            /\b(transfer\s*(?:ke)?|trsf)\b/i.test(textToScan) ||
+            /\b(gopay|dana|ovo|shopeepay|linkaja)\b/i.test(merchant))) ||
+        (!isSelfAccountMerchant &&
+          ((/\b(top\s*up|isi\s*saldo|isi\s*ulang)\b/i.test(textToScan) && (hasDistinctTargetWallet || !/\b(gopay|dana|ovo|shopeepay|linkaja)\b/i.test(currentSourceName))) ||
+            (/\b(transfer\s*(?:ke)?|trsf)\b/i.test(textToScan) && /\b(gopay|dana|ovo|shopeepay|linkaja|kantong)/i.test(textToScan) && hasDistinctTargetWallet) ||
+            (/\b(gopay|dana|ovo|shopeepay|linkaja)\b/i.test(merchant) && direction === 'out')));
 
       let isInternalTransfer = false;
       let finalMerchant = merchant;
@@ -499,11 +531,13 @@ export async function POST(req: NextRequest) {
         }
       } else if (isTopUpKeyword) {
         isInternalTransfer = true;
-        finalMerchant = `Transfer Internal: Top Up ${merchant || 'E-Wallet'}`;
+        const targetWalletRaw = walletMatches.find((w) => !currentSourceName.includes(w.toLowerCase())) || merchant || 'E-Wallet';
+        const formattedTarget = targetWalletRaw.charAt(0).toUpperCase() + targetWalletRaw.slice(1);
+        finalMerchant = `Transfer Internal: ${accountName || app_name || 'Bank'} ➔ ${formattedTarget}`;
         finalNotes = 'Terdeteksi top-up dompet digital / perpindahan internal';
         internalTransferAlertPayload = {
           fromAccount: accountName || app_name || 'Bank',
-          toAccount: merchant || 'E-Wallet',
+          toAccount: formattedTarget,
           amount,
         };
       }
@@ -657,7 +691,7 @@ export async function POST(req: NextRequest) {
 
         // Evaluasi ambang batas anggaran jika pengeluaran riil (bukan transfer internal)
         if (direction === 'out' && amount > 0 && !isInternalTransfer) {
-          const catName = categories?.find(c => c.id === suggestedCategoryId)?.name || merchant || 'Lainnya';
+          const catName = categories?.find(c => c.id === suggestedCategoryId)?.name || 'Lainnya';
           const accName = accounts?.find(a => a.id === accountId)?.name || 'Akun Keluarga';
 
           // 2. Kirim Notifikasi Pengeluaran Realtime ke Telegram (Hanya untuk Uang Keluar Sah)

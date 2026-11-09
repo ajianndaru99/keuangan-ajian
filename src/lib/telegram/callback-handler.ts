@@ -614,6 +614,7 @@ export async function handleTelegramCallbackQuery(
 
     const updatePayload: Record<string, any> = {
       merchant: newMerchant,
+      category_id: null,
       status: 'reconciled',
       notes: notesText,
     };
@@ -638,6 +639,17 @@ export async function handleTelegramCallbackQuery(
       console.error('[Callback tx_mark_transfer Update Error]:', updateErr.message);
       await answerCallbackQuery(cq.id, '[ERROR] Gagal menandai transfer internal.', true);
       return;
+    }
+
+    // Bersihkan alert log 'b-lain' jika transaksi ini sebelumnya memicu alert anggaran Lainnya
+    try {
+      await supabase
+        .from('notification_alert_logs')
+        .delete()
+        .eq('household_id', householdId)
+        .eq('category_id', 'b-lain');
+    } catch {
+      // Abaikan jika tabel tidak tersedia
     }
 
     if (currentTx.account_id) {

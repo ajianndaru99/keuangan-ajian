@@ -12,7 +12,7 @@ import RemainingBudgetDonut from '@/components/budget/RemainingBudgetDonut';
 import CategoryBudgetCard, { CategoryBudgetItem } from '@/components/budget/CategoryBudgetCard';
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
 import { getMonthlyRange, getBudgetPeriodKey } from '@/lib/date-utils';
-import { matchTargetCategory } from '@/lib/budget/budget-guard';
+import { matchTargetCategory, isInternalTransferCategoryOrMerchant } from '@/lib/budget/budget-guard';
 import { deduplicateSimultaneousExpenses } from '@/lib/telegram/commands';
 import { RefreshCw, Bot, CheckCircle2 } from 'lucide-react';
 
@@ -131,7 +131,11 @@ export default function BudgetPage() {
           null
         );
         dedupedTxs.forEach((tx: any) => {
-          const catName = tx.categories?.name || tx.category_id || '';
+          const rawCat = tx.categories;
+          const relCatName = Array.isArray(rawCat) ? rawCat[0]?.name : rawCat?.name;
+          const catName = relCatName || tx.category_id || '';
+          if (isInternalTransferCategoryOrMerchant(catName, tx.merchant)) return;
+
           const matchedTarget = matchTargetCategory(catName);
           spentByIdMap[matchedTarget.id] = (spentByIdMap[matchedTarget.id] || 0) + Number(tx.amount || 0);
         });
