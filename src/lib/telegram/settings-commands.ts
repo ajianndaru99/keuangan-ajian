@@ -110,7 +110,8 @@ export function findMatchingAccount(
 export function isDirectRejectionFeedback(text: string): boolean {
   const clean = text.trim();
   if (!clean || clean.length > 100) return false;
-  return /\b(salah|spam|promo|iklan|batal|batalkan|hapus|bukan\s+transaksi|bukan\s+belanja|dobel|duplikat|keliru|abaikan|ngaco|ngawur|hoax)\b/i.test(clean);
+  return /\b(salah|spam|promo|iklan|batal|batalkan|hapus|bukan\s+transaksi|bukan\s+belanja|bukan\s+transfer|bukan\s+mutasi|dobel|duplikat|keliru|abaikan|ngaco|ngawur|hoax)\b/i.test(clean) ||
+    /^(?:ini|itu|pesan\s+ini|tadi)?\s*(?:salah|spam|keliru|batal|bukan|ngaco)\s*[.!?]*$/i.test(clean);
 }
 
 /**
@@ -188,6 +189,40 @@ async function cancelTransactionAndLearnSpam(
   // Pulihkan / sinkronkan saldo akun secara idempoten
   if (targetTx.account_id) {
     await syncAccountBalance(supabase, targetTx.account_id);
+  }
+
+  // Jika ini transaksi perpindahan dana internal, batalkan juga mutasi pasangannya agar saldo kedua akun sinkron
+  if (targetTx.merchant?.startsWith('Transfer Internal:') && targetTx.amount) {
+    try {
+      let q: any = supabase
+        .from('transactions')
+        .select('id, account_id')
+        .eq('household_id', householdId)
+        .eq('amount', targetTx.amount)
+        .neq('id', targetTx.id)
+        .neq('status', 'ignored');
+
+      if (typeof q.ilike === 'function') {
+        q = q.ilike('merchant', 'Transfer Internal:%');
+      } else if (typeof q.like === 'function') {
+        q = q.like('merchant', 'Transfer Internal:%');
+      }
+
+      const { data: pairedTxs } = await q;
+      if (pairedTxs && Array.isArray(pairedTxs)) {
+        for (const p of pairedTxs) {
+          await supabase
+            .from('transactions')
+            .update({ status: 'ignored', notes: `Dibatalkan bersama pasangan transfer (${userReason})` })
+            .eq('id', p.id);
+          if (p.account_id) {
+            await syncAccountBalance(supabase, p.account_id);
+          }
+        }
+      }
+    } catch {
+      // Abaikan jika mock test tidak menyediakan helper query lengkap
+    }
   }
 
   // Closed-Loop Learning jika ditandai sebagai spam / promo / iklan

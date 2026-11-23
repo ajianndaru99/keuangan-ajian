@@ -15,6 +15,7 @@ import {
   FileText,
   ArrowDownLeft,
   ArrowUpRight,
+  Image as ImageIcon,
 } from 'lucide-react';
 
 interface CategoryOption {
@@ -85,6 +86,7 @@ export default function AddTransactionModal({
   const [scanError, setScanError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
 
   // Otomatis terapkan data bawaan (misal dari notifikasi mentah) jika ada
   useEffect(() => {
@@ -344,22 +346,35 @@ export default function AddTransactionModal({
         {/* TAB 1: SCAN FOTO STRUK (VISION AI) */}
         {activeTab === 'scan' && (
           <div className="space-y-4">
+            {/* Input File Tersembunyi: Kamera HP Langsung */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleFileChange(file);
+              }}
+            />
+
+            {/* Input File Tersembunyi: Galeri File */}
+            <input
+              ref={galleryInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleFileChange(file);
+              }}
+            />
+
             <div
               onClick={() => fileInputRef.current?.click()}
               className="border-2 border-dashed border-[var(--border-color)] hover:border-[var(--accent-color)] rounded-3xl p-6 text-center cursor-pointer transition-colors bg-[var(--surface-2)]/60"
             >
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) handleFileChange(file);
-                }}
-              />
-
               {previewUrl ? (
                 <div className="space-y-3">
                   <div className="w-36 h-36 mx-auto rounded-2xl overflow-hidden border border-[var(--border-color)] shadow-xs">
@@ -367,22 +382,43 @@ export default function AddTransactionModal({
                     <img src={previewUrl} alt="Pratinjau Struk" className="w-full h-full object-cover" />
                   </div>
                   <p className="text-xs font-semibold text-[var(--text-muted)]">
-                    Klik untuk mengganti foto struk
+                    Klik untuk mengambil foto ulang
                   </p>
                 </div>
               ) : (
                 <div className="space-y-2">
                   <div className="w-12 h-12 rounded-2xl bg-[var(--surface-2)] text-[var(--accent-color)] border border-[var(--border-color)] flex items-center justify-center mx-auto shadow-2xs">
-                    <UploadCloud className="w-6 h-6" />
+                    <Camera className="w-6 h-6" />
                   </div>
                   <h4 className="text-xs font-bold text-[var(--text-main)]">
-                    Ambil Foto Kamera atau Unggah Struk
+                    Pindai Nota Pembelian / Foto Struk
                   </h4>
                   <p className="text-[11px] text-[var(--text-muted)] max-w-xs mx-auto">
-                    Mendukung struk belanja fisik (Indomaret, SPBU, kasir) dan tangkapan layar m-Banking
+                    Kamera HP akan otomatis mendeteksi nama toko, total nominal belanja, dan tanggal transaksi
                   </p>
                 </div>
               )}
+            </div>
+
+            {/* Tombol Aksi Cepat: Kamera HP vs Galeri */}
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="py-2.5 px-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 text-xs font-bold transition-colors flex items-center justify-center gap-1.5 shadow-2xs"
+              >
+                <Camera className="w-4 h-4" />
+                <span>Buka Kamera HP</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => galleryInputRef.current?.click()}
+                className="py-2.5 px-3 rounded-2xl border border-[var(--border-color)] bg-[var(--surface-2)] text-[var(--text-main)] hover:bg-[var(--surface-1)] text-xs font-bold transition-colors flex items-center justify-center gap-1.5 shadow-2xs"
+              >
+                <ImageIcon className="w-4 h-4 text-[var(--text-muted)]" />
+                <span>Pilih dari Galeri</span>
+              </button>
             </div>
 
             {scanError && (

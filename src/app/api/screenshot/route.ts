@@ -12,6 +12,8 @@ import {
   generateScreenshotDedupeHash,
   suggestCategoryForMerchant,
 } from '@/lib/vision/gemini';
+import { broadcastToAllowedChats, isTelegramConfigured } from '@/lib/telegram/bot';
+import { formatReceiptScanSuccessMessage } from '@/lib/telegram/formatters';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60; // Izinkan hingga 60 detik untuk pemrosesan gambar besar
@@ -379,6 +381,34 @@ export async function POST(req: NextRequest) {
         );
       }
       throw txError;
+    }
+
+    // 9. Siarkan ke Telegram Keluarga lengkap dengan tombol Sesuai / Kategori / Batal
+    if (isTelegramConfigured() && newTransaction?.id) {
+      const catName = categories?.find((c) => c.id === suggestedCategoryId)?.name || 'Lainnya';
+      const telegramText = formatReceiptScanSuccessMessage({
+        merchant: vision.merchant,
+        amount: vision.totalAmount,
+        categoryName: catName,
+        accountName: vision.accountName,
+        transactionDate: vision.transactionDate || new Date().toISOString(),
+      });
+
+      try {
+        await broadcastToAllowedChats(telegramText, {
+          reply_markup: {
+            inline_keyboard: [
+              [
+                { text: 'Sesuai', callback_data: `tx_ok:${newTransaction.id}` },
+                { text: 'Kategori', callback_data: `tx_cat:${newTransaction.id}` },
+                { text: 'Batal', callback_data: `tx_wrong_menu:${newTransaction.id}` },
+              ],
+            ],
+          },
+        });
+      } catch (tErr) {
+        console.warn('[Screenshot Telegram Broadcast Warn]:', tErr);
+      }
     }
 
     return NextResponse.json(

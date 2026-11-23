@@ -20,6 +20,7 @@ import {
   handleInboxCommand,
   handleTodayExpensesCommand,
   handleDailyReportCommand,
+  handleReceiptsListCommand,
   buildFinancialContext,
 } from '@/lib/telegram/commands.ts';
 import {
@@ -33,6 +34,7 @@ import {
   processFinancialChatWithAI,
   isTodayExpenseQuery,
   isBudgetStatusQuery,
+  isReceiptCheckQuery,
 } from '@/lib/telegram/nlp-chat.ts';
 import {
   handleCustomRejectionReply,
@@ -135,6 +137,12 @@ async function handleSlashCommands(
       await handleInboxCommand(chatId, supabase, householdId);
       break;
     }
+    case '/nota':
+    case '/struk':
+    case '/receipt': {
+      await handleReceiptsListCommand(chatId, supabase, householdId);
+      break;
+    }
     case '/pengaturan':
     case '/settings':
     case '/atur':
@@ -182,6 +190,12 @@ async function handleNaturalLanguageFlow(
     } else {
       await handleAnggaranCommand(message.chat.id, supabase, householdId, monthStartDay);
     }
+    return;
+  }
+
+  // 0.2. Cek pertanyaan daftar nota / struk belanja
+  if (isReceiptCheckQuery(rawText)) {
+    await handleReceiptsListCommand(message.chat.id, supabase, householdId);
     return;
   }
 

@@ -713,3 +713,38 @@ Waktu: ${formatDateWIB(result.transactionDate || new Date())}
 
 _Data telah dicatat. Apakah hasil pembacaan ini sudah benar?_`;
 }
+
+/**
+ * Format Pesan Ringkasan Daftar Nota / Struk Pembelian Terkini
+ */
+export function formatRecentReceiptsMessage(
+  receipts: Array<{
+    id: string;
+    date: string;
+    merchant: string;
+    amount: number;
+    categoryName: string;
+    accountName: string;
+    status: string;
+    needsReview?: boolean;
+  }>
+): string {
+  const lines: string[] = [];
+  lines.push('*[DAFTAR NOTA & STRUK PEMBELIAN]*\n');
+
+  if (receipts.length === 0) {
+    lines.push('_Belum ada nota atau struk pembelian yang tercatat._');
+    lines.push('\n*Tips:* Foto nota dari aplikasi HP atau kirimkan foto struk langsung ke bot ini untuk dipindai otomatis.');
+    return lines.join('\n');
+  }
+
+  lines.push(`Ditemukan *${receipts.length}* nota/struk pembelian terbaru:\n`);
+  receipts.forEach((r, idx) => {
+    const statusIcon = r.status === 'reconciled' ? '✅' : (r.needsReview ? '⚠️' : '⏳');
+    lines.push(`${idx + 1}. ${statusIcon} *${r.merchant}* — \`${formatRupiah(r.amount)}\``);
+    lines.push(`   Pos: _${r.categoryName}_ • Akun: ${r.accountName} • ${r.date}`);
+  });
+
+  lines.push('\n_Ketik `/status` untuk kas harian atau ambil foto struk baru untuk scan otomatis._');
+  return lines.join('\n');
+}

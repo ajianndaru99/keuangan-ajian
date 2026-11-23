@@ -39,6 +39,7 @@ import {
   Wallet,
   Bot,
   CheckCircle2,
+  Camera,
 } from 'lucide-react';
 
 interface AccountSummary {
@@ -387,6 +388,19 @@ export default function DashboardPage() {
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                if (typeof window !== 'undefined') {
+                  window.dispatchEvent(new CustomEvent('open-scan-receipt-modal'));
+                }
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 text-xs font-semibold transition-colors shadow-xs"
+              title="Pindai nota atau foto struk pembelian via Vision AI"
+            >
+              <Camera className="w-3.5 h-3.5" />
+              <span>Scan Nota</span>
+            </button>
+
             <button
               onClick={togglePrivacy}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[var(--border-color)] bg-[var(--surface-1)] text-[var(--text-main)] hover:bg-[var(--surface-2)] text-xs font-medium transition-colors shadow-xs"

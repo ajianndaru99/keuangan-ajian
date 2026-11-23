@@ -21,6 +21,7 @@ import {
   formatInternalTransferAlertMessage,
   formatTodayExpensesMessage,
   formatDaily11AMReportMessage,
+  formatRecentReceiptsMessage,
 } from '../src/lib/telegram/formatters.ts';
 import {
   findMatchingAccount,
@@ -54,6 +55,8 @@ import {
   handleLocalDeterministicFallback,
   isTodayExpenseQuery,
   isBudgetStatusQuery,
+  isReceiptCheckQuery,
+  isRejectionComplaintText,
 } from '../src/lib/telegram/nlp-chat.ts';
 import {
   formatStructuredChatReply,
@@ -1359,6 +1362,65 @@ describe('Telegram Bot: NLP Parser & Perintah Cepat', () => {
     );
     assert.strictEqual(deactRes, true);
     assert.strictEqual(deactivatedId, 'acc-1');
+  });
+
+  it('isReceiptCheckQuery dan formatRecentReceiptsMessage mengenali pengecekan nota dan menyajikan ringkasan kartu rapi', () => {
+    // 1. NLP Query Pengecekan Nota
+    assert.strictEqual(isReceiptCheckQuery('cek nota'), true);
+    assert.strictEqual(isReceiptCheckQuery('cek struk'), true);
+    assert.strictEqual(isReceiptCheckQuery('lihat nota belanja hari ini'), true);
+    assert.strictEqual(isReceiptCheckQuery('daftar struk belanja'), true);
+    assert.strictEqual(isReceiptCheckQuery('saldo gopay berapa'), false);
+    assert.strictEqual(isReceiptCheckQuery('berapa pengeluaran hari ini'), false);
+
+    // 2. Formatter Ringkasan Nota
+    const receipts = [
+      {
+        id: 'tx-rc-1',
+        date: '23/11 10:15 WIB',
+        merchant: 'Indomaret Point',
+        amount: 45000,
+        categoryName: 'Makan & Jajan',
+        accountName: 'GoPay',
+        status: 'reconciled',
+      },
+      {
+        id: 'tx-rc-2',
+        date: '23/11 08:30 WIB',
+        merchant: 'SPBU Pertamina',
+        amount: 50000,
+        categoryName: 'Transportasi/Bensin',
+        accountName: 'DANA',
+        status: 'pending',
+        needsReview: true,
+      },
+    ];
+
+    const message = formatRecentReceiptsMessage(receipts);
+    assert.ok(message.includes('[DAFTAR NOTA & STRUK PEMBELIAN]'));
+    assert.ok(message.includes('Indomaret Point'));
+    assert.ok(message.includes('45.000'));
+    assert.ok(message.includes('SPBU Pertamina'));
+    assert.ok(message.includes('50.000'));
+    assert.ok(message.includes('✅'));
+    assert.ok(message.includes('⚠️'));
+
+    // Empty state
+    const emptyMsg = formatRecentReceiptsMessage([]);
+    assert.ok(emptyMsg.includes('Belum ada nota atau struk pembelian'));
+  });
+
+  it('isRejectionComplaintText dan isDirectRejectionFeedback menangkap keluhan "Ini salah" atau "Itu spam" dan mencegah respon robotik kaku', () => {
+    assert.strictEqual(isRejectionComplaintText('Ini salah'), true);
+    assert.strictEqual(isRejectionComplaintText('Itu spam'), true);
+    assert.strictEqual(isRejectionComplaintText('salah'), true);
+    assert.strictEqual(isRejectionComplaintText('bukan transaksi'), true);
+    assert.strictEqual(isRejectionComplaintText('saldo jago berapa'), false);
+
+    assert.strictEqual(isDirectRejectionFeedback('Ini salah'), true);
+    assert.strictEqual(isDirectRejectionFeedback('Itu spam'), true);
+    assert.strictEqual(isDirectRejectionFeedback('keliru'), true);
+    assert.strictEqual(isDirectRejectionFeedback('batal'), true);
   });
 });
 

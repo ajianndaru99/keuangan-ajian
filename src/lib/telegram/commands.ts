@@ -13,6 +13,7 @@ import {
   formatInboxMessage,
   formatTodayExpensesMessage,
   formatDaily11AMReportMessage,
+  formatRecentReceiptsMessage,
 } from './formatters.ts';
 import type {
   CategoryBudgetItem,
@@ -823,5 +824,59 @@ export async function handleDailyReportCommand(
   monthStartDay: number
 ): Promise<void> {
   const text = await buildDaily11AMReportText(supabase, householdId, monthStartDay);
+  await sendTelegramMessage(chatId, text);
+}
+
+/**
+ * Handler Perintah /nota atau /struk (Daftar Nota & Struk Pembelian Terkini)
+ */
+export async function handleReceiptsListCommand(
+  chatId: number | string,
+  supabase: SupabaseClient,
+  householdId: string
+): Promise<void> {
+  const { data: dbCategories } = await supabase
+    .from('categories')
+    .select('id, name')
+    .eq('household_id', householdId);
+
+  const catMap = new Map<string, string>();
+  (dbCategories || []).forEach((c: any) => {
+    if (c.id && c.name) catMap.set(c.id, c.name);
+  });
+
+  // Ambil transaksi pengeluaran/nota terbaru
+  const { data: txList } = await supabase
+    .from('transactions')
+    .select('id, amount, merchant, category_id, transaction_date, status, needs_review, raw_notification, accounts(name), categories(name)')
+    .eq('household_id', householdId)
+    .neq('status', 'ignored')
+    .order('transaction_date', { ascending: false })
+    .limit(10);
+
+  const receipts = (txList || []).map((t: any) => {
+    const rawCat = t.categories;
+    const relCatName = Array.isArray(rawCat) ? rawCat[0]?.name : rawCat?.name;
+    const catName = relCatName || (t.category_id ? catMap.get(t.category_id) : '') || 'Lainnya';
+
+    const rawAcc = t.accounts;
+    const accName = Array.isArray(rawAcc) ? rawAcc[0]?.name : rawAcc?.name || 'Utama';
+
+    const dt = t.transaction_date ? new Date(t.transaction_date) : new Date();
+    const dateStr = `${String(dt.getDate()).padStart(2, '0')}/${String(dt.getMonth() + 1).padStart(2, '0')} ${formatTimeWIB(dt)}`;
+
+    return {
+      id: t.id,
+      date: dateStr,
+      merchant: t.merchant || 'Nota Belanja',
+      amount: Number(t.amount || 0),
+      categoryName: catName,
+      accountName: accName,
+      status: t.status || 'reconciled',
+      needsReview: Boolean(t.needs_review),
+    };
+  });
+
+  const text = formatRecentReceiptsMessage(receipts);
   await sendTelegramMessage(chatId, text);
 }

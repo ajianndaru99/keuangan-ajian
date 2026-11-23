@@ -291,6 +291,19 @@ export function isBudgetStatusQuery(text: string): { matched: boolean; targetCat
 }
 
 /**
+ * Mendeteksi apakah teks pengguna menanyakan atau memeriksa daftar nota / struk belanja
+ * Contoh: "cek nota", "cek struk", "lihat nota belanja", "daftar struk", "mana nota tadi"
+ */
+export function isReceiptCheckQuery(text: string): boolean {
+  const clean = text.trim().toLowerCase();
+  if (!clean) return false;
+  return (
+    /\b(?:cek|lihat|tampilkan|daftar|list|riwayat|ada|mana)?\s*(?:nota|struk|kuitansi|bon|receipt)(?:nya|ku|keluarga)?\b/i.test(clean) ||
+    /\b(?:nota|struk|kuitansi|bon)\s*(?:belanja|terbaru|hari\s*ini|kemarin|tadi)\b/i.test(clean)
+  );
+}
+
+/**
  * Prompt instruksi sistem untuk Google Gemini Flash (Chat NLP Finansial & Guardrail)
  */
 function buildSystemPrompt(context: FinancialContext): string {
@@ -378,6 +391,18 @@ function cleanGeminiJsonResponse(rawText: string): string {
 }
 
 /**
+ * Mendeteksi apakah teks pengguna merupakan komplain / pembatalan / laporan transaksi salah atau spam
+ */
+export function isRejectionComplaintText(text: string): boolean {
+  const clean = text.trim();
+  if (!clean || clean.length > 100) return false;
+  return (
+    /\b(salah|spam|promo|iklan|batal|batalkan|hapus|bukan\s+transaksi|bukan\s+belanja|bukan\s+transfer|bukan\s+mutasi|dobel|duplikat|keliru|abaikan|ngaco|ngawur|hoax)\b/i.test(clean) ||
+    /^(?:ini|itu|pesan\s+ini|tadi)?\s*(?:salah|spam|keliru|batal|bukan|ngaco)\s*[.!?]*$/i.test(clean)
+  );
+}
+
+/**
  * Memproses pesan bebas pengguna via Gemini Flash 2.5 (atau fallback lokal jika tanpa API key)
  */
 export async function processFinancialChatWithAI(
@@ -386,6 +411,18 @@ export async function processFinancialChatWithAI(
   options?: { apiKey?: string; modelName?: string; rawUserText?: string }
 ): Promise<NLPProcessResult> {
   const textToCheck = options?.rawUserText || userText;
+
+  // Jika tanggapan komplain / salah catat / spam, arahkan dengan panduan koreksi ramah
+  if (isRejectionComplaintText(textToCheck)) {
+    return {
+      type: 'chat_answer',
+      replyText:
+        '*[KOREKSI / PEMBATALAN TRANSAKSI]*\n\n' +
+        'Jika mutasi transaksi atau perpindahan dana sebelumnya keliru atau merupakan spam:\n' +
+        '- Tekan tombol *Batal* atau *Koreksi* langsung pada kartu notifikasi tersebut, atau\n' +
+        '- Balas (*reply*) langsung kartu notifikasi tersebut dengan mengetik `batal` atau `spam` agar otomatis dibatalkan dan saldo diselaraskan kembali.',
+    };
+  }
 
   // Jika pertanyaan tentang pengeluaran hari ini, langsung gunakan formatter deterministik (0 Token Gemini & tampilan rapi)
   if (isTodayExpenseQuery(textToCheck)) {

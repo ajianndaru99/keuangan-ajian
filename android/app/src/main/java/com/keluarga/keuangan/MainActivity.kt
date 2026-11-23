@@ -9,19 +9,23 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.MediaStore
 import android.service.notification.NotificationListenerService
 import android.view.View
 import android.webkit.*
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.keluarga.keuangan.data.ProfileManager
 import com.keluarga.keuangan.databinding.ActivityMainBinding
 import com.keluarga.keuangan.service.AppUpdateManager
 import com.keluarga.keuangan.service.KeuanganNotificationListener
+import java.io.File
 import java.util.concurrent.Executor
 
 // ==============================================================================
@@ -37,6 +41,32 @@ class MainActivity : AppCompatActivity() {
     private lateinit var executor: Executor
     private lateinit var biometricPrompt: BiometricPrompt
     private lateinit var promptInfo: BiometricPrompt.PromptInfo
+
+    private var fileChooserCallback: ValueCallback<Array<Uri>>? = null
+    private var cameraPhotoUri: Uri? = null
+
+    private val fileChooserLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (fileChooserCallback == null) return@registerForActivityResult
+
+        val results: Array<Uri>? = if (result.resultCode == RESULT_OK) {
+            val dataString = result.data?.dataString
+            if (dataString != null) {
+                arrayOf(Uri.parse(dataString))
+            } else if (cameraPhotoUri != null) {
+                arrayOf(cameraPhotoUri!!)
+            } else {
+                null
+            }
+        } else {
+            null
+        }
+
+        fileChooserCallback?.onReceiveValue(results)
+        fileChooserCallback = null
+        cameraPhotoUri = null
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -183,8 +213,56 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // WebChromeClient untuk menangani dialog JavaScript (alert & confirm)
+        // WebChromeClient untuk menangani dialog JavaScript dan File Chooser Kamera/Galeri
         webView.webChromeClient = object : WebChromeClient() {
+            override fun onShowFileChooser(
+                webView: WebView?,
+                filePathCallback: ValueCallback<Array<Uri>>?,
+                fileChooserParams: FileChooserParams?
+            ): Boolean {
+                fileChooserCallback?.onReceiveValue(null)
+                fileChooserCallback = filePathCallback
+
+                val takePictureIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
+                var photoUri: Uri? = null
+
+                try {
+                    val photoFile = File(cacheDir, "camera_receipt_${System.currentTimeMillis()}.jpg")
+                    photoUri = FileProvider.getUriForFile(
+                        this@MainActivity,
+                        "${applicationContext.packageName}.fileprovider",
+                        photoFile
+                    )
+                    cameraPhotoUri = photoUri
+                    takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoUri)
+                    takePictureIntent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                } catch (e: Exception) {
+                    cameraPhotoUri = null
+                }
+
+                val contentSelectionIntent = Intent(Intent.ACTION_GET_CONTENT).apply {
+                    addCategory(Intent.CATEGORY_OPENABLE)
+                    type = "image/*"
+                }
+
+                val chooserIntent = Intent(Intent.ACTION_CHOOSER).apply {
+                    putExtra(Intent.EXTRA_INTENT, contentSelectionIntent)
+                    putExtra(Intent.EXTRA_TITLE, "Pindai Nota / Ambil Foto Struk")
+                    if (photoUri != null) {
+                        putExtra(Intent.EXTRA_INITIAL_INTENTS, arrayOf(takePictureIntent))
+                    }
+                }
+
+                try {
+                    fileChooserLauncher.launch(chooserIntent)
+                } catch (e: Exception) {
+                    fileChooserCallback?.onReceiveValue(null)
+                    fileChooserCallback = null
+                    return false
+                }
+                return true
+            }
+
             override fun onJsAlert(view: WebView?, url: String?, message: String?, result: JsResult?): Boolean {
                 MaterialAlertDialogBuilder(this@MainActivity)
                     .setTitle("Pemberitahuan")

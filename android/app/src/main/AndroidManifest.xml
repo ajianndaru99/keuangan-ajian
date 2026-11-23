@@ -13,6 +13,10 @@
     <uses-permission android:name="android.permission.USE_FINGERPRINT" />
     <uses-permission android:name="android.permission.VIBRATE" />
 
+    <!-- Izin Kamera & Galeri untuk Scan Nota Pembelian / Foto Struk Belanja -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera.any" android:required="false" />
+
     <!-- Izin Pembaruan Aplikasi Otomatis (In-App Updater) -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 

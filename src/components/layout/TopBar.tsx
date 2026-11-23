@@ -18,6 +18,7 @@ import {
   EyeOff,
   Menu,
   RotateCw,
+  Camera,
 } from 'lucide-react';
 
 interface TopBarProps {
@@ -146,8 +147,23 @@ export default function TopBar({
           </div>
         </div>
 
-        {/* Kanan: Fitur Sensor Saldo, Notifikasi Bell, 3-Way Theme, & Avatar Pengguna */}
+        {/* Kanan: Fitur Sensor Saldo, Scan Nota, Notifikasi Bell, 3-Way Theme, & Avatar Pengguna */}
         <div className="flex items-center gap-2">
+          {/* Tombol Cepat Scan Nota / Struk Pembelian (Kamera & Galeri) */}
+          <button
+            onClick={() => {
+              if (typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent('open-scan-receipt-modal'));
+              }
+            }}
+            title="Pindai Nota / Ambil Foto Struk Pembelian via Kamera"
+            aria-label="Scan Nota Pembelian"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 text-xs font-semibold transition-colors shadow-xs"
+          >
+            <Camera className="w-4 h-4" />
+            <span className="hidden sm:inline">Scan Nota</span>
+          </button>
+
           {/* Tombol Sensor Saldo */}
           <button
             onClick={togglePrivacy}

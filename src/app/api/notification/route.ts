@@ -498,48 +498,56 @@ export async function POST(req: NextRequest) {
       let internalTransferAlertPayload: { fromAccount: string; toAccount: string; amount: number } | null = null;
 
       if (pairedTransferTx) {
-        isInternalTransfer = true;
         const pairedAccName = (pairedTransferTx.accounts as unknown as { name?: string })?.name || pairedTransferTx.merchant || 'Akun Lain';
         const currentAccName = accountName || app_name || 'Akun';
         const fromAccount = direction === 'out' ? currentAccName : pairedAccName;
         const toAccount = direction === 'out' ? pairedAccName : currentAccName;
 
-        finalMerchant = `Transfer Internal: ${fromAccount} ➔ ${toAccount}`;
-        finalNotes = 'Dipasangkan otomatis sebagai perpindahan dana internal';
+        // Guard: Akun sumber dan tujuan WAJIB berbeda!
+        if (fromAccount.trim().toLowerCase() !== toAccount.trim().toLowerCase()) {
+          isInternalTransfer = true;
+          finalMerchant = `Transfer Internal: ${fromAccount} ➔ ${toAccount}`;
+          finalNotes = 'Dipasangkan otomatis sebagai perpindahan dana internal';
 
-        // Update pasangan transaksi sebelumnya
-        await supabase
-          .from('transactions')
-          .update({
-            merchant: finalMerchant,
-            status: 'reconciled',
-            notes: finalNotes,
-          })
-          .eq('id', pairedTransferTx.id);
+          // Update pasangan transaksi sebelumnya
+          await supabase
+            .from('transactions')
+            .update({
+              merchant: finalMerchant,
+              status: 'reconciled',
+              notes: finalNotes,
+            })
+            .eq('id', pairedTransferTx.id);
 
-        // Jika paired leg sebelumnya masih pending, sinkronkan saldonya sekarang
-        if (pairedTransferTx.status !== 'reconciled' && pairedTransferTx.account_id) {
-          const pairedDelta = pairedTransferTx.direction === 'in' ? Number(pairedTransferTx.amount) : -Number(pairedTransferTx.amount);
-          await applyAccountBalanceDelta(supabase, pairedTransferTx.account_id, pairedDelta);
-        }
+          // Jika paired leg sebelumnya masih pending, sinkronkan saldonya sekarang
+          if (pairedTransferTx.status !== 'reconciled' && pairedTransferTx.account_id) {
+            const pairedDelta = pairedTransferTx.direction === 'in' ? Number(pairedTransferTx.amount) : -Number(pairedTransferTx.amount);
+            await applyAccountBalanceDelta(supabase, pairedTransferTx.account_id, pairedDelta);
+          }
 
-        // Cek apakah leg pertama sudah mengirim broadcast Telegram (hindari dobel notif)
-        const alreadyBroadcasted = typeof pairedTransferTx.merchant === 'string' && pairedTransferTx.merchant.startsWith('Transfer Internal:');
+          // Cek apakah leg pertama sudah mengirim broadcast Telegram (hindari dobel notif)
+          const alreadyBroadcasted = typeof pairedTransferTx.merchant === 'string' && pairedTransferTx.merchant.startsWith('Transfer Internal:');
 
-        if (!alreadyBroadcasted) {
-          internalTransferAlertPayload = { fromAccount, toAccount, amount };
+          if (!alreadyBroadcasted) {
+            internalTransferAlertPayload = { fromAccount, toAccount, amount };
+          }
         }
       } else if (isTopUpKeyword) {
-        isInternalTransfer = true;
         const targetWalletRaw = walletMatches.find((w) => !currentSourceName.includes(w.toLowerCase())) || merchant || 'E-Wallet';
         const formattedTarget = targetWalletRaw.charAt(0).toUpperCase() + targetWalletRaw.slice(1);
-        finalMerchant = `Transfer Internal: ${accountName || app_name || 'Bank'} ➔ ${formattedTarget}`;
-        finalNotes = 'Terdeteksi top-up dompet digital / perpindahan internal';
-        internalTransferAlertPayload = {
-          fromAccount: accountName || app_name || 'Bank',
-          toAccount: formattedTarget,
-          amount,
-        };
+        const sourceAccLabel = accountName || app_name || 'Bank';
+
+        // Guard ketat: Jangan jadikan mutasi internal bila sumber dan tujuan adalah akun yang sama (misal DANA ➔ DANA)
+        if (sourceAccLabel.trim().toLowerCase() !== formattedTarget.trim().toLowerCase()) {
+          isInternalTransfer = true;
+          finalMerchant = `Transfer Internal: ${sourceAccLabel} ➔ ${formattedTarget}`;
+          finalNotes = 'Terdeteksi top-up dompet digital / perpindahan internal';
+          internalTransferAlertPayload = {
+            fromAccount: sourceAccLabel,
+            toAccount: formattedTarget,
+            amount,
+          };
+        }
       }
 
       // Penentuan status otomatis: jika format baku regex atau transfer internal -> langsung 'reconciled'
