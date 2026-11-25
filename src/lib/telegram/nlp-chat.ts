@@ -278,13 +278,15 @@ export function isBudgetStatusQuery(text: string): { matched: boolean; targetCat
   }
 
   if (!detectedTarget) {
-    if (/\b(?:dapur|sembako)\b/i.test(clean)) detectedTarget = TARGET_BUDGET_CATEGORIES[0];
-    else if (/\b(?:makan|jajan|kopi)\b/i.test(clean)) detectedTarget = TARGET_BUDGET_CATEGORIES[1];
-    else if (/\b(?:bensin|bbm|spbu|transport)\b/i.test(clean)) detectedTarget = TARGET_BUDGET_CATEGORIES[2];
-    else if (/\b(?:tagihan|listrik|pln|wifi|pulsa)\b/i.test(clean)) detectedTarget = TARGET_BUDGET_CATEGORIES[3];
-    else if (/\b(?:rumah|perabot)\b/i.test(clean)) detectedTarget = TARGET_BUDGET_CATEGORIES[4];
-    else if (/\b(?:liburan|jalan|wisata)\b/i.test(clean)) detectedTarget = TARGET_BUDGET_CATEGORIES[5];
-    else if (/\b(?:darurat|sakit|obat)\b/i.test(clean)) detectedTarget = TARGET_BUDGET_CATEGORIES[6];
+    const findById = (id: string) => TARGET_BUDGET_CATEGORIES.find((tc) => tc.id === id);
+    if (/\b(?:dapur|sembako)\b/i.test(clean)) detectedTarget = findById('b-dapur');
+    else if (/\b(?:jajan|kopi|snack|cemilan)\b/i.test(clean)) detectedTarget = findById('b-jajan');
+    else if (/\b(?:makan|sarapan|lunch|dinner|warteg)\b/i.test(clean)) detectedTarget = findById('b-makan');
+    else if (/\b(?:bensin|bbm|spbu|transport)\b/i.test(clean)) detectedTarget = findById('b-trans');
+    else if (/\b(?:tagihan|listrik|pln|wifi|pulsa)\b/i.test(clean)) detectedTarget = findById('b-tagih');
+    else if (/\b(?:rumah|perabot|online|anak)\b/i.test(clean)) detectedTarget = findById('b-rumah');
+    else if (/\b(?:liburan|jalan|wisata)\b/i.test(clean)) detectedTarget = findById('b-jalan');
+    else if (/\b(?:darurat|sakit|obat)\b/i.test(clean)) detectedTarget = findById('b-darurat');
   }
 
   return { matched: true, targetCategory: detectedTarget };

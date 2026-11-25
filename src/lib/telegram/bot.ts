@@ -12,6 +12,7 @@ export interface TelegramInlineKeyboardButton {
 export interface TelegramReplyMarkup {
   inline_keyboard?: TelegramInlineKeyboardButton[][];
   force_reply?: boolean;
+  selective?: boolean;
 }
 
 export interface TelegramSendMessageOptions {

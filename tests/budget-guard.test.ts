@@ -9,11 +9,12 @@ import {
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 describe('Budget Guard & Alert Engine', () => {
-  test('TARGET_BUDGET_CATEGORIES memuat 8 kategori utama', () => {
-    assert.equal(TARGET_BUDGET_CATEGORIES.length, 8);
+  test('TARGET_BUDGET_CATEGORIES memuat 9 kategori utama', () => {
+    assert.equal(TARGET_BUDGET_CATEGORIES.length, 9);
     const ids = TARGET_BUDGET_CATEGORIES.map((c) => c.id);
     assert.ok(ids.includes('b-dapur'));
     assert.ok(ids.includes('b-makan'));
+    assert.ok(ids.includes('b-jajan'));
     assert.ok(ids.includes('b-trans'));
     assert.ok(ids.includes('b-tagih'));
   });
@@ -22,11 +23,16 @@ describe('Budget Guard & Alert Engine', () => {
     assert.equal(matchTargetCategory('b-dapur').id, 'b-dapur');
     assert.equal(matchTargetCategory('Belanja Dapur').id, 'b-dapur');
     assert.equal(matchTargetCategory('b-makan').id, 'b-makan');
+    assert.equal(matchTargetCategory('Makan Harian').id, 'b-makan');
     assert.equal(matchTargetCategory('Makan & Jajan').id, 'b-makan');
+    assert.equal(matchTargetCategory('b-jajan').id, 'b-jajan');
+    assert.equal(matchTargetCategory('Jajan').id, 'b-jajan');
   });
 
-  test('matchTargetCategory mencocokkan kata kunci kontekstual', () => {
-    assert.equal(matchTargetCategory('Beli Kopi Kenangan').id, 'b-makan');
+  test('matchTargetCategory mencocokkan kata kunci kontekstual (Dapur vs Makan Harian vs Jajan)', () => {
+    assert.equal(matchTargetCategory('Beli Kopi Kenangan').id, 'b-jajan');
+    assert.equal(matchTargetCategory('ES COKELAT EYANG PUTRI').id, 'b-jajan');
+    assert.equal(matchTargetCategory('Warteg Bahari Makan Siang').id, 'b-makan');
     assert.equal(matchTargetCategory('Bensin Pertalite SPBU').id, 'b-trans');
     assert.equal(matchTargetCategory('Tagihan Listrik PLN Bulanan').id, 'b-tagih');
     assert.equal(matchTargetCategory('Sembako Pasar').id, 'b-dapur');

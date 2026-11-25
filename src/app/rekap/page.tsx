@@ -2,12 +2,13 @@
 
 // ==============================================================================
 // ANALYTICS PAGE: src/app/rekap/page.tsx
-// Halaman Analisis Finansial Penuh 1 Bulan & Deteksi Titik Tertinggi Penggunaan
+// Penjabaran Grafik & Perputaran Keuangan Bulanan + Link Google Spreadsheet
 // ==============================================================================
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
 import AppShell from '@/components/layout/AppShell';
+import CashflowRotationSection from '@/components/dashboard/CashflowRotationSection';
 import MonthlyPeakSpendingChart, {
   DayUsageItem,
   PeakDayInsight,
@@ -17,50 +18,50 @@ import CategoryExpensesChart, { CategoryExpenseItem } from '@/components/rekap/C
 import { formatRupiah } from '@/lib/utils';
 import { exportTransactionsToCsv, type ExportableTransaction } from '@/lib/export-excel';
 import {
+  TARGET_BUDGET_CATEGORIES,
+  isInternalTransferCategoryOrMerchant,
+  matchTargetCategory,
+} from '@/lib/budget/budget-guard';
+import { deduplicateSimultaneousExpenses } from '@/lib/telegram/commands';
+import type { TransactionItem } from '@/types/transaction';
+import {
   ChevronLeft,
   ChevronRight,
   TrendingDown,
   ArrowDownLeft,
   ArrowUpRight,
-  Calendar,
   RefreshCw,
   Wallet,
   Download,
+  FileSpreadsheet,
 } from 'lucide-react';
 
 export default function AnalyticsPage() {
-  const [userRole, setUserRole] = useState<'suami' | 'istri'>('suami');
-  const [displayName, setDisplayName] = useState<string>('');
+  const [displayName, setDisplayName] = useState<string>('Kepala Keluarga (Suami)');
   const [loading, setLoading] = useState(false);
-
-  // Offset Bulan (0 = Bulan Ini, -1 = Bulan Lalu, dst)
   const [monthOffset, setMonthOffset] = useState<number>(0);
+  const [monthTransactions, setMonthTransactions] = useState<TransactionItem[]>([]);
+  const [totalBalance, setTotalBalance] = useState<number>(0);
+  const [spreadsheetUrl, setSpreadsheetUrl] = useState<string | null>(null);
+  const [syncingSheet, setSyncingSheet] = useState(false);
 
-  // State Transaksi Mentah Bulan Berjalan
-  const [monthTransactions, setMonthTransactions] = useState<any[]>([]);
-
-  // Hitung Tanggal Mulai dan Akhir Bulan Aktif
   const activeDateInfo = useMemo(() => {
     const d = new Date();
     d.setMonth(d.getMonth() + monthOffset);
     const year = d.getFullYear();
     const month = d.getMonth();
     const startDate = new Date(year, month, 1);
-    const endDate = new Date(year, month + 1, 0); // Hari terakhir bulan
-    const totalDays = endDate.getDate();
-    const monthName = startDate.toLocaleString('id-ID', { month: 'long', year: 'numeric' });
-
+    const endDate = new Date(year, month + 1, 0);
     return {
       year,
       month,
-      totalDays,
-      monthName,
+      totalDays: endDate.getDate(),
+      monthName: startDate.toLocaleString('id-ID', { month: 'long', year: 'numeric' }),
       startISO: new Date(year, month, 1, 0, 0, 0, 0).toISOString(),
       endISO: new Date(year, month + 1, 0, 23, 59, 59, 999).toISOString(),
     };
   }, [monthOffset]);
 
-  // Fetch Transaksi Bulan Ini dari Database
   const fetchAnalyticsData = useCallback(async () => {
     if (!isSupabaseConfigured()) {
       setMonthTransactions([]);
@@ -76,32 +77,44 @@ export default function AnalyticsPage() {
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('role, display_name, household_id')
+        .select('display_name, household_id')
         .eq('id', user.id)
         .maybeSingle();
 
-      if (!profile) return;
+      if (!profile?.household_id) return;
+      setDisplayName(profile.display_name || 'Kepala Keluarga (Suami)');
 
-      setUserRole(profile.role);
-      setDisplayName(profile.display_name);
+      const [{ data: txList }, { data: accList }, { data: settingRow }] = await Promise.all([
+        supabase
+          .from('transactions')
+          .select('id, account_id, category_id, amount, direction, merchant, raw_notification, source_device, transaction_date, status, accounts(name), categories(name)')
+          .eq('household_id', profile.household_id)
+          .gte('transaction_date', activeDateInfo.startISO)
+          .lte('transaction_date', activeDateInfo.endISO)
+          .order('transaction_date', { ascending: true }),
+        supabase
+          .from('accounts')
+          .select('balance')
+          .eq('household_id', profile.household_id)
+          .eq('is_active', true),
+        supabase
+          .from('settings')
+          .select('spreadsheet_url')
+          .eq('household_id', profile.household_id)
+          .maybeSingle(),
+      ]);
 
-      // Ambil seluruh transaksi dalam 1 bulan penuh
-      const { data: txList } = await supabase
-        .from('transactions')
-        .select(`
-          id, amount, direction, merchant, transaction_date, status,
-          categories (name)
-        `)
-        .eq('household_id', profile.household_id)
-        .gte('transaction_date', activeDateInfo.startISO)
-        .lte('transaction_date', activeDateInfo.endISO)
-        .order('transaction_date', { ascending: true });
+      setTotalBalance((accList || []).reduce((s, a: { balance?: number }) => s + Number(a.balance || 0), 0));
+      setSpreadsheetUrl(settingRow?.spreadsheet_url || null);
 
-      if (txList) {
-        setMonthTransactions(txList);
-      } else {
-        setMonthTransactions([]);
-      }
+      const rawList = (txList || []) as unknown as TransactionItem[];
+      const reconciledOut = rawList.filter((t) => t.status === 'reconciled' && t.direction === 'out');
+      const dedupedOut = await deduplicateSimultaneousExpenses(supabase, profile.household_id, reconciledOut as never[], null);
+      const keepOutIds = new Set(dedupedOut.map((d) => d.id));
+
+      setMonthTransactions(
+        rawList.filter((t) => !(t.status === 'reconciled' && t.direction === 'out' && t.id && !keepOutIds.has(t.id)))
+      );
     } catch (err) {
       console.warn('Gagal memuat analitik:', err);
       setMonthTransactions([]);
@@ -114,297 +127,263 @@ export default function AnalyticsPage() {
     fetchAnalyticsData();
   }, [fetchAnalyticsData]);
 
-  // Agregasi Data Penggunaan Harian Selama 1 Bulan (1 s/d Total Hari)
-  const { dailyData, peakInsight, totalExpense, totalIncome, netDifference, dailyAverage } = useMemo(() => {
-    const expenseMap: Record<string, number> = {};
-    const incomeMap: Record<string, number> = {};
-    const txByDateMap: Record<string, PeakTransactionItem[]> = {};
+  const { dailyData, peakInsight, totalExpense, totalIncome, netDifference, dailyAverage, categoryChartData } =
+    useMemo(() => {
+      const expenseMap: Record<string, number> = {};
+      const incomeMap: Record<string, number> = {};
+      const txByDateMap: Record<string, PeakTransactionItem[]> = {};
+      const catAgg = new Map<string, number>();
+      TARGET_BUDGET_CATEGORIES.forEach((c) => catAgg.set(c.name, 0));
 
-    let sumExpense = 0;
-    let sumIncome = 0;
+      let sumExpense = 0;
+      let sumIncome = 0;
 
-    monthTransactions.forEach((tx) => {
-      if (tx.status !== 'reconciled') return;
+      monthTransactions.forEach((tx) => {
+        if (tx.status !== 'reconciled') return;
+        const catName = tx.categories?.name || '';
+        if (isInternalTransferCategoryOrMerchant(catName, tx.merchant)) return;
 
-      const d = new Date(tx.transaction_date);
-      const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      const amt = Number(tx.amount || 0);
-
-      if (tx.direction === 'out') {
-        expenseMap[dateKey] = (expenseMap[dateKey] || 0) + amt;
-        sumExpense += amt;
-
-        if (!txByDateMap[dateKey]) txByDateMap[dateKey] = [];
-        txByDateMap[dateKey].push({
-          id: tx.id,
-          merchant: tx.merchant || 'Pengeluaran',
-          amount: amt,
-          categoryName: (tx.categories as any)?.name || 'Lainnya',
-          direction: 'out',
-        });
-      } else {
-        incomeMap[dateKey] = (incomeMap[dateKey] || 0) + amt;
-        sumIncome += amt;
-      }
-    });
-
-    // Cari Titik Tertinggi Penggunaan Total (Peak Day)
-    let maxExpense = 0;
-    let peakDateKey: string | null = null;
-
-    Object.entries(expenseMap).forEach(([dKey, exp]) => {
-      if (exp > maxExpense) {
-        maxExpense = exp;
-        peakDateKey = dKey;
-      }
-    });
-
-    // Bangun Data Harian Lengkap untuk 1 Bulan Penuh
-    const days: DayUsageItem[] = [];
-    for (let day = 1; day <= activeDateInfo.totalDays; day++) {
-      const dayStr = String(day).padStart(2, '0');
-      const monthStr = String(activeDateInfo.month + 1).padStart(2, '0');
-      const fullDateStr = `${activeDateInfo.year}-${monthStr}-${dayStr}`;
-
-      const exp = expenseMap[fullDateStr] || 0;
-      const inc = incomeMap[fullDateStr] || 0;
-      const isPeak = fullDateStr === peakDateKey && exp > 0;
-
-      days.push({
-        dayNumber: day,
-        dateStr: fullDateStr,
-        dayLabel: dayStr,
-        expenseAmount: exp,
-        incomeAmount: inc,
-        isPeak,
-      });
-    }
-
-    const avg = activeDateInfo.totalDays > 0 ? Math.round(sumExpense / activeDateInfo.totalDays) : 0;
-    const pctAbove = avg > 0 && maxExpense > avg ? Math.round(((maxExpense - avg) / avg) * 100) : 0;
-
-    let formattedPeakDate = '-';
-    if (peakDateKey) {
-      try {
-        const pd = new Date(`${peakDateKey}T00:00:00`);
-        formattedPeakDate = pd.toLocaleDateString('id-ID', {
-          weekday: 'long',
-          day: 'numeric',
-          month: 'long',
-          year: 'numeric',
-        });
-      } catch {
-        formattedPeakDate = peakDateKey;
-      }
-    }
-
-    const insight: PeakDayInsight = {
-      dateStr: peakDateKey,
-      formattedDate: formattedPeakDate,
-      totalExpense: maxExpense,
-      dailyAverage: avg,
-      percentageAboveAverage: pctAbove,
-      transactions: peakDateKey ? txByDateMap[peakDateKey] || [] : [],
-    };
-
-    return {
-      dailyData: days,
-      peakInsight: insight,
-      totalExpense: sumExpense,
-      totalIncome: sumIncome,
-      netDifference: sumIncome - sumExpense,
-      dailyAverage: avg,
-    };
-  }, [monthTransactions, activeDateInfo]);
-
-  // Agregasi Kategori untuk Komposisi Pengeluaran
-  const categoryBreakdown: CategoryExpenseItem[] = useMemo(() => {
-    const catMap: Record<string, number> = {};
-    let totalCatExpense = 0;
-
-    monthTransactions.forEach((tx) => {
-      if (tx.direction === 'out' && tx.status === 'reconciled') {
-        const cName = (tx.categories as any)?.name || 'Lainnya';
+        const d = new Date(tx.transaction_date);
+        const dateKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
         const amt = Number(tx.amount || 0);
-        catMap[cName] = (catMap[cName] || 0) + amt;
-        totalCatExpense += amt;
-      }
-    });
 
-    return Object.entries(catMap)
-      .map(([name, total]) => ({
-        category_id: name,
-        category_name: name,
-        category_icon: 'tag',
-        total_amount: total,
-        percentage: totalCatExpense > 0 ? Number(((total / totalCatExpense) * 100).toFixed(1)) : 0,
-      }))
-      .sort((a, b) => b.total_amount - a.total_amount);
-  }, [monthTransactions]);
+        if (tx.direction === 'out') {
+          expenseMap[dateKey] = (expenseMap[dateKey] || 0) + amt;
+          sumExpense += amt;
+          const matchedCat = matchTargetCategory(catName || tx.merchant || '');
+          catAgg.set(matchedCat.name, (catAgg.get(matchedCat.name) || 0) + amt);
+
+          if (!txByDateMap[dateKey]) txByDateMap[dateKey] = [];
+          txByDateMap[dateKey].push({
+            id: tx.id,
+            merchant: tx.merchant || 'Pengeluaran',
+            amount: amt,
+            categoryName: matchedCat.name,
+            direction: 'out',
+          });
+        } else {
+          incomeMap[dateKey] = (incomeMap[dateKey] || 0) + amt;
+          sumIncome += amt;
+        }
+      });
+
+      let maxExpense = 0;
+      let peakDateKey: string | null = null;
+      Object.entries(expenseMap).forEach(([dKey, exp]) => {
+        if (exp > maxExpense) {
+          maxExpense = exp;
+          peakDateKey = dKey;
+        }
+      });
+
+      const days: DayUsageItem[] = [];
+      for (let day = 1; day <= activeDateInfo.totalDays; day++) {
+        const dayStr = String(day).padStart(2, '0');
+        const monthStr = String(activeDateInfo.month + 1).padStart(2, '0');
+        const fullDateStr = `${activeDateInfo.year}-${monthStr}-${dayStr}`;
+        const exp = expenseMap[fullDateStr] || 0;
+        const inc = incomeMap[fullDateStr] || 0;
+
+        days.push({
+          dayNumber: day,
+          dateStr: fullDateStr,
+          dayLabel: dayStr,
+          expenseAmount: exp,
+          incomeAmount: inc,
+          isPeak: fullDateStr === peakDateKey && exp > 0,
+        });
+      }
+
+      const avg = activeDateInfo.totalDays > 0 ? Math.round(sumExpense / activeDateInfo.totalDays) : 0;
+      const pctAbove = avg > 0 && maxExpense > avg ? Math.round(((maxExpense - avg) / avg) * 100) : 0;
+      const formattedPeakDate = peakDateKey
+        ? new Date(`${peakDateKey}T00:00:00`).toLocaleDateString('id-ID', {
+            weekday: 'long',
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+          })
+        : '-';
+
+      const insight: PeakDayInsight = {
+        dateStr: peakDateKey,
+        formattedDate: formattedPeakDate,
+        totalExpense: maxExpense,
+        dailyAverage: avg,
+        percentageAboveAverage: pctAbove,
+        transactions: peakDateKey ? txByDateMap[peakDateKey] || [] : [],
+      };
+
+      const categoryChartData: CategoryExpenseItem[] = TARGET_BUDGET_CATEGORIES.map((c) => {
+        const amt = catAgg.get(c.name) || 0;
+        return {
+          category_id: c.id,
+          category_name: c.name,
+          category_icon: c.emoji,
+          total_amount: amt,
+          percentage: sumExpense > 0 ? Math.round((amt / sumExpense) * 100) : 0,
+        };
+      }).filter((c) => c.total_amount > 0);
+
+      return {
+        dailyData: days,
+        peakInsight: insight,
+        totalExpense: sumExpense,
+        totalIncome: sumIncome,
+        netDifference: sumIncome - sumExpense,
+        dailyAverage: avg,
+        categoryChartData,
+      };
+    }, [monthTransactions, activeDateInfo]);
 
   const handleExportCsv = () => {
-    if (!monthTransactions || monthTransactions.length === 0) {
-      alert('Tidak ada transaksi pada bulan ini untuk diekspor.');
-      return;
-    }
-
-    const exportData: ExportableTransaction[] = monthTransactions.map((tx) => ({
+    const exportRows: ExportableTransaction[] = monthTransactions.map((tx) => ({
       id: tx.id,
       transaction_date: tx.transaction_date,
-      merchant: tx.merchant,
       direction: tx.direction,
+      merchant: tx.merchant,
       amount: tx.amount,
       status: tx.status,
-      account_name: (tx.accounts as any)?.name || 'Rekening',
-      owner: (tx.accounts as any)?.owner || 'suami',
-      category_name: (tx.categories as any)?.name || 'Lain-lain',
-      raw_notification: tx.raw_notification,
+      source_device: 'suami',
+      account_name: tx.accounts?.name || '-',
+      category_name: tx.categories?.name || 'Lainnya',
     }));
+    exportTransactionsToCsv(exportRows, activeDateInfo.monthName.replace(/\s+/g, '_'));
+  };
 
-    exportTransactionsToCsv(exportData, `Rekap_Transaksi_${activeDateInfo.monthName.replace(/\s+/g, '_')}`);
+  const handleManualSheetSync = async () => {
+    setSyncingSheet(true);
+    try {
+      await fetch('/api/spreadsheet/sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    } finally {
+      setSyncingSheet(false);
+    }
   };
 
   return (
-    <AppShell userRole={userRole} displayName={displayName} pendingCount={0}>
+    <AppShell userRole="suami" displayName={displayName}>
       <div className="space-y-6">
-        {/* Header Navigasi Periode 1 Bulan */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h2 className="text-xl font-bold text-[var(--text-main)] tracking-tight">
-              Analisis Finansial Bulanan
-            </h2>
-            <p className="text-xs text-[var(--text-muted)] mt-0.5">
-              Evaluasi mendalam pergerakan pengeluaran keluarga selama 1 bulan penuh
-            </p>
+            <h1 className="text-xl sm:text-2xl font-heading font-bold text-[var(--text-main)]">
+              Rekap &amp; Perputaran Keuangan
+            </h1>
+            <p className="text-xs text-[var(--text-muted)]">Analisis grafik masuk, belanja riil &amp; 9 kategori pos</p>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="flex items-center gap-1 p-1 rounded-2xl bg-[var(--surface-1)] border border-[var(--border-color)] shadow-xs">
-              <button
-                onClick={() => setMonthOffset((prev) => prev - 1)}
-                className="p-1.5 rounded-xl text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--surface-2)] transition-colors"
-                title="Bulan Sebelumnya"
-              >
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="inline-flex items-center gap-1 p-1 rounded-xl bg-[var(--surface-1)] border border-[var(--border-color)] text-xs font-semibold">
+              <button type="button" onClick={() => setMonthOffset((m) => m - 1)} className="p-1.5 rounded-lg hover:bg-[var(--surface-2)]">
                 <ChevronLeft className="w-4 h-4" />
               </button>
-
-              <div className="flex items-center gap-2 px-3 py-1 text-xs font-bold text-[var(--text-main)]">
-                <Calendar className="w-3.5 h-3.5 text-[var(--accent-color)]" />
-                <span>{activeDateInfo.monthName}</span>
-              </div>
-
-              <button
-                onClick={() => setMonthOffset((prev) => prev + 1)}
-                disabled={monthOffset >= 0}
-                className="p-1.5 rounded-xl text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--surface-2)] disabled:opacity-30 transition-colors"
-                title="Bulan Berikutnya"
-              >
+              <span className="px-2 min-w-[120px] text-center">{activeDateInfo.monthName}</span>
+              <button type="button" onClick={() => setMonthOffset((m) => m + 1)} className="p-1.5 rounded-lg hover:bg-[var(--surface-2)]">
                 <ChevronRight className="w-4 h-4" />
               </button>
             </div>
 
-            {/* Tombol Ekspor CSV Khusus Halaman Rekap */}
+            {spreadsheetUrl && (
+              <a
+                href={spreadsheetUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-700 dark:text-emerald-300 text-xs font-semibold"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+                <span>Google Sheets</span>
+              </a>
+            )}
+
             <button
-              onClick={handleExportCsv}
-              title="Ekspor Seluruh Transaksi Bulan Ini ke CSV / Excel"
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[var(--border-color)] bg-[var(--surface-1)] text-xs font-semibold text-[var(--text-main)] hover:bg-[var(--surface-2)] transition-colors shadow-2xs"
+              type="button"
+              onClick={handleManualSheetSync}
+              disabled={syncingSheet}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[var(--surface-1)] border border-[var(--border-color)] text-xs font-semibold"
             >
-              <Download className="w-3.5 h-3.5 text-[var(--accent-color)]" />
-              <span>Export CSV</span>
+              <RefreshCw className={`w-3.5 h-3.5 ${syncingSheet ? 'animate-spin' : ''}`} />
+              <span>Sync Sheet</span>
             </button>
 
             <button
-              onClick={fetchAnalyticsData}
-              title="Refresh Analitik"
-              className="p-2 rounded-xl bg-[var(--surface-1)] border border-[var(--border-color)] text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--surface-2)] transition-colors shadow-xs"
+              type="button"
+              onClick={handleExportCsv}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[var(--accent-color)] text-white dark:text-[#121218] text-xs font-bold"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+              <Download className="w-3.5 h-3.5" />
+              <span>Unduh CSV</span>
             </button>
           </div>
         </div>
 
-        {/* 4 KARTU METRIK UTAMA ANALITIK: Surface-1 & WCAG AA */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-          {/* 1. Pengeluaran: Desaturated WCAG AA */}
-          <div className="p-4 rounded-3xl bg-[var(--surface-1)] border border-[var(--border-color)] shadow-xs">
-            <div className="flex items-center justify-between text-[var(--color-expense)] mb-1.5">
-              <span className="text-[11px] font-bold uppercase tracking-wider">Total Pengeluaran</span>
-              <ArrowUpRight className="w-4 h-4 text-[var(--color-expense)]" />
-            </div>
-            <p className="text-xl font-extrabold text-[var(--color-expense)] tracking-tight angka-keuangan">
-              -{formatRupiah(totalExpense)}
-            </p>
-            <span className="text-[10px] text-[var(--text-muted)] mt-1 block font-medium">
-              Akumulasi belanja & tagihan terverifikasi
-            </span>
-          </div>
-
-          {/* 2. Pemasukan: Desaturated WCAG AA */}
-          <div className="p-4 rounded-3xl bg-[var(--surface-1)] border border-[var(--border-color)] shadow-xs">
-            <div className="flex items-center justify-between text-[var(--color-income)] mb-1.5">
-              <span className="text-[11px] font-bold uppercase tracking-wider">Total Pemasukan</span>
+        {/* 4 Summary Cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="rounded-2xl p-4 bg-[var(--surface-1)] border border-[var(--border-color)]">
+            <div className="flex items-center justify-between text-xs text-[var(--text-muted)]">
+              <span>Pemasukan</span>
               <ArrowDownLeft className="w-4 h-4 text-[var(--color-income)]" />
             </div>
-            <p className="text-xl font-extrabold text-[var(--color-income)] tracking-tight angka-keuangan">
-              +{formatRupiah(totalIncome)}
+            <p className="text-base sm:text-lg font-extrabold text-[var(--color-income)] angka-keuangan mt-1">
+              {formatRupiah(totalIncome)}
             </p>
-            <span className="text-[10px] text-[var(--text-muted)] mt-1 block font-medium">
-              Gaji & transfer masuk terverifikasi
-            </span>
           </div>
 
-          {/* 3. Rata-rata Harian */}
-          <div className="p-4 rounded-3xl bg-[var(--surface-1)] border border-[var(--border-color)] shadow-xs">
-            <div className="flex items-center justify-between text-[var(--text-muted)] mb-1.5">
-              <span className="text-[11px] font-bold uppercase tracking-wider">Rata-rata Pengeluaran</span>
-              <TrendingDown className="w-4 h-4 text-[var(--text-muted)]" />
+          <div className="rounded-2xl p-4 bg-[var(--surface-1)] border border-[var(--border-color)]">
+            <div className="flex items-center justify-between text-xs text-[var(--text-muted)]">
+              <span>Pengeluaran Riil</span>
+              <ArrowUpRight className="w-4 h-4 text-[var(--color-expense)]" />
             </div>
-            <p className="text-xl font-extrabold text-[var(--text-main)] tracking-tight angka-keuangan">
-              {formatRupiah(dailyAverage)}/hari
+            <p className="text-base sm:text-lg font-extrabold text-[var(--color-expense)] angka-keuangan mt-1">
+              {formatRupiah(totalExpense)}
             </p>
-            <span className="text-[10px] text-[var(--text-muted)] mt-1 block font-medium">
-              Rata-rata belanja per hari ({activeDateInfo.totalDays} hari)
-            </span>
           </div>
 
-          {/* 4. Arus Kas Bersih (Net) */}
-          <div className="p-4 rounded-3xl bg-[var(--surface-1)] border border-[var(--border-color)] shadow-xs">
-            <div className="flex items-center justify-between text-[var(--text-muted)] mb-1.5">
-              <span className="text-[11px] font-bold uppercase tracking-wider">Arus Kas Bersih (Net)</span>
+          <div className="rounded-2xl p-4 bg-[var(--surface-1)] border border-[var(--border-color)]">
+            <div className="flex items-center justify-between text-xs text-[var(--text-muted)]">
+              <span>Selisih Arus Kas</span>
               <Wallet className="w-4 h-4 text-[var(--accent-color)]" />
             </div>
-            <p className={`text-xl font-extrabold tracking-tight angka-keuangan ${
-              netDifference >= 0 ? 'text-[var(--color-income)]' : 'text-[var(--color-expense)]'
-            }`}>
+            <p className={`text-base sm:text-lg font-extrabold angka-keuangan mt-1 ${netDifference >= 0 ? 'text-[var(--color-income)]' : 'text-[var(--color-expense)]'}`}>
               {netDifference >= 0 ? '+' : ''}{formatRupiah(netDifference)}
             </p>
-            <span className="text-[10px] text-[var(--text-muted)] mt-1 block font-medium">
-              {netDifference >= 0 ? 'Surplus tabungan bulan ini' : 'Defisit kas bulan ini'}
-            </span>
+          </div>
+
+          <div className="rounded-2xl p-4 bg-[var(--surface-1)] border border-[var(--border-color)]">
+            <div className="flex items-center justify-between text-xs text-[var(--text-muted)]">
+              <span>Rata-rata Harian</span>
+              <TrendingDown className="w-4 h-4 text-[var(--text-muted)]" />
+            </div>
+            <p className="text-base sm:text-lg font-extrabold text-[var(--text-main)] angka-keuangan mt-1">
+              {formatRupiah(dailyAverage)}
+            </p>
           </div>
         </div>
 
-        {/* GRAFIK PENGGUNAAN 1 BULAN & ANALISIS TITIK TERTINGGI (PEAK DAY INSIGHT) */}
-        <MonthlyPeakSpendingChart
-          data={dailyData}
-          peakInsight={peakInsight}
-          monthName={activeDateInfo.monthName}
-          totalExpense={totalExpense}
-          totalIncome={totalIncome}
-          netDifference={netDifference}
-          dailyAverage={dailyAverage}
-          categoryBreakdown={categoryBreakdown}
-          transactionCount={monthTransactions.length}
+        <CashflowRotationSection
+          transactions={monthTransactions}
+          totalBalance={totalBalance}
+          periodLabel={activeDateInfo.monthName}
         />
 
-        {/* KOMPOSISI PENGELUARAN PER KATEGORI BULAN INI */}
-        {categoryBreakdown.length > 0 && (
-          <div className="rounded-3xl p-6 bg-[var(--surface-1)] border border-[var(--border-color)] shadow-xs">
-            <h3 className="text-sm font-bold text-[var(--text-main)] mb-4">
-              Porsi Pengeluaran per Kategori ({activeDateInfo.monthName})
-            </h3>
-            <CategoryExpensesChart categories={categoryBreakdown} />
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+          <div className="xl:col-span-2">
+            <MonthlyPeakSpendingChart
+              data={dailyData}
+              peakInsight={peakInsight}
+              monthName={activeDateInfo.monthName}
+              totalExpense={totalExpense}
+              totalIncome={totalIncome}
+              netDifference={netDifference}
+              dailyAverage={dailyAverage}
+              categoryBreakdown={categoryChartData}
+              transactionCount={monthTransactions.length}
+            />
           </div>
+          <div>
+            <CategoryExpensesChart categories={categoryChartData} />
+          </div>
+        </div>
+        {loading && (
+          <p className="text-[11px] text-[var(--text-muted)] text-center">Memuat data analitik...</p>
         )}
       </div>
     </AppShell>

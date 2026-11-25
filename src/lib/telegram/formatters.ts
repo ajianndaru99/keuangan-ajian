@@ -286,7 +286,7 @@ export function formatBudgetUpdatedWithStatusMessage(
     }
     lines.push(`\n_Atur pos berikutnya, contoh:_ \`set anggaran ${unconfigured[0].name.toLowerCase()} 500rb\``);
   } else {
-    lines.push(`*[LENGKAP] Seluruh 8 pos anggaran keluarga kini sudah terisi lengkap.*`);
+    lines.push(`*[LENGKAP] Seluruh ${categories.length} pos anggaran keluarga kini sudah terisi lengkap.*`);
   }
 
   return lines.join('\n');
@@ -570,8 +570,19 @@ Pos pengeluaran *${categoryName}* telah melampaui batas 100% yang disepakati:
 Catatan: Mohon jeda atau tahan sementara pengeluaran non-esensial pada pos ini hingga siklus gajian berikutnya tiba.`;
 }
 
+function escapeTelegramText(raw: string): string {
+  return raw.replace(/([_*`\[])/g, '\\$1');
+}
+
+function buildRawNotificationSnippet(rawNotification?: string, showRaw: boolean = true): string {
+  if (!showRaw || !rawNotification) return '';
+  const clean = rawNotification.trim().slice(0, 700);
+  if (!clean) return '';
+  return `\n\n*Isi Notifikasi Lengkap:*\n${escapeTelegramText(clean)}`;
+}
+
 /**
- * Format Pesan Real-time Alert Pengeluaran Baru (Full Text dengan Penanda Status)
+ * Format Pesan Real-time Alert Pengeluaran Baru (Full Text dengan Isi Notifikasi Lengkap)
  */
 export function formatExpenseAlertMessage(tx: {
   merchant: string;
@@ -581,28 +592,30 @@ export function formatExpenseAlertMessage(tx: {
   sourceDevice?: string;
   isAutoReconciled?: boolean;
   transactionDate?: string | Date;
+  rawNotification?: string;
+  showRawNotification?: boolean;
 }): string {
-  const deviceBadge = tx.sourceDevice ? (tx.sourceDevice.includes('istri') ? '(Istri)' : '(Suami)') : '';
   const header = tx.isAutoReconciled
     ? `*[TERCATAT OTOMATIS] PENGELUARAN DICATAT OTOMATIS*`
     : `*[PERLU KONFIRMASI] PENGELUARAN BARU TERDETEKSI*`;
   const footer = tx.isAutoReconciled
     ? `Status: Reconciled. Saldo dan anggaran telah disesuaikan.`
     : `Status: Menunggu konfirmasi. Apakah hasil pencatatan ini sudah sesuai?`;
+  const rawBlock = buildRawNotificationSnippet(tx.rawNotification, tx.showRawNotification !== false);
 
   return `${header}
 
-Merchant: ${tx.merchant}
+Merchant: *${escapeTelegramText(tx.merchant)}*
 Nominal: \`${formatRupiah(tx.amount)}\`
-Kategori: ${tx.categoryName}
-Sumber: ${tx.accountName} ${deviceBadge}
-Waktu: ${formatDateWIB(tx.transactionDate || new Date())}
+Kategori: ${escapeTelegramText(tx.categoryName)}
+Sumber: ${escapeTelegramText(tx.accountName)}
+Waktu: ${formatDateWIB(tx.transactionDate || new Date())}${rawBlock}
 
 _${footer}_`;
 }
 
 /**
- * Format Pesan Real-time Alert Pemasukan Baru (Full Text dengan Penanda Status)
+ * Format Pesan Real-time Alert Pemasukan Baru (Full Text dengan Isi Notifikasi Lengkap)
  */
 export function formatIncomeAlertMessage(tx: {
   merchant: string;
@@ -612,22 +625,24 @@ export function formatIncomeAlertMessage(tx: {
   sourceDevice?: string;
   isAutoReconciled?: boolean;
   transactionDate?: string | Date;
+  rawNotification?: string;
+  showRawNotification?: boolean;
 }): string {
-  const deviceBadge = tx.sourceDevice ? (tx.sourceDevice.includes('istri') ? '(Istri)' : '(Suami)') : '';
   const header = tx.isAutoReconciled
     ? `*[TERCATAT OTOMATIS] PEMASUKAN DICATAT OTOMATIS*`
     : `*[PERLU KONFIRMASI] PEMASUKAN BARU TERDETEKSI*`;
   const footer = tx.isAutoReconciled
     ? `_Status: Reconciled. Saldo rekening telah diselaraskan._\n_Pemasukan menambah total kas keluarga dan tidak memotong pagu anggaran._`
     : `_Status: Menunggu konfirmasi. Apakah pencatatan pemasukan ini sudah sesuai?_\n_Pemasukan menambah total kas keluarga dan tidak memotong pagu anggaran._`;
+  const rawBlock = buildRawNotificationSnippet(tx.rawNotification, tx.showRawNotification !== false);
 
   return `${header}
 
-Sumber: ${tx.merchant}
+Sumber: *${escapeTelegramText(tx.merchant)}*
 Nominal: \`${formatRupiah(tx.amount)}\`
-Kategori: ${tx.categoryName}
-Masuk ke: ${tx.accountName} ${deviceBadge}
-Waktu: ${formatDateWIB(tx.transactionDate || new Date())}
+Kategori: ${escapeTelegramText(tx.categoryName)}
+Masuk ke: ${escapeTelegramText(tx.accountName)}
+Waktu: ${formatDateWIB(tx.transactionDate || new Date())}${rawBlock}
 
 ${footer}`;
 }
@@ -640,13 +655,17 @@ export function formatInternalTransferAlertMessage(tx: {
   toAccount: string;
   amount: number;
   transactionDate?: string | Date;
+  rawNotification?: string;
+  showRawNotification?: boolean;
 }): string {
+  const rawBlock = buildRawNotificationSnippet(tx.rawNotification, tx.showRawNotification !== false);
+
   return `*[MUTASI INTERNAL] PERPINDAHAN DANA TERDETEKSI*
 
 Nominal: \`${formatRupiah(tx.amount)}\`
-Dari: ${tx.fromAccount}
-Ke: ${tx.toAccount}
-Waktu: ${formatDateWIB(tx.transactionDate || new Date())}
+Dari: ${escapeTelegramText(tx.fromAccount)}
+Ke: ${escapeTelegramText(tx.toAccount)}
+Waktu: ${formatDateWIB(tx.transactionDate || new Date())}${rawBlock}
 
 _Saldo kedua rekening otomatis diselaraskan dan tidak dihitung memotong anggaran belanja keluarga._`;
 }
@@ -661,14 +680,18 @@ export function formatExpenseVerifiedMessage(tx: {
   accountName: string;
   verifiedBy?: string;
   transactionDate?: string | Date;
+  rawNotification?: string;
+  showRawNotification?: boolean;
 }): string {
+  const rawBlock = buildRawNotificationSnippet(tx.rawNotification, tx.showRawNotification !== false);
+
   return `*[TERVERIFIKASI] PENGELUARAN TERVERIFIKASI*
 
-Merchant: ${tx.merchant}
+Merchant: *${escapeTelegramText(tx.merchant)}*
 Nominal: \`${formatRupiah(tx.amount)}\`
-Kategori: ${tx.categoryName}
-Sumber: ${tx.accountName}
-Waktu: ${formatDateWIB(tx.transactionDate || new Date())}
+Kategori: ${escapeTelegramText(tx.categoryName)}
+Sumber: ${escapeTelegramText(tx.accountName)}
+Waktu: ${formatDateWIB(tx.transactionDate || new Date())}${rawBlock}
 
 _Diverifikasi oleh ${tx.verifiedBy || 'Keluarga'} (Status: Reconciled)_`;
 }

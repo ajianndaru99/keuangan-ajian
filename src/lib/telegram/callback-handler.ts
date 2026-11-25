@@ -18,6 +18,7 @@ import { extractPromoKeywordsFromText } from '../ai/adaptive-rules.ts';
 import { syncAccountBalance, setAccountBalanceToTarget } from '../account-balance.ts';
 import { handleSettingsHubCallback } from './settings-hub.ts';
 import { assignTransactionCategory } from './category-helper.ts';
+import { syncTransactionsToSpreadsheet } from '../spreadsheet/sheets-sync.ts';
 
 export interface TelegramCallbackQuery {
   id: string;
@@ -269,6 +270,7 @@ export async function handleTelegramCallbackQuery(
     if (currentTx.account_id) {
       await syncAccountBalance(supabase, currentTx.account_id);
     }
+    void syncTransactionsToSpreadsheet(supabase, householdId, [txId]).catch(() => undefined);
 
     await answerCallbackQuery(cq.id, 'Transaksi diverifikasi.');
 
@@ -323,22 +325,23 @@ export async function handleTelegramCallbackQuery(
       reply_markup: {
         inline_keyboard: [
           [
-            { text: 'Dapur', callback_data: `tsc:${txId}:b-dapur` },
-            { text: 'Makan/Jajan', callback_data: `tsc:${txId}:b-makan` },
+            { text: 'Belanja Dapur', callback_data: `tsc:${txId}:b-dapur` },
+            { text: 'Makan Harian', callback_data: `tsc:${txId}:b-makan` },
           ],
           [
-            { text: 'Transport', callback_data: `tsc:${txId}:b-trans` },
+            { text: 'Jajan', callback_data: `tsc:${txId}:b-jajan` },
+            { text: 'Transportasi', callback_data: `tsc:${txId}:b-trans` },
+          ],
+          [
             { text: 'Tagihan', callback_data: `tsc:${txId}:b-tagih` },
-          ],
-          [
             { text: 'Kebutuhan Rumah', callback_data: `tsc:${txId}:b-rumah` },
+          ],
+          [
             { text: 'Jalan-jalan', callback_data: `tsc:${txId}:b-jalan` },
-          ],
-          [
             { text: 'Darurat', callback_data: `tsc:${txId}:b-darurat` },
-            { text: 'Lainnya', callback_data: `tsc:${txId}:b-lain` },
           ],
           [
+            { text: 'Lainnya', callback_data: `tsc:${txId}:b-lain` },
             { text: 'Kembali', callback_data: `tx_back:${txId}` },
           ],
         ],
@@ -363,6 +366,7 @@ export async function handleTelegramCallbackQuery(
     }
 
     await answerCallbackQuery(cq.id, `Kategori: ${result.categoryName}`);
+    void syncTransactionsToSpreadsheet(supabase, householdId, [txId]).catch(() => undefined);
 
     let baseText = originalText
       .replace(/\n\n\*Pilih Kategori Pos Anggaran:\*.*$/s, '')
@@ -410,6 +414,10 @@ export async function handleTelegramCallbackQuery(
             { text: 'Rekening', callback_data: `tx_acc:${txId}` },
           ],
           [
+            { text: 'Ubah Nominal', callback_data: `tx_edit_amt:${txId}` },
+            { text: 'Ubah Merchant', callback_data: `tx_edit_mrc:${txId}` },
+          ],
+          [
             { text: 'Pemasukan', callback_data: `tx_in:${txId}` },
             { text: 'Pengeluaran', callback_data: `tx_out:${txId}` },
           ],
@@ -420,6 +428,30 @@ export async function handleTelegramCallbackQuery(
         ],
       },
     });
+    return;
+  }
+
+  // 1.25. Prompt Ubah Nominal via Force Reply
+  if (data.startsWith('tx_edit_amt:')) {
+    const txId = data.replace('tx_edit_amt:', '').trim();
+    await answerCallbackQuery(cq.id);
+    await sendTelegramMessage(
+      chatId,
+      `Balas pesan ini dengan nominal angka baru (contoh: \`25000\` atau \`25rb\`):\n\`#TX_AMT:${txId}\``,
+      { reply_markup: { force_reply: true, selective: true } }
+    );
+    return;
+  }
+
+  // 1.26. Prompt Ubah Nama Merchant via Force Reply
+  if (data.startsWith('tx_edit_mrc:')) {
+    const txId = data.replace('tx_edit_mrc:', '').trim();
+    await answerCallbackQuery(cq.id);
+    await sendTelegramMessage(
+      chatId,
+      `Balas pesan ini dengan nama toko/merchant yang benar:\n\`#TX_MRC:${txId}\``,
+      { reply_markup: { force_reply: true, selective: true } }
+    );
     return;
   }
 
@@ -565,6 +597,7 @@ export async function handleTelegramCallbackQuery(
     if (currentTx.account_id) {
       await syncAccountBalance(supabase, currentTx.account_id);
     }
+    void syncTransactionsToSpreadsheet(supabase, householdId, [txId]).catch(() => undefined);
 
     await answerCallbackQuery(cq.id, 'Diubah menjadi Pengeluaran.');
 
@@ -688,7 +721,7 @@ export async function handleTelegramCallbackQuery(
 
     const buttons = (accounts || []).map((a) => [
       {
-        text: `${a.name} (${a.owner === 'istri' ? 'Istri' : 'Suami'})`,
+        text: a.name,
         callback_data: `tsa:${txId}:${a.id.slice(0, 8)}`,
       },
     ]);
@@ -768,7 +801,7 @@ export async function handleTelegramCallbackQuery(
     const baseText = originalText
       .replace(/\n\n\*Pilih rekening baru:\*.*$/s, '')
       .replace(/\n\n(?:\[INFO\]|✅)\s*_Rekening dipindahkan.*$/s, '');
-    const newAccName = `${targetAccount.name} (${targetAccount.owner === 'istri' ? 'Istri' : 'Suami'})`;
+    const newAccName = targetAccount.name;
     const updatedText = `${baseText}\n\n[INFO] _Rekening dipindahkan ke *${newAccName}*._`;
 
     await editTelegramMessageText(chatId, messageId, updatedText, {
@@ -897,6 +930,7 @@ export async function handleTelegramCallbackQuery(
     }
 
     await answerCallbackQuery(cq.id, 'Pola promo dipelajari oleh AI.');
+    void syncTransactionsToSpreadsheet(supabase, householdId, [txId]).catch(() => undefined);
 
     const merchant = targetTx.merchant || '';
     const rawText = targetTx.raw_notification || '';
@@ -968,6 +1002,7 @@ export async function handleTelegramCallbackQuery(
     if (targetTx.status === 'reconciled' && targetTx.account_id) {
       await syncAccountBalance(supabase, targetTx.account_id);
     }
+    void syncTransactionsToSpreadsheet(supabase, householdId, [txId]).catch(() => undefined);
 
     await answerCallbackQuery(cq.id, 'Ditandai transaksi dobel.');
 

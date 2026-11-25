@@ -200,24 +200,71 @@ export async function syncAllHouseholdAccountBalances(
     return [];
   }
 
+  // Optimasi: 2 query total (accounts + reconciled transactions) menggantikan loop N+1
+  const { data: reconciledTxs } = await supabase
+    .from('transactions')
+    .select('account_id, amount, direction')
+    .eq('household_id', householdId)
+    .eq('status', 'reconciled');
+
+  const netTxByAccount = new Map<string, number>();
+  for (const t of reconciledTxs || []) {
+    if (!t.account_id) continue;
+    const val = Number(t.amount || 0);
+    const prev = netTxByAccount.get(t.account_id) || 0;
+    netTxByAccount.set(t.account_id, prev + (t.direction === 'in' ? val : -val));
+  }
+
   const results: SyncedAccountRow[] = [];
+  const pendingUpdates: Array<PromiseLike<unknown>> = [];
+
   for (const acc of accounts) {
-    const syncRes = await syncAccountBalance(supabase, acc.id);
-    const finalBalance =
-      syncRes.success && syncRes.newBalance !== undefined
-        ? syncRes.newBalance
-        : Number(acc.balance ?? acc.initial_balance ?? 0);
+    const netTx = netTxByAccount.get(acc.id) || 0;
+    let initialBalance = Number(acc.initial_balance || 0);
+    const storedBalance =
+      acc.balance !== undefined && acc.balance !== null ? Number(acc.balance) : null;
+
+    let finalBalance = initialBalance + netTx;
+    let needsInitialUpdate = false;
+
+    if (
+      storedBalance !== null &&
+      LEGACY_MIGRATION_INITIAL_BALANCES.has(initialBalance) &&
+      storedBalance !== initialBalance &&
+      storedBalance !== initialBalance + netTx
+    ) {
+      initialBalance = storedBalance - netTx;
+      finalBalance = storedBalance;
+      needsInitialUpdate = true;
+    }
+
+    if (needsInitialUpdate || storedBalance !== finalBalance) {
+      pendingUpdates.push(
+        supabase
+          .from('accounts')
+          .update(
+            needsInitialUpdate
+              ? { initial_balance: initialBalance, balance: finalBalance }
+              : { balance: finalBalance }
+          )
+          .eq('id', acc.id)
+      );
+    }
 
     results.push({
       id: acc.id,
       name: acc.name,
       type: acc.type,
       owner: acc.owner,
-      initial_balance: Number(acc.initial_balance || 0),
+      initial_balance: initialBalance,
       balance: finalBalance,
       current_balance: finalBalance,
       is_active: Boolean(acc.is_active),
     });
+  }
+
+  if (pendingUpdates.length > 0) {
+    await Promise.all(pendingUpdates);
   }
 
   return results;

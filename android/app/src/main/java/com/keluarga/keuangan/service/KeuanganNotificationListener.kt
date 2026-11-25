@@ -26,6 +26,7 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import java.io.IOException
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 
 // ==============================================================================
@@ -48,6 +49,8 @@ class KeuanganNotificationListener : NotificationListenerService() {
         private const val PREFS_QUEUE = "keuangan_offline_queue"
         private const val KEY_PENDING_ITEMS = "pending_payloads"
         private const val MAX_QUEUE_SIZE = 50
+        private const val DEDUPE_WINDOW_MS = 90_000L
+        private val recentSentCache = ConcurrentHashMap<String, Long>()
     }
 
     override fun onCreate() {
@@ -61,14 +64,23 @@ class KeuanganNotificationListener : NotificationListenerService() {
         super.onNotificationPosted(sbn)
         if (sbn == null) return
 
+        val notification = sbn.notification ?: return
         val packageName = sbn.packageName ?: return
+
+        // 0. Abaikan notifikasi ringkasan grup & layanan berlangsung agar tidak terjadi pencatatan ganda
+        val flags = notification.flags
+        if ((flags and Notification.FLAG_GROUP_SUMMARY) != 0 ||
+            (flags and Notification.FLAG_ONGOING_EVENT) != 0
+        ) {
+            return
+        }
 
         // 1. Filter: Hanya proses aplikasi perbankan & e-wallet yang terdaftar
         if (!AppConfig.isFinancialPackage(packageName)) {
             return
         }
 
-        val extras = sbn.notification?.extras ?: return
+        val extras = notification.extras ?: return
         val title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString()?.trim() ?: ""
         val text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString()?.trim() ?: ""
         val bigText = extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString()?.trim() ?: ""
@@ -84,15 +96,35 @@ class KeuanganNotificationListener : NotificationListenerService() {
         val safeTitle = if (isSensitive) "[REDACTED]" else title
         val safeContent = if (isSensitive) "[REDACTED]" else content
 
+        // 2.5. Filter dedupe lokal 90 detik agar pembaruan notifikasi identik tidak dikirim ulang
+        val now = System.currentTimeMillis()
+        val cacheKey = "$packageName|$safeTitle|$safeContent"
+        val lastSentAt = recentSentCache[cacheKey]
+        if (lastSentAt != null && (now - lastSentAt) < DEDUPE_WINDOW_MS) {
+            Log.d(tag, "Lewati notifikasi ganda lokal (<90d) dari $packageName")
+            return
+        }
+        recentSentCache[cacheKey] = now
+        if (recentSentCache.size > 100) {
+            recentSentCache.entries.removeIf { (_, ts) -> now - ts >= DEDUPE_WINDOW_MS }
+        }
+
         val postTime = sbn.postTime
+        val notificationKey = "${sbn.key ?: packageName}:$postTime"
 
         Log.d(tag, "Notifikasi bank tertangkap dari: $packageName ($safeTitle)")
 
         // 3. Kirim ke Webhook API Dasbor
-        sendToWebhook(packageName, safeTitle, safeContent, postTime)
+        sendToWebhook(packageName, safeTitle, safeContent, postTime, notificationKey)
     }
 
-    private fun sendToWebhook(packageName: String, title: String, content: String, postTime: Long) {
+    private fun sendToWebhook(
+        packageName: String,
+        title: String,
+        content: String,
+        postTime: Long,
+        notificationKey: String
+    ) {
         val endpoint = profileManager.notificationEndpoint
         val apiKey = profileManager.getApiKey()
         val deviceId = profileManager.getDeviceId()
@@ -105,6 +137,7 @@ class KeuanganNotificationListener : NotificationListenerService() {
             addProperty("text", content)
             addProperty("content", content)
             addProperty("received_at", postTime)
+            addProperty("notification_key", notificationKey)
         }
 
         val payloadString = jsonPayload.toString()

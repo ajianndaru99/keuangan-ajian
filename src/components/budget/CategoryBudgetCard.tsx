@@ -6,7 +6,6 @@
 // ==============================================================================
 
 import { formatRupiah } from '@/lib/utils';
-import { MoreVertical } from 'lucide-react';
 
 export interface CategoryBudgetItem {
   id: string;
@@ -19,13 +18,9 @@ export interface CategoryBudgetItem {
 
 interface CategoryBudgetCardProps {
   item: CategoryBudgetItem;
-  onEdit?: (item: CategoryBudgetItem) => void;
 }
 
-export default function CategoryBudgetCard({
-  item,
-  onEdit,
-}: CategoryBudgetCardProps) {
+export default function CategoryBudgetCard({ item }: CategoryBudgetCardProps) {
   const remaining = Math.max(0, item.budgetLimit - item.spentAmount);
   const percentage = item.budgetLimit > 0
     ? Math.min(100, Math.round((item.spentAmount / item.budgetLimit) * 100))
@@ -66,15 +61,6 @@ export default function CategoryBudgetCard({
           <span className={`text-[11px] font-extrabold px-2.5 py-0.5 rounded-full border angka-keuangan ${getBadgeColor()}`}>
             {percentage}%
           </span>
-          {onEdit && (
-            <button
-              onClick={() => onEdit(item)}
-              aria-label="Atur Anggaran"
-              className="p-1.5 rounded-xl text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--surface-2)] transition-colors"
-            >
-              <MoreVertical className="w-4 h-4" />
-            </button>
-          )}
         </div>
       </div>
 

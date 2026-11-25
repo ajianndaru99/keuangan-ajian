@@ -21,8 +21,11 @@ import {
   handleTodayExpensesCommand,
   handleDailyReportCommand,
   handleReceiptsListCommand,
+  handleRawNotificationsCommand,
+  handleSpreadsheetCommand,
   buildFinancialContext,
 } from '@/lib/telegram/commands.ts';
+import { syncTransactionsToSpreadsheet } from '@/lib/spreadsheet/sheets-sync.ts';
 import {
   handleTelegramCallbackQuery,
   TelegramCallbackQuery,
@@ -133,8 +136,18 @@ async function handleSlashCommands(
       await handleRekapCommand(chatId, supabase, householdId);
       break;
     }
-    case '/inbox': {
+    case '/inbox':
+    case '/reconcile': {
       await handleInboxCommand(chatId, supabase, householdId);
+      break;
+    }
+    case '/raw': {
+      await handleRawNotificationsCommand(chatId, supabase, householdId);
+      break;
+    }
+    case '/spreadsheet':
+    case '/sheets': {
+      await handleSpreadsheetCommand(chatId, supabase, householdId);
       break;
     }
     case '/nota':
@@ -235,7 +248,7 @@ async function handleNaturalLanguageFlow(
 
     let accountId: string | null = null;
     let accountName = tx.accountName;
-    let accountOwner: 'suami' | 'istri' = 'suami';
+    const accountOwner: 'suami' = 'suami';
 
     if (accounts && accounts.length > 0) {
       const matched = accounts.find((a) =>
@@ -245,12 +258,10 @@ async function handleNaturalLanguageFlow(
       if (matched) {
         accountId = matched.id;
         accountName = matched.name;
-        accountOwner = matched.owner === 'istri' ? 'istri' : 'suami';
       } else {
         const defaultAcc = accounts.find((a) => a.owner === 'suami') || accounts[0];
         accountId = defaultAcc.id;
         accountName = defaultAcc.name;
-        accountOwner = defaultAcc.owner === 'istri' ? 'istri' : 'suami';
       }
     }
 
@@ -274,7 +285,7 @@ async function handleNaturalLanguageFlow(
       const targetCat = matchTargetCategory(tx.categoryName);
       categoryName = targetCat.name || 'Lainnya';
       suggestedCategoryId = categories
-        ? suggestCategoryForMerchant(tx.merchant, categories)
+        ? suggestCategoryForMerchant(tx.merchant, categories, rawText, tx.amount)
         : null;
     }
 
@@ -315,10 +326,13 @@ async function handleNaturalLanguageFlow(
       return;
     }
 
-    // Sinkronisasi saldo akun secara instan dan idempoten di level aplikasi
+    // Sinkronisasi saldo akun & Spreadsheet secara instan
     if (accountId) {
       const delta = tx.direction === 'in' ? tx.amount : -tx.amount;
       await applyAccountBalanceDelta(supabase, accountId, delta);
+    }
+    if (newTx?.id) {
+      void syncTransactionsToSpreadsheet(supabase, householdId, [newTx.id]).catch(() => undefined);
     }
 
     const isIncome = tx.direction === 'in';

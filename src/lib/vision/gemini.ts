@@ -5,6 +5,7 @@
 // ==============================================================================
 
 import crypto from 'node:crypto';
+import { classifyExpenseCategoryRuleBased } from '../ai/category-classifier.ts';
 
 export interface ReceiptVisionResult {
   isValidReceipt: boolean;
@@ -142,76 +143,52 @@ export async function generateScreenshotDedupeHash(
 }
 
 /**
- * Rekomendasi kategori otomatis berdasarkan kata kunci merchant
+ * Rekomendasi kategori otomatis berdasarkan kata kunci merchant & konteks nota
  */
 export function suggestCategoryForMerchant(
   merchant: string,
-  categories: Array<{ id: string; name: string }>
+  categories: Array<{ id: string; name: string }>,
+  fullText: string = '',
+  amount: number = 0
 ): string | null {
-  const text = (merchant || '').toLowerCase();
+  const text = `${merchant || ''} ${fullText || ''}`.toLowerCase().trim();
   if (!text) return null;
 
-  const keywordMap: Array<{ keywords: string[]; categoryMatch: string }> = [
-    {
-      keywords: [
-        'kopi', 'coffee', 'cafe', 'kafe', 'resto', 'warung', 'mie', 'bakso', 'makan', 'food',
-        'snack', 'roti', 'kfc', 'mcd', 'hokben', 'solaria', 'chatime', 'mixue', 'kenangan',
-        'geprek', 'sate', 'nasi', 'bakmi', 'minuman', 'kuliner', 'ayam'
-      ],
-      categoryMatch: 'Makan & Jajan',
-    },
-    {
-      keywords: [
-        'indomaret', 'alfamart', 'superindo', 'sayur', 'sayuran', 'buah', 'pasar', 'hypermart',
-        'beras', 'lotte', 'toko sakti', 'dunia buah', 'kelontong', 'sembako', 'daging', 'ikan',
-        'mart', 'minimarket', 'grosir', 'bumbu'
-      ],
-      categoryMatch: 'Belanja Dapur',
-    },
-    {
-      keywords: [
-        'spbu', 'pertamina', 'shell', 'bensin', 'solar', 'parkir', 'gojek', 'grab', 'maxim',
-        'bluebird', 'toll', 'tol ', 'kereta', 'kai', 'krl', 'mrt'
-      ],
-      categoryMatch: 'Transportasi/Bensin',
-    },
-    {
-      keywords: [
-        'pln', 'listrik', 'pdam', 'air', 'indihome', 'wifi', 'biznet', 'bpjs', 'pulsa',
-        'paket data', 'telkomsel', 'indosat', 'xl', 'tri', 'smartfren'
-      ],
-      categoryMatch: 'Tagihan & Utilitas',
-    },
-    {
-      keywords: ['shopee', 'tokopedia', 'tiktok', 'lazada', 'zalora', 'blibli', 'bukalapak'],
-      categoryMatch: 'Belanja Online',
-    },
-    {
-      keywords: ['apotek', 'obat', 'kimia farma', 'k24', 'rs ', 'rumah sakit', 'klinik', 'dokter', 'halodoc', 'alodokter'],
-      categoryMatch: 'Kesehatan',
-    },
-    {
-      keywords: ['bioskop', 'cinema', 'xxi', 'cgv', 'netflix', 'spotify', 'steam', 'game', 'playstation', 'wisata'],
-      categoryMatch: 'Hiburan',
-    },
-    {
-      keywords: ['susu', 'pampers', 'popok', 'sekolah', 'les', 'buku anak', 'mainan', 'baby'],
-      categoryMatch: 'Anak',
-    },
-    {
-      keywords: ['gaji', 'payroll', 'pendapatan', 'dividen', 'bonus'],
-      categoryMatch: 'Gaji/Pemasukan',
-    },
-  ];
-
-  for (const item of keywordMap) {
-    if (item.keywords.some(k => text.includes(k))) {
-      const match = categories.find(c => c.name.toLowerCase() === item.categoryMatch.toLowerCase());
-      if (match) return match.id;
-    }
+  if (/\b(?:gaji|payroll|pendapatan|dividen|bonus)\b/i.test(text)) {
+    const incomeMatch = categories.find((c) => c.name.toLowerCase() === 'gaji/pemasukan');
+    if (incomeMatch) return incomeMatch.id;
   }
 
-  return null;
+  const classified = classifyExpenseCategoryRuleBased(merchant, fullText, amount);
+  const directMatch = categories.find(
+    (c) => c.name.toLowerCase() === classified.categoryName.toLowerCase()
+  );
+  if (directMatch) return directMatch.id;
+
+  // Fallback jika DB masih memiliki nama kategori sebelum migrasi
+  if (classified.categoryId === 'b-makan' || classified.categoryId === 'b-jajan') {
+    const legacyMatch = categories.find((c) => c.name.toLowerCase() === 'makan & jajan');
+    if (legacyMatch) return legacyMatch.id;
+  }
+  if (classified.categoryId === 'b-rumah') {
+    const legacyOnline = categories.find(
+      (c) => c.name.toLowerCase() === 'belanja online' || c.name.toLowerCase() === 'anak'
+    );
+    if (legacyOnline) return legacyOnline.id;
+  }
+  if (classified.categoryId === 'b-jalan') {
+    const legacyHiburan = categories.find((c) => c.name.toLowerCase() === 'hiburan');
+    if (legacyHiburan) return legacyHiburan.id;
+  }
+  if (classified.categoryId === 'b-darurat') {
+    const legacyKesehatan = categories.find((c) => c.name.toLowerCase() === 'kesehatan');
+    if (legacyKesehatan) return legacyKesehatan.id;
+  }
+
+  if (!classified.confident) return null;
+
+  const lainMatch = categories.find((c) => c.name.toLowerCase() === 'lainnya');
+  return lainMatch ? lainMatch.id : null;
 }
 
 /**

@@ -7,6 +7,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { formatRupiah } from '../utils.ts';
 import { getMonthlyRange, getBudgetPeriodKey } from '../date-utils.ts';
+import { classifyExpenseCategoryRuleBased } from '../ai/category-classifier.ts';
 
 export interface TargetCategory {
   id: string;
@@ -16,7 +17,8 @@ export interface TargetCategory {
 
 export const TARGET_BUDGET_CATEGORIES: TargetCategory[] = [
   { id: 'b-dapur', name: 'Belanja Dapur', emoji: '🛒' },
-  { id: 'b-makan', name: 'Makan & Jajan', emoji: '🍔' },
+  { id: 'b-makan', name: 'Makan Harian', emoji: '🍚' },
+  { id: 'b-jajan', name: 'Jajan', emoji: '☕' },
   { id: 'b-trans', name: 'Transportasi/Bensin', emoji: '🚗' },
   { id: 'b-tagih', name: 'Tagihan & Utilitas', emoji: '⚡' },
   { id: 'b-rumah', name: 'Kebutuhan Rumah', emoji: '🏠' },
@@ -65,12 +67,13 @@ export function isInternalTransferCategoryOrMerchant(
 }
 
 /**
- * Mencocokkan nama atau kata kunci kategori ke 8 kategori anggaran keluarga
+ * Mencocokkan nama atau kata kunci kategori ke 9 kategori anggaran keluarga
  */
 export function matchTargetCategory(categoryNameOrId: string): TargetCategory {
+  const lainCat = TARGET_BUDGET_CATEGORIES[8];
   const lower = (categoryNameOrId || '').toLowerCase().trim();
   if (!lower) {
-    return TARGET_BUDGET_CATEGORIES[7]; // Lainnya (default untuk input kosong, jangan cocokkan loop includes(""))
+    return lainCat; // Lainnya (default untuk input kosong, jangan cocokkan loop includes(""))
   }
 
   // 1. Pencocokan ID atau nama persis
@@ -80,19 +83,25 @@ export function matchTargetCategory(categoryNameOrId: string): TargetCategory {
     }
   }
 
-  // 2. Pemetaan eksplisit untuk kategori default sistem/database Supabase
+  // 2. Pemetaan eksplisit untuk kategori lama / sistem / database Supabase
   if (lower === 'transfer keluarga' || lower === 'transfer internal') {
-    return TARGET_BUDGET_CATEGORIES[7]; // Di tingkat kalkulasi dibebaskan oleh isInternalTransferCategoryOrMerchant
+    return lainCat; // Di tingkat kalkulasi dibebaskan oleh isInternalTransferCategoryOrMerchant
+  }
+  if (lower === 'makan & jajan' || lower === 'makan dan jajan') {
+    return TARGET_BUDGET_CATEGORIES[1]; // Makan Harian
   }
   if (lower === 'belanja online' || lower === 'anak' || lower === 'pendidikan/anak') {
-    return TARGET_BUDGET_CATEGORIES[4]; // Kebutuhan Rumah
+    return TARGET_BUDGET_CATEGORIES[5]; // Kebutuhan Rumah
+  }
+  if (lower === 'hiburan') {
+    return TARGET_BUDGET_CATEGORIES[6]; // Jalan-jalan
   }
   if (lower === 'kesehatan') {
-    return TARGET_BUDGET_CATEGORIES[6]; // Keperluan Mendadak
+    return TARGET_BUDGET_CATEGORIES[7]; // Keperluan Mendadak
   }
 
-  // 3. Pencocokan substring kategori spesifik (0 s/d 6, lewati 'Lainnya' terlebih dahulu agar tidak mendominasi)
-  for (let i = 0; i < 7; i++) {
+  // 3. Pencocokan substring kategori spesifik (0 s/d 7, lewati 'Lainnya' agar tidak mendominasi)
+  for (let i = 0; i < 8; i++) {
     const tc = TARGET_BUDGET_CATEGORIES[i];
     const tcLower = tc.name.toLowerCase();
     if (lower.includes(tcLower) || (lower.length >= 3 && tcLower.includes(lower))) {
@@ -100,21 +109,14 @@ export function matchTargetCategory(categoryNameOrId: string): TargetCategory {
     }
   }
 
-  // 4. Pencocokan kata kunci kontekstual spesifik
-  if (/\b(?:dapur|sembako|sayur|pasar|bumbu|beras|minyak|daging|ayam|telur)\b/i.test(lower)) return TARGET_BUDGET_CATEGORIES[0];
-  if (/\b(?:makan|jajan|resto|kopi|kafe|cafe|warung|mie|bakso|snack|gofood|grabfood|shopeefood)\b/i.test(lower)) return TARGET_BUDGET_CATEGORIES[1];
-  if (/\b(?:bensin|bbm|pertamax|pertalite|spbu|transpor|ojek|gojek|grab|maxim|parkir|toll|tol|kereta|krl|mrt|bus)\b/i.test(lower)) return TARGET_BUDGET_CATEGORIES[2];
-  if (/\b(?:tagih|listrik|pln|wifi|indihome|pulsa|paket\s*data|air|pdam|bpjs|iuran)\b/i.test(lower)) return TARGET_BUDGET_CATEGORIES[3];
-  if (/\b(?:rumah|perabot|online|tokopedia|shopee|lazada|elektronik|alat|anak|popok|susu)\b/i.test(lower)) return TARGET_BUDGET_CATEGORIES[4];
-  if (/\b(?:liburan|jalan|hiburan|wisata|nonton|bioskop|hotel|tiket)\b/i.test(lower)) return TARGET_BUDGET_CATEGORIES[5];
-  if (/\b(?:darurat|sakit|obat|dokter|klinik|apotek|kesehatan|rs|rumah\s*sakit)\b/i.test(lower)) return TARGET_BUDGET_CATEGORIES[6];
-
-  // 5. Cek apakah pengguna secara eksplisit menyebut kata 'lainnya'
-  if (lower.includes('lainnya') || lower.includes('lain-lain') || lower.includes('fleksibel')) {
-    return TARGET_BUDGET_CATEGORIES[7];
+  // 4. Delegasi pencocokan kata kunci ke classifier terpusat agar tidak ada regex duplikat
+  const classified = classifyExpenseCategoryRuleBased(categoryNameOrId);
+  if (classified.confident) {
+    const matched = TARGET_BUDGET_CATEGORIES.find((tc) => tc.id === classified.categoryId);
+    if (matched) return matched;
   }
 
-  return TARGET_BUDGET_CATEGORIES[7]; // Lainnya
+  return lainCat; // Lainnya
 }
 
 /**

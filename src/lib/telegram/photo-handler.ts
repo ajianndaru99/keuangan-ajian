@@ -14,6 +14,7 @@ import {
   generateScreenshotDedupeHash,
   suggestCategoryForMerchant,
 } from '../vision/gemini.ts';
+import { syncTransactionsToSpreadsheet } from '../spreadsheet/sheets-sync.ts';
 
 export interface TelegramPhotoItem {
   file_id: string;
@@ -88,7 +89,7 @@ export async function handleTelegramPhotoMessage(
 
   let accountId: string | null = null;
   let accountName = vision.accountName;
-  let accountOwner: 'suami' | 'istri' = 'suami';
+  const accountOwner: 'suami' = 'suami';
 
   if (accounts && accounts.length > 0) {
     const matched = accounts.find((a) =>
@@ -98,17 +99,14 @@ export async function handleTelegramPhotoMessage(
     if (matched) {
       accountId = matched.id;
       accountName = matched.name;
-      accountOwner = matched.owner === 'istri' ? 'istri' : 'suami';
     } else {
-      // Prioritaskan akun Dana Suami atau akun aktif pertama
       const defaultAcc = accounts.find((a) => a.owner === 'suami') || accounts[0];
       accountId = defaultAcc.id;
       accountName = defaultAcc.name;
-      accountOwner = defaultAcc.owner === 'istri' ? 'istri' : 'suami';
     }
   }
 
-  // 7. Rekomendasi Kategori Otomatis berdasarkan Merchant
+  // 7. Rekomendasi Kategori Otomatis berdasarkan Merchant & Ringkasan Struk
   const { data: categories, error: catErr } = await supabase
     .from('categories')
     .select('id, name')
@@ -119,7 +117,7 @@ export async function handleTelegramPhotoMessage(
   }
 
   const suggestedCategoryId = categories
-    ? suggestCategoryForMerchant(vision.merchant, categories)
+    ? suggestCategoryForMerchant(vision.merchant, categories, vision.rawSummary, vision.totalAmount)
     : null;
 
   const matchedCat = (categories || []).find((c) => c.id === suggestedCategoryId);
@@ -173,7 +171,9 @@ export async function handleTelegramPhotoMessage(
     return;
   }
 
-  // 10. Kirim Notifikasi Sukses dengan Tombol Konfirmasi
+  // 10. Sync cepat ke Spreadsheet & Kirim Notifikasi Sukses dengan Tombol Konfirmasi
+  void syncTransactionsToSpreadsheet(supabase, householdId, [newTx.id]).catch(() => undefined);
+
   const messageText = formatReceiptScanSuccessMessage({
     merchant: vision.merchant,
     amount: vision.totalAmount,

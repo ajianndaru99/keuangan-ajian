@@ -109,24 +109,24 @@ export function extractPromoKeywordsFromText(
     }
   }
 
-  // 3. Fallback jika ditandai manual oleh pengguna tapi belum ada kata kunci terambil
-  // Catatan: Wajib ada indikator promosi/penawaran agar merchant belanja sah tidak terblokir
+  // 3. Fallback jika ditandai manual oleh pengguna tapi belum ada kata kunci terambil:
+  // tetap ekstrak frasa unik notifikasi (disaring isSafePromoKeyword) agar pembelajaran langsung bekerja
   if (isExplicitManualPromo && keywords.size === 0) {
-    const hasAnyPromoWord = /\b(promo|diskon|cashback|voucher|kupon|hadiah|gratis|asuransi|penipuan|perlindungan|spin|tebak|game|deals|undian|poin|bonus|paket\s+data|iklan|marketing|paylater|pinjaman|investasi|reward)\b/i.test(combined);
-
-    if (hasAnyPromoWord) {
-      const cleanCandidate = cleanRuleKeyword(title);
-      if (isSafePromoKeyword(cleanCandidate)) {
-        keywords.add(cleanCandidate);
-      } else {
-        const words = cleanRuleKeyword(text).split(' ').filter(Boolean);
-        for (let len = 3; len >= 2; len--) {
-          if (words.length >= len) {
-            const phrase = words.slice(0, len).join(' ');
-            if (isSafePromoKeyword(phrase)) {
-              keywords.add(phrase);
-              break;
-            }
+    const cleanCandidate = cleanRuleKeyword(title)
+      .replace(/\b(?:rp|idr)?\s*\d+(?:[.,]\d+)*\b/gi, '')
+      .trim();
+    if (isSafePromoKeyword(cleanCandidate)) {
+      keywords.add(cleanCandidate);
+    } else {
+      const words = cleanRuleKeyword(text)
+        .split(' ')
+        .filter((w) => w && !/^\d+$/.test(w));
+      for (let len = 3; len >= 2; len--) {
+        if (words.length >= len) {
+          const phrase = words.slice(0, len).join(' ');
+          if (isSafePromoKeyword(phrase)) {
+            keywords.add(phrase);
+            break;
           }
         }
       }

@@ -25,7 +25,7 @@ import {
   getTodayRangeWIB,
   calculateComparison,
 } from '../date-utils.ts';
-import { formatTimeWIB } from '../utils.ts';
+import { formatRupiah, formatTimeWIB } from '../utils.ts';
 import {
   TARGET_BUDGET_CATEGORIES,
   matchTargetCategory,
@@ -74,7 +74,7 @@ export async function deduplicateSimultaneousExpenses(
   supabase: SupabaseClient,
   householdId: string,
   items: TxCatRelation[],
-  istriAccount?: { id?: string; name: string } | null
+  _istriAccount?: { id?: string; name: string } | null
 ): Promise<TxCatRelation[]> {
   // Urutkan kronologis dari waktu paling awal ke paling akhir
   const sorted = [...items].sort((a, b) => {
@@ -157,28 +157,16 @@ export async function deduplicateSimultaneousExpenses(
         }
 
         // Kasus 3: Nama merchant sama persis atau notifikasi duplikat dari multi-listener
-        // Satukan menjadi transaksi Istri sesuai aturan keluarga
+        // Pertahankan satu entri dengan nama merchant paling spesifik (single account Suami)
         const keepIndex = aIsGeneric && !bIsGeneric ? j : i;
         const dropIndex = keepIndex === i ? j : i;
 
         const keepTx = sorted[keepIndex];
         const dropTx = sorted[dropIndex];
 
-        keepTx.source_device = 'istri';
-        if (istriAccount) {
-          if (keepTx.account_id && keepTx.account_id !== istriAccount.id) {
-            accountsToSync.add(keepTx.account_id);
-          }
-          if (istriAccount.id) {
-            keepTx.account_id = istriAccount.id;
-            accountsToSync.add(istriAccount.id);
-          }
-          keepTx.accounts = { name: istriAccount.name };
-        }
-
-        if (dropTx.account_id) {
-          accountsToSync.add(dropTx.account_id);
-        }
+        keepTx.source_device = 'suami';
+        if (keepTx.account_id) accountsToSync.add(keepTx.account_id);
+        if (dropTx.account_id) accountsToSync.add(dropTx.account_id);
 
         ignoredIndexes.add(dropIndex);
 
@@ -190,22 +178,9 @@ export async function deduplicateSimultaneousExpenses(
               await txTable
                 .update({
                   status: 'ignored',
-                  notes: `Duplikat waktu bersamaan (${amtA}) disatukan ke ${keepTx.merchant || 'transaksi Istri'}`,
+                  notes: `Duplikat waktu bersamaan (${amtA}) disatukan ke ${keepTx.merchant || 'transaksi utama'}`,
                 })
                 .eq('id', dropTx.id)
-                .eq('household_id', householdId);
-
-              const updateKeepPayload: Record<string, any> = {
-                source_device: 'istri',
-                merchant: keepTx.merchant,
-              };
-              if (istriAccount?.id) {
-                updateKeepPayload.account_id = istriAccount.id;
-              }
-
-              await txTable
-                .update(updateKeepPayload)
-                .eq('id', keepTx.id)
                 .eq('household_id', householdId);
             }
           } catch {
@@ -250,10 +225,8 @@ export async function buildFinancialContext(
     console.error('[Commands buildFinancialContext Account Error]:', accErr.message);
   }
 
-  const istriAccRecord = (accounts || []).find((a: any) => a.owner === 'istri');
-  const istriAccount = istriAccRecord
-    ? { id: (istriAccRecord as any).id as string | undefined, name: istriAccRecord.name }
-    : null;
+  const activeAccounts = (accounts || []).filter((a: any) => !a.owner || a.owner === 'suami' || a.owner === 'bersama');
+  const displayAccounts = activeAccounts.length > 0 ? activeAccounts : (accounts || []);
 
   // 2. Ambil Pengeluaran Transaksi Bulan Ini (HANYA 'reconciled' belanja sah)
   // Kecualikan koreksi saldo administratif dan transfer internal antar rekening
@@ -303,29 +276,30 @@ export async function buildFinancialContext(
     const catName = relCatName || (t.category_id ? catMap.get(t.category_id) : '') || '';
     return !isInternalTransferCategoryOrMerchant(catName, t.merchant);
   });
-  const validTxs = await deduplicateSimultaneousExpenses(supabase, householdId, filteredTxs, istriAccount);
+  const validTxs = await deduplicateSimultaneousExpenses(supabase, householdId, filteredTxs, null);
   const totalSpentMonth = validTxs.reduce((sum, t) => sum + Number(t.amount || 0), 0);
 
-  // Sinkronkan saldo tiap akun agar selalu identik antara Website, Database, dan Telegram
-  const accountItems: Array<{ name: string; owner: 'Suami' | 'Istri'; balance: number }> = [];
-  for (const acc of accounts || []) {
-    let resolvedBalance = Number(acc.balance ?? acc.initial_balance ?? 0);
-    if ((acc as any).id) {
-      try {
-        const syncRes = await syncAccountBalance(supabase, (acc as any).id);
-        if (syncRes.success && syncRes.newBalance !== undefined) {
-          resolvedBalance = syncRes.newBalance;
+  // Sinkronkan saldo tiap akun secara paralel agar cepat dan selalu identik antara Website, DB & Telegram
+  const accountItems: Array<{ name: string; owner: 'Suami' | 'Istri'; balance: number }> = await Promise.all(
+    displayAccounts.map(async (acc: any) => {
+      let resolvedBalance = Number(acc.balance ?? acc.initial_balance ?? 0);
+      if (acc.id) {
+        try {
+          const syncRes = await syncAccountBalance(supabase, acc.id);
+          if (syncRes.success && syncRes.newBalance !== undefined) {
+            resolvedBalance = syncRes.newBalance;
+          }
+        } catch {
+          // Fallback aman untuk unit test mock sederhana
         }
-      } catch {
-        // Fallback aman untuk unit test mock sederhana
       }
-    }
-    accountItems.push({
-      name: acc.name,
-      owner: acc.owner === 'suami' ? 'Suami' : 'Istri',
-      balance: resolvedBalance,
-    });
-  }
+      return {
+        name: acc.name,
+        owner: 'Suami' as const,
+        balance: resolvedBalance,
+      };
+    })
+  );
 
   const totalBalance = accountItems.reduce((sum, a) => sum + a.balance, 0);
 
@@ -649,13 +623,13 @@ export async function handleInboxCommand(
   supabase: SupabaseClient,
   householdId: string
 ): Promise<void> {
-  const { count: pendingCount, data: oldestTx, error: txErr } = await supabase
+  const { count: pendingCount, data: pendingList, error: txErr } = await supabase
     .from('transactions')
-    .select('transaction_date', { count: 'exact' })
+    .select('id, merchant, amount, transaction_date, raw_notification')
     .eq('household_id', householdId)
     .eq('status', 'pending')
-    .order('transaction_date', { ascending: true })
-    .limit(1);
+    .order('transaction_date', { ascending: false })
+    .limit(5);
 
   if (txErr) {
     console.error('[Commands handleInboxCommand Tx Error]:', txErr.message);
@@ -673,8 +647,8 @@ export async function handleInboxCommand(
   }
 
   let oldestDateStr: string | undefined;
-  if (oldestTx && oldestTx.length > 0 && oldestTx[0].transaction_date) {
-    oldestDateStr = new Date(oldestTx[0].transaction_date).toLocaleDateString('id-ID', {
+  if (pendingList && pendingList.length > 0 && pendingList[pendingList.length - 1].transaction_date) {
+    oldestDateStr = new Date(pendingList[pendingList.length - 1].transaction_date).toLocaleDateString('id-ID', {
       day: 'numeric',
       month: 'long',
       year: 'numeric',
@@ -688,6 +662,29 @@ export async function handleInboxCommand(
   });
 
   await sendTelegramMessage(chatId, text);
+
+  // Tampilkan hingga 3 transaksi pending teratas lengkap dengan isi notifikasi & tombol aksi langsung
+  for (const p of (pendingList || []).slice(0, 3)) {
+    const rawLine = p.raw_notification ? `\nNotif: _${String(p.raw_notification).slice(0, 240)}_` : '';
+    await sendTelegramMessage(
+      chatId,
+      `*[PENDING]* *${p.merchant || 'Mutasi'}* — \`${formatRupiah(Number(p.amount || 0))}\`${rawLine}`,
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: 'Sesuai', callback_data: `tx_ok:${p.id}` },
+              { text: 'Kategori', callback_data: `tx_cat:${p.id}` },
+            ],
+            [
+              { text: 'Promo/Spam', callback_data: `tx_rej_promo:${p.id}` },
+              { text: 'Dobel', callback_data: `tx_rej_dup:${p.id}` },
+            ],
+          ],
+        },
+      }
+    );
+  }
 }
 
 /**
@@ -699,17 +696,6 @@ export async function handleTodayExpensesCommand(
   householdId: string
 ): Promise<void> {
   const todayRange = getTodayRangeWIB(new Date());
-
-  const { data: accounts } = await supabase
-    .from('accounts')
-    .select('id, name, owner')
-    .eq('household_id', householdId)
-    .eq('is_active', true);
-
-  const istriAccRecord = (accounts || []).find((a: any) => a.owner === 'istri');
-  const istriAccount = istriAccRecord
-    ? { id: (istriAccRecord as any).id as string | undefined, name: istriAccRecord.name }
-    : null;
 
   let query = supabase
     .from('transactions')
@@ -738,16 +724,15 @@ export async function handleTodayExpensesCommand(
     (t) => !/^(koreksi saldo|transfer internal)/i.test(t.merchant || '')
   );
 
-  // Deduplikasi otomatis transaksi kembar waktu bersamaan (dialokasikan ke Istri)
-  const validItems = await deduplicateSimultaneousExpenses(supabase, householdId, filteredItems, istriAccount);
+  // Deduplikasi otomatis transaksi kembar waktu bersamaan (single account Suami)
+  const validItems = await deduplicateSimultaneousExpenses(supabase, householdId, filteredItems, null);
 
   const items = validItems.map((t) => ({
     time: formatTimeWIB(t.transaction_date || ''),
     merchant: t.merchant || 'Pengeluaran',
     amount: Number(t.amount || 0),
     categoryName: t.categories?.name || 'Lainnya',
-    accountName: t.accounts?.name || (t.source_device?.includes('istri') ? 'Dana Istri' : 'Akun Keluarga'),
-    ownerLabel: t.source_device?.includes('istri') ? 'Istri' : (t.source_device?.includes('suami') ? 'Suami' : undefined),
+    accountName: t.accounts?.name || 'Akun Suami',
   }));
 
   const totalAmount = items.reduce((sum, item) => sum + item.amount, 0);
@@ -879,4 +864,66 @@ export async function handleReceiptsListCommand(
 
   const text = formatRecentReceiptsMessage(receipts);
   await sendTelegramMessage(chatId, text);
+}
+
+/**
+ * Handler Perintah /raw (10 Notifikasi Mentah Terbaru beserta outcome-nya)
+ */
+export async function handleRawNotificationsCommand(
+  chatId: number | string,
+  supabase: SupabaseClient,
+  householdId: string
+): Promise<void> {
+  const { data: raws } = await supabase
+    .from('raw_notifications')
+    .select('app_name, title, content, outcome, received_at')
+    .eq('household_id', householdId)
+    .order('created_at', { ascending: false })
+    .limit(8);
+
+  if (!raws || raws.length === 0) {
+    await sendTelegramMessage(chatId, '*[RAW STREAM]* Belum ada notifikasi mentah yang tercatat.');
+    return;
+  }
+
+  const lines = raws.map((r: any, idx: number) => {
+    const status = r.outcome === 'transaction' ? '[MASUK]' : '[ABAIKAN]';
+    const snippet = `${r.title ? `${r.title}: ` : ''}${r.content || ''}`.trim().slice(0, 140);
+    return `${idx + 1}. ${status} *${r.app_name || 'App'}*\n   _${snippet.replace(/([_*`\[])/g, '\\$1')}_`;
+  });
+
+  await sendTelegramMessage(chatId, `*[RAW STREAM] 8 NOTIFIKASI MENTAH TERBARU*\n\n${lines.join('\n\n')}`);
+}
+
+/**
+ * Handler Perintah /spreadsheet (Status & Link Google Spreadsheet)
+ */
+export async function handleSpreadsheetCommand(
+  chatId: number | string,
+  supabase: SupabaseClient,
+  householdId: string
+): Promise<void> {
+  const [{ data: settingRow }, { data: integ }] = await Promise.all([
+    supabase
+      .from('settings')
+      .select('spreadsheet_url, spreadsheet_owner_email, spreadsheet_auto_sync')
+      .eq('household_id', householdId)
+      .maybeSingle(),
+    supabase
+      .from('spreadsheet_integrations')
+      .select('webhook_url, spreadsheet_id, last_synced_at, last_error')
+      .eq('household_id', householdId)
+      .maybeSingle(),
+  ]);
+
+  const connected = Boolean(integ?.webhook_url || integ?.spreadsheet_id || settingRow?.spreadsheet_url);
+  await sendTelegramMessage(
+    chatId,
+    `*[GOOGLE SPREADSHEET]*\nStatus: *${connected ? 'Terhubung' : 'Belum terhubung'}*\nEmail: ${settingRow?.spreadsheet_owner_email ? `\`${settingRow.spreadsheet_owner_email}\`` : '_Belum diset_'}\nAuto-Sync: *${settingRow?.spreadsheet_auto_sync !== false ? 'AKTIF' : 'NONAKTIF'}*\nLink: ${settingRow?.spreadsheet_url || '_Ketik /pengaturan -> Spreadsheet untuk menghubungkan_'}`,
+    {
+      reply_markup: {
+        inline_keyboard: [[{ text: 'Buka Menu Spreadsheet', callback_data: 'cfg:sheet' }]],
+      },
+    }
+  );
 }

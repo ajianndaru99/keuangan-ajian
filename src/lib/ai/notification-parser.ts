@@ -18,7 +18,23 @@ export interface ParsedNotificationResult {
   reasons: string[];
   parseMethod: 'regex' | 'ai_gemini' | 'manual';
   transactionDate?: string;
+  suggestedCategoryName?: string;
+  hasStrictConfirmation?: boolean;
 }
+
+export interface SyncAiEnhancementResult {
+  isTransaction: boolean;
+  amount: number;
+  direction: 'in' | 'out';
+  merchant: string;
+  accountName: string;
+  categoryName: string;
+  reason?: string;
+}
+
+// Kata ajakan marketing yang tidak boleh dianggap konfirmasi transaksi meskipun ada kata "berhasil"
+const MARKETING_CALL_TO_ACTION_PATTERN =
+  /\b(?:pakai\s+kode|kode\s+(?:promo|referral)|ajak\s+teman|klaim\s+(?:sekarang|voucher|kupon|hadiah|gratis|saldo|promo|diskon|cashback)|serbu\s+sekarang|buruan\s+(?:cek|serbu|klaim)|jangan\s+lewatkan|khusus\s+(?:untukmu|buatmu)|eksklusif\s+untukmu|spin\s*(?:&|and)\s*win|roda\s+hadiah|paylater|spaylater|spinjam|gopay\s+pinjam|dana\s+cicil|limit\s+(?:hingga|sampai)|ajukan\s+sekarang|bunga\s+(?:0%|rendah)|cicilan\s+0%|cashback\s+hingga|diskon\s+(?:hingga|s\.?d\.?))\b/i;
 
 // Pola kata kunci chat dari penjual/pembeli marketplace (Shopee, Tokopedia, dll)
 const CHAT_PATTERNS = [
@@ -51,20 +67,32 @@ const PROMO_PATTERNS = [
   /\b(?:top\s*up|isi\s*saldo|isi\s*ulang|bayar\s*tagihan|beli\s*pulsa)\s+.*?\b(?:dapat|dapetin|bonus|untung|hemat|diskon|cashback|hadiah|gratis|cuma|hanya|pakai\s+kode)\b/i,
   /\b(?:dapat|dapetin|klaim|serbu|nikmati|ambil)\s+.*?\b(?:voucher|kupon|saldo\s+dana|dana\s+kaget|hadiah|cashback|diskon|potongan|reward)\b/i,
   /\b(?:dana\s*kaget|a\+\s*rewards?|dana\s*deals?|dana\s*points?|dana\s*surprize|danamon\s*promo)\b/i,
+  /\b(?:paylater|spaylater|spinjam|gopay\s*pinjam|dana\s*cicil|pinjaman\s*(?:online|cepat|tunai)|limit\s*(?:kredit|tersedia|hingga)|ajukan\s*(?:sekarang|pinjaman|kartu)|bunga\s*0%|cicilan\s*0%|kode\s*referral|ajak\s*teman|upgrade\s*(?:plus|premium)|poin\s*(?:akan\s*)?(?:hangus|kadaluarsa))\b/i,
+  /\b(?:selamat\s*(?:anda|kamu)\s*(?:mendapatkan|memenangkan)|tukar\s*(?:poin|koin|coins)|bebas\s*(?:admin|ongkir)|top\s*up\s+min\.?\s*rp)\b/i,
 ];
 
-// Pola bukti transaksi sah yang SUDAH SELESAI / BERHASIL (Past-Tense Confirmation)
+// Pola bukti transaksi sah yang SUDAH SELESAI / BERHASIL (Past-Tense Confirmation ketat)
 const CONFIRMED_TRANSACTION_PATTERNS = [
-  /\b(?:kamu\s+telah\s+(?:membayar|mentransfer|melakukan\s+pembayaran)|you(?:'ve|\s+have)\s+(?:paid|transferred|made\s+a\s+payment|spent))\b/i,
-  /\b(?:pembayaran|payment|transfer|kirim\s+uang|transaksi|transaction)\s+.*?\b(?:berhasil|sukses|successful|completed|selesai|lunas)\b/i,
-  /\b(?:berhasil\s+(?:membayar|transfer|mentransfer|kirim|top\s*up)|sukses\s+(?:membayar|transfer|kirim))\b/i,
-  /\b(?:uang\s+masuk|dana\s+masuk|transfer\s+masuk|dana\s+diterima|menerima\s+dana|menerima\s+transfer)\s*(?:sebesar|senilai)?\b/i,
+  /\b(?:kamu\s+telah\s+(?:membayar|mentransfer|melakukan\s+pembayaran|menerima)|you(?:'ve|\s+have)\s+(?:paid|transferred|made\s+a\s+payment|spent))\b/i,
+  /\b(?:pembayaran|payment|transfer|kirim\s+uang|bayar\s+qris|pembelian)\s+(?:ke\s+.+?\s+)?(?:sebesar|senilai|rp)?[\w\s.,]*\b(?:berhasil|sukses|successful|completed|selesai|lunas)\b/i,
+  /\b(?:berhasil\s+(?:membayar|transfer|mentransfer|kirim|top\s*up|beli)|sukses\s+(?:membayar|transfer|kirim))\b/i,
+  /\b(?:uang\s+masuk|dana\s+masuk|transfer\s+masuk|dana\s+diterima|menerima\s+dana|menerima\s+transfer)\s*(?:sebesar|senilai|dari|rp)?\b/i,
   /\b(?:debit|kredit)\s+rekening\s+(?:berhasil|sukses)\b/i,
   /\bqris\s+payment\s+(?:to\s+.*?\s+)?(?:was\s+)?successful\b/i,
   /\byou(?:'ve|\s+have)\s+received\b/i,
-  /\b(?:sent\s+you|received\s+(?:rp|idr)?|transferred\s+(?:rp|idr)?|spent\s+(?:rp|idr)?|paid\s+(?:rp|idr)?)\b/i,
-  /\b(?:transaksi\s+berhasil|transaction\s+successful)\b/i,
+  /\b(?:sent\s+you|received\s+(?:rp|idr)|transferred\s+(?:rp|idr)|spent\s+(?:rp|idr)|paid\s+(?:rp|idr))\b/i,
+  /\b(?:transaksi\s+(?:pembayaran\s+)?berhasil|transaction\s+successful)\b/i,
 ];
+
+/**
+ * Ekstraksi kode referensi transaksi bank/e-wallet untuk layer dedupe tambahan
+ */
+export function extractReferenceCode(text: string): string | null {
+  const match = text.match(
+    /\b(?:no\.?\s*ref(?:erensi)?|ref(?:erence)?(?:\s*no\.?|\s*id)?|rrn|id\s*transaksi|trx\s*id|trace\s*no)\s*[:#=-]?\s*([A-Z0-9-]{6,32})\b/i
+  );
+  return match && match[1] ? match[1].toUpperCase() : null;
+}
 
 // Pola transaksi keuangan sah umum (m-banking & e-wallet Indonesia)
 const FINANCIAL_ACTION_PATTERNS = [
@@ -328,34 +356,15 @@ const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout
 /**
  * Fallback AI Gemini Flash untuk ekstraksi teks notifikasi jika regex belum yakin
  */
-async function analyzeWithGeminiFlash(
-  appName: string,
-  title: string,
-  content: string,
-  apiKey: string
-): Promise<{ isTransaction: boolean; amount: number; merchant: string; accountName: string; direction: 'in' | 'out' } | null> {
-  const models = ['gemini-1.5-flash', 'gemini-2.5-flash', 'gemini-flash-latest'];
-
-  const prompt = `Kamu adalah sistem AI verifikasi notifikasi perbankan & e-wallet Indonesia (BCA, Mandiri, BRI, Jago, GoPay, Shopee, DANA, OVO).
-Analisis notifikasi ponsel berikut:
-Aplikasi: ${appName}
-Judul: ${title}
-Isi Pesan: ${content}
-
-Tentukan apakah ini transaksi pembayaran/transfer/uang masuk yang sah.
-Perhatian ketat:
-- Jika ini chat pesan dari penjual/pembeli (contoh: "Baik ka wait ya", "[Stiker]", "Kaka mohon tunggu") -> isTransaction = false, amount = 0.
-- Jika ini promo, diskon, cashback, voucher, deals sekitarmu -> isTransaction = false, amount = 0.
-- Jika ada nominal pembayaran riil -> isTransaction = true, amount = angka integer rupiah murni.
-
-Kembalikan HANYA format JSON valid tanpa markdown (tanpa \`\`\`json):
-{
-  "isTransaction": boolean,
-  "amount": number,
-  "direction": "out" | "in",
-  "merchant": "string",
-  "accountName": "string"
-}`;
+/**
+ * Helper terpusat pemanggilan REST Gemini Flash (timeout cepat & tanpa thinking overhead)
+ */
+async function callGeminiFlashJson<T>(
+  prompt: string,
+  apiKey: string,
+  timeoutMs: number = 3500
+): Promise<T | null> {
+  const models = ['gemini-2.5-flash', 'gemini-flash-latest'];
 
   for (let i = 0; i < models.length; i++) {
     const model = models[i];
@@ -367,22 +376,19 @@ Kembalikan HANYA format JSON valid tanpa markdown (tanpa \`\`\`json):
           'Content-Type': 'application/json',
           'x-goog-api-key': apiKey,
         },
+        signal: AbortSignal.timeout(timeoutMs),
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
             response_mime_type: 'application/json',
-            temperature: 0.1,
+            temperature: 0.05,
+            thinkingConfig: { thinkingBudget: 0 },
           },
         }),
       });
 
       if (!res.ok) {
-        if (res.status === 429) {
-          console.warn(`[Gemini Flash Rate Limit 429] Model ${model} terkena kuota/rate limit.`);
-        }
-        if (i < models.length - 1) {
-          await sleep(200 * (i + 1));
-        }
+        if (i < models.length - 1) await sleep(150);
         continue;
       }
 
@@ -390,30 +396,108 @@ Kembalikan HANYA format JSON valid tanpa markdown (tanpa \`\`\`json):
       const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
       if (!rawText) continue;
 
-      let cleaned = rawText.trim();
-      if (cleaned.startsWith('```json')) {
-        cleaned = cleaned.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim();
-      } else if (cleaned.startsWith('```')) {
-        cleaned = cleaned.replace(/^```\s*/, '').replace(/```\s*$/, '').trim();
-      }
+      const cleaned = rawText
+        .trim()
+        .replace(/^```json\s*/i, '')
+        .replace(/^```\s*/i, '')
+        .replace(/```\s*$/, '')
+        .trim();
 
-      const parsed = JSON.parse(cleaned);
-      return {
-        isTransaction: Boolean(parsed.isTransaction),
-        amount: Number(parsed.amount) || 0,
-        merchant: String(parsed.merchant || ''),
-        accountName: String(parsed.accountName || ''),
-        direction: parsed.direction === 'in' ? 'in' : 'out',
-      };
+      return JSON.parse(cleaned) as T;
     } catch {
-      if (i < models.length - 1) {
-        await sleep(200 * (i + 1));
-      }
-      continue;
+      if (i < models.length - 1) await sleep(150);
     }
   }
 
   return null;
+}
+
+/**
+ * Fallback AI Gemini Flash untuk ekstraksi teks notifikasi jika regex belum yakin
+ */
+async function analyzeWithGeminiFlash(
+  appName: string,
+  title: string,
+  content: string,
+  apiKey: string
+): Promise<{ isTransaction: boolean; amount: number; merchant: string; accountName: string; direction: 'in' | 'out' } | null> {
+  const prompt = `Analisis notifikasi perbankan/e-wallet Indonesia berikut dan pastikan apakah benar-benar transaksi uang riil:
+Aplikasi: ${appName}
+Judul: ${title}
+Isi Pesan: ${content}
+
+Aturan:
+- Chat penjual/pembeli, promo, diskon, cashback, voucher, tawaran pinjaman/paylater, ajakan klaim, deals -> isTransaction = false, amount = 0.
+- Jika transaksi/transfer/pembayaran riil sudah terjadi -> isTransaction = true, amount = integer rupiah murni.
+
+Kembalikan HANYA JSON:
+{"isTransaction":boolean,"amount":number,"direction":"out"|"in","merchant":"string","accountName":"string"}`;
+
+  const parsed = await callGeminiFlashJson<Record<string, unknown>>(prompt, apiKey, 3500);
+  if (!parsed) return null;
+
+  return {
+    isTransaction: Boolean(parsed.isTransaction),
+    amount: Number(parsed.amount) || 0,
+    merchant: String(parsed.merchant || ''),
+    accountName: String(parsed.accountName || ''),
+    direction: parsed.direction === 'in' ? 'in' : 'out',
+  };
+}
+
+/**
+ * Pengayaan AI Sinkron (Fast-Path) untuk verifikasi anti-spam, perbaikan nama merchant, dan pemisahan 9 kategori:
+ * Belanja Dapur vs Makan Harian vs Jajan vs Transportasi/Bensin vs Tagihan & Utilitas vs Kebutuhan Rumah vs Jalan-jalan vs Keperluan Mendadak vs Lainnya.
+ */
+export async function enhanceNotificationWithSyncAI(
+  appName: string,
+  title: string,
+  content: string,
+  regexDraft: ParsedNotificationResult,
+  apiKey: string
+): Promise<SyncAiEnhancementResult | null> {
+  if (!apiKey) return null;
+
+  const prompt = `Kamu validator & kategorizer transaksi keuangan keluarga Indonesia yang sangat ketat dan cepat.
+Notifikasi:
+- App: ${appName}
+- Judul: ${title}
+- Isi: ${content}
+Draft Regex: nominal=${regexDraft.amount}, direction=${regexDraft.direction}, merchant="${regexDraft.merchant}", akun="${regexDraft.accountName}"
+
+Tugas 1 (Anti-Spam):
+Tolak (isTransaction=false) jika ini promo, iklan, tawaran cashback/voucher/koin/diskon, ajakan klaim, paylater/pinjaman, reminder tagihan belum dibayar, atau chat marketplace.
+Terima (isTransaction=true) HANYA jika uang benar-benar sudah keluar atau masuk.
+
+Tugas 2 (Kategori):
+Pilih tepat SATU dari daftar resmi ini:
+- "Belanja Dapur": pasar, sayur, buah, bumbu, beras, daging, telur, sembako, gas LPG, air galon.
+- "Makan Harian": makanan pokok, warteg, nasi, lauk matang, mie/bakso/soto/geprek/sate, resto makan berat, GoFood/GrabFood makan berat.
+- "Jajan": kopi, es teh/cokelat, boba, snack, roti, kue, martabak, gorengan, cilok, es krim, dessert, cemilan.
+- "Transportasi/Bensin": SPBU, BBM, Pertalite/Pertamax, ojek online, parkir, tol, KRL/MRT/KAI.
+- "Tagihan & Utilitas": listrik PLN, PDAM, WiFi/internet, pulsa, kuota data, BPJS, IPL, cicilan.
+- "Kebutuhan Rumah": sabun, detergen, tisu, perabot, belanja online non-makan, perlengkapan anak/popok/susu.
+- "Jalan-jalan": wisata, hotel, bioskop, hiburan, staycation, tiket hiburan.
+- "Keperluan Mendadak": obat, apotek, klinik, dokter, rumah sakit, servis darurat.
+- "Lainnya": pengeluaran lain yang tidak masuk 8 pos di atas.
+- "Gaji/Pemasukan": khusus direction="in".
+- "Transfer Internal": pindah saldo/top up ke rekening atau e-wallet milik sendiri.
+
+Kembalikan HANYA JSON ringkas:
+{"isTransaction":boolean,"amount":number,"direction":"out"|"in","merchant":"nama toko bersih","accountName":"${regexDraft.accountName}","categoryName":"nama kategori resmi","reason":"singkat max 8 kata"}`;
+
+  const parsed = await callGeminiFlashJson<Record<string, unknown>>(prompt, apiKey, 3500);
+  if (!parsed) return null;
+
+  return {
+    isTransaction: Boolean(parsed.isTransaction),
+    amount: Math.max(0, Math.round(Number(parsed.amount) || regexDraft.amount)),
+    direction: parsed.direction === 'in' ? 'in' : 'out',
+    merchant: String(parsed.merchant || regexDraft.merchant || '').trim(),
+    accountName: String(parsed.accountName || regexDraft.accountName || '').trim(),
+    categoryName: String(parsed.categoryName || 'Lainnya').trim(),
+    reason: parsed.reason ? String(parsed.reason) : undefined,
+  };
 }
 
 /**
@@ -454,12 +538,14 @@ export async function parseNotificationPayload(
     };
   }
 
-  // 1.5. Deteksi Aturan Pembelajaran Adaptif (Learned Promo Rules)
-  // Kata kunci promo yang dipelajari dari hasil rekonsiliasi Gemini atau aksi manual pengguna
-  const hasConfirmedSuccess = CONFIRMED_TRANSACTION_PATTERNS.some((pattern) => pattern.test(combinedText));
+  // 1.5. Deteksi Aturan Pembelajaran Adaptif (Learned Promo Rules) & Kalimat Ajakan Marketing
+  const hasMarketingCTA = MARKETING_CALL_TO_ACTION_PATTERN.test(combinedText);
+  const hasRawConfirmation = CONFIRMED_TRANSACTION_PATTERNS.some((pattern) => pattern.test(combinedText));
+  const hasStrictConfirmation = hasRawConfirmation && !hasMarketingCTA;
+
   if (learnedRules && learnedRules.length > 0) {
     const adaptiveMatch = matchesLearnedRules(combinedText, learnedRules);
-    if (adaptiveMatch.matched && !hasConfirmedSuccess) {
+    if (adaptiveMatch.matched && !hasStrictConfirmation) {
       const fallbackAcc = detectAccountInfo(appName, combinedText);
       return {
         isTransaction: false,
@@ -477,11 +563,10 @@ export async function parseNotificationPayload(
   }
 
   // 2. Deteksi Promo / Voucher / Diskon / Gamifikasi / Iklan Marketing
-  // ATURAN TEGAS: Jika terdeteksi pola promo DAN tidak ada kalimat bukti sukses pembayaran sah (past-tense),
-  // MAKA PASTI PROMO dan WAJIB DIABAIKAN LANGSUNG (tanpa memanggil AI Gemini)!
+  // Hanya boleh lewat jika memenuhi bukti konfirmasi transaksi sah DAN bebas ajakan marketing
   const isPromoDetected = PROMO_PATTERNS.some((pattern) => pattern.test(combinedText));
 
-  if (isPromoDetected && !hasConfirmedSuccess) {
+  if ((isPromoDetected || hasMarketingCTA) && !hasStrictConfirmation) {
     const fallbackAcc = detectAccountInfo(appName, combinedText);
     return {
       isTransaction: false,
@@ -492,7 +577,7 @@ export async function parseNotificationPayload(
       accountType: fallbackAcc.type,
       reference: null,
       outcome: 'ignored',
-      reasons: ['Notifikasi berupa penawaran promo / voucher / gamifikasi dan bukan transaksi sah'],
+      reasons: ['Notifikasi berupa penawaran promo / voucher / marketing dan bukan transaksi sah'],
       parseMethod: 'regex',
     };
   }
@@ -502,13 +587,14 @@ export async function parseNotificationPayload(
   const isIncoming = /masuk|menerima|diterima|top up|kredit|received|incoming|sent you|credited|deposit/i.test(lowerCombined);
   const direction: 'in' | 'out' = isIncoming ? 'in' : 'out';
 
-  // 4. Ekstraksi Nominal Angka & Tanggal
+  // 4. Ekstraksi Nominal Angka, Kode Referensi & Tanggal
   let amount = extractNominal(combinedText);
   let merchant = extractMerchant(title, combinedText, accountInfo.name);
+  const reference = extractReferenceCode(combinedText);
   const transactionDate = extractNotificationDate(combinedText) || undefined;
 
   // 5. Fallback ke AI Gemini Flash HANYA jika nominal belum terdeteksi namun ada bukti transaksi sah
-  if (amount === 0 && hasConfirmedSuccess && !isPromoDetected && geminiApiKey) {
+  if (amount === 0 && hasStrictConfirmation && !isPromoDetected && geminiApiKey) {
     const aiResult = await analyzeWithGeminiFlash(appName, title, content, geminiApiKey);
     if (aiResult && aiResult.isTransaction && aiResult.amount > 0) {
       amount = aiResult.amount;
@@ -520,17 +606,18 @@ export async function parseNotificationPayload(
         merchant,
         accountName: aiResult.accountName || accountInfo.name,
         accountType: accountInfo.type,
-        reference: null,
+        reference,
         outcome: 'transaction',
         reasons: ['Diekstraksi cerdas oleh Gemini Flash AI Fallback'],
         parseMethod: 'ai_gemini',
         transactionDate,
+        hasStrictConfirmation,
       };
     }
   }
 
-  // 6. Evaluasi Akhir: Transaksi Sah HANYA jika amount > 0 dan bukan promo
-  const isTransaction = amount > 0 && (!isPromoDetected || hasConfirmedSuccess);
+  // 6. Evaluasi Akhir: Transaksi Sah HANYA jika amount > 0 dan lolos saringan promo/marketing
+  const isTransaction = amount > 0 && (hasStrictConfirmation || (!isPromoDetected && !hasMarketingCTA));
 
   return {
     isTransaction,
@@ -539,10 +626,11 @@ export async function parseNotificationPayload(
     merchant,
     accountName: accountInfo.name,
     accountType: accountInfo.type,
-    reference: null,
+    reference,
     outcome: isTransaction ? 'transaction' : 'ignored',
     reasons: isTransaction ? [] : ['Nominal transaksi tidak terdeteksi atau terindikasi bukan transaksi riil'],
     parseMethod: 'regex',
     transactionDate,
+    hasStrictConfirmation,
   };
 }

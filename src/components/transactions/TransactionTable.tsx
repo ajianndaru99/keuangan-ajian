@@ -2,23 +2,16 @@
 
 // ==============================================================================
 // COMPONENT: src/components/transactions/TransactionTable.tsx
-// Tabel & Kartu Transaksi Responsif:
-// - Layar Monitor/Desktop: Tampilan Tabel Monexa Lengkap 6 Kolom
-// - Layar HP Android: Tampilan Kartu Mobile Adaptif Vertikal (Bebas Geser Horizontal)
-// - Penayangan Notifikasi Bank Utuh & Tombol Salin Teks
+// Tabel & Kartu Transaksi Responsif (Strictly Read-Only Monitor)
 // ==============================================================================
 
 import { useState } from 'react';
 import { usePrivacy, formatMaskedRupiah } from '@/lib/privacy';
 import {
-  MoreVertical,
   ArrowDownLeft,
   ArrowUpRight,
   Clock,
   Building2,
-  CheckCircle2,
-  Trash2,
-  Edit3,
   Copy,
   CheckCheck,
   FileText,
@@ -26,7 +19,6 @@ import {
   ChevronUp,
   Sparkles,
   Camera,
-  ShieldAlert,
 } from 'lucide-react';
 
 export interface MonexaTransactionRow {
@@ -48,26 +40,13 @@ export interface MonexaTransactionRow {
 interface TransactionTableProps {
   transactions: MonexaTransactionRow[];
   onSelectTransaction: (item: MonexaTransactionRow) => void;
-  onEditTransaction: (item: MonexaTransactionRow) => void;
-  onDeleteTransaction?: (id: string) => void;
-  onMarkAsPromoSpam?: (item: MonexaTransactionRow) => void;
-  selectedIds?: string[];
-  onToggleSelect?: (id: string) => void;
-  onToggleSelectAll?: () => void;
 }
 
 export default function TransactionTable({
   transactions,
   onSelectTransaction,
-  onEditTransaction,
-  onDeleteTransaction,
-  onMarkAsPromoSpam,
-  selectedIds = [],
-  onToggleSelect,
-  onToggleSelectAll,
 }: TransactionTableProps) {
   const { isHideBalance } = usePrivacy();
-  const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [expandedNotifId, setExpandedNotifId] = useState<string | null>(null);
   const [expandAllNotifs, setExpandAllNotifs] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -85,9 +64,7 @@ export default function TransactionTable({
         <div className="w-12 h-12 rounded-2xl bg-[var(--surface-2)] text-[var(--accent-color)] flex items-center justify-center mx-auto mb-3 border border-[var(--border-color)]">
           <Clock className="w-6 h-6" />
         </div>
-        <h3 className="text-sm font-bold text-[var(--text-main)]">
-          Tidak Ada Transaksi Ditemukan
-        </h3>
+        <h3 className="text-sm font-bold text-[var(--text-main)]">Tidak Ada Transaksi Ditemukan</h3>
         <p className="text-xs text-[var(--text-muted)] mt-1 max-w-sm mx-auto">
           Tidak ada data transaksi yang cocok dengan filter tanggal atau tipe yang sedang aktif.
         </p>
@@ -95,19 +72,15 @@ export default function TransactionTable({
     );
   }
 
-  // Format Tanggal ala Foto 2: e.g. 23-04-2026 (12:30pm)
   const formatTableDate = (isoStr: string) => {
     try {
       const d = new Date(isoStr);
       const day = String(d.getDate()).padStart(2, '0');
       const month = String(d.getMonth() + 1).padStart(2, '0');
       const year = d.getFullYear();
-      let hours = d.getHours();
+      const hours = String(d.getHours()).padStart(2, '0');
       const mins = String(d.getMinutes()).padStart(2, '0');
-      const ampm = hours >= 12 ? 'pm' : 'am';
-      hours = hours % 12 || 12;
-
-      return `${day}-${month}-${year} (${hours}:${mins}${ampm})`;
+      return `${day}-${month}-${year} (${hours}:${mins})`;
     } catch {
       return isoStr;
     }
@@ -118,14 +91,7 @@ export default function TransactionTable({
       return (
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/15 text-purple-600 dark:text-purple-300 border border-purple-500/30">
           <Sparkles className="w-2.5 h-2.5" />
-          AI Gemini
-        </span>
-      );
-    }
-    if (method === 'manual') {
-      return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/15 text-blue-600 dark:text-blue-300 border border-blue-500/30">
-          Manual
+          AI
         </span>
       );
     }
@@ -133,48 +99,32 @@ export default function TransactionTable({
       return (
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-500/15 text-teal-600 dark:text-teal-300 border border-teal-500/30">
           <Camera className="w-2.5 h-2.5" />
-          Foto Struk
+          Struk
         </span>
       );
     }
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30">
-        Regex
+      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30">
+        {method === 'manual' ? 'Manual' : 'Regex'}
       </span>
     );
   };
 
-  const isAllSelected =
-    transactions.length > 0 && transactions.every((tx) => selectedIds.includes(tx.id));
-
   return (
     <div className="space-y-3">
-      {/* =========================================================================
-          1. TAMPILAN MONITOR / LAPTOP / DESKTOP (Tabel Monexa 6 Kolom)
-          ========================================================================= */}
+      {/* Desktop Table */}
       <div className="hidden md:block bg-[var(--surface-1)] rounded-3xl border border-[var(--border-color)] shadow-2xs overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="bg-[var(--surface-2)]/80 text-[var(--text-muted)] border-b border-[var(--border-color)] font-semibold select-none">
               <tr>
-                {onToggleSelect && (
-                  <th className="py-3.5 pl-4 pr-2 w-10 text-center">
-                    <input
-                      type="checkbox"
-                      checked={isAllSelected}
-                      onChange={() => onToggleSelectAll?.()}
-                      className="w-4 h-4 rounded border-[var(--border-color)] accent-[var(--accent-color)] cursor-pointer"
-                      title="Pilih / Batal Pilih Semua Transaksi yang Ditampilkan"
-                    />
-                  </th>
-                )}
-                <th className="py-3.5 px-4 font-semibold whitespace-nowrap">Transaction Date</th>
-                <th className="py-3.5 px-4 font-semibold whitespace-nowrap">Transaction Name</th>
-                <th className="py-3.5 px-4 font-semibold whitespace-nowrap">Total Amount</th>
+                <th className="py-3.5 px-4 font-semibold whitespace-nowrap">Waktu (WIB)</th>
+                <th className="py-3.5 px-4 font-semibold whitespace-nowrap">Merchant / Keterangan</th>
+                <th className="py-3.5 px-4 font-semibold whitespace-nowrap">Nominal</th>
                 <th className="py-3.5 px-4 font-semibold whitespace-nowrap">Status</th>
                 <th className="py-3.5 px-4 font-semibold whitespace-nowrap min-w-[260px]">
                   <div className="flex items-center justify-between gap-2">
-                    <span>Noted & Notifikasi</span>
+                    <span>Isi Notifikasi Asli</span>
                     <button
                       type="button"
                       onClick={(e) => {
@@ -182,13 +132,11 @@ export default function TransactionTable({
                         setExpandAllNotifs(!expandAllNotifs);
                       }}
                       className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-[var(--surface-3)] hover:bg-[var(--accent-color)] hover:text-white transition-colors"
-                      title="Buka / Tutup seluruh teks notifikasi asli untuk semua baris"
                     >
                       {expandAllNotifs ? 'Tutup Semua' : 'Buka Semua'}
                     </button>
                   </div>
                 </th>
-                <th className="py-3.5 px-4 font-semibold text-right whitespace-nowrap">Action</th>
               </tr>
             </thead>
 
@@ -197,41 +145,17 @@ export default function TransactionTable({
                 const isIncome = tx.direction === 'in';
                 const isPending = tx.status === 'pending';
                 const isExpanded = expandAllNotifs || expandedNotifId === tx.id;
-                const isSelected = selectedIds.includes(tx.id);
 
                 return (
                   <tr
                     key={tx.id}
-                    className={`transition-colors group cursor-pointer ${
-                      isSelected
-                        ? 'bg-[var(--accent-color)]/10 hover:bg-[var(--accent-color)]/15'
-                        : 'hover:bg-[var(--surface-2)]/60'
-                    }`}
+                    className="hover:bg-[var(--surface-2)]/60 transition-colors cursor-pointer"
                     onClick={() => onSelectTransaction(tx)}
                   >
-                    {onToggleSelect && (
-                      <td
-                        className="py-3.5 pl-4 pr-2 w-10 text-center align-top"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onToggleSelect(tx.id);
-                        }}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => {}}
-                          className="w-4 h-4 rounded border-[var(--border-color)] accent-[var(--accent-color)] cursor-pointer mt-0.5"
-                          title="Pilih transaksi ini"
-                        />
-                      </td>
-                    )}
-                    {/* 1. Transaction Date */}
                     <td className="py-3.5 px-4 font-medium text-[var(--text-muted)] whitespace-nowrap angka-keuangan align-top">
                       {formatTableDate(tx.transaction_date)}
                     </td>
 
-                    {/* 2. Transaction Name */}
                     <td className="py-3.5 px-4 whitespace-nowrap align-top">
                       <div className="flex items-center gap-3">
                         <div
@@ -241,11 +165,7 @@ export default function TransactionTable({
                               : 'bg-expense/15 text-expense border-expense/30'
                           }`}
                         >
-                          {isIncome ? (
-                            <ArrowDownLeft className="w-4 h-4" />
-                          ) : (
-                            <ArrowUpRight className="w-4 h-4" />
-                          )}
+                          {isIncome ? <ArrowDownLeft className="w-4 h-4" /> : <ArrowUpRight className="w-4 h-4" />}
                         </div>
 
                         <div className="min-w-0">
@@ -254,14 +174,10 @@ export default function TransactionTable({
                           </span>
                           <div className="flex items-center gap-1.5 text-[11px] text-[var(--text-muted)] mt-0.5">
                             <span>{tx.account_name || 'Rekening'}</span>
-                            <span>•</span>
-                            <span className="capitalize">{tx.source_device || 'Suami'}</span>
                             {tx.category_name && (
                               <>
                                 <span>•</span>
-                                <span className="text-[var(--accent-color)] font-medium">
-                                  {tx.category_name}
-                                </span>
+                                <span className="text-[var(--accent-color)] font-medium">{tx.category_name}</span>
                               </>
                             )}
                           </div>
@@ -269,206 +185,65 @@ export default function TransactionTable({
                       </div>
                     </td>
 
-                    {/* 3. Total Amount */}
-                    <td className="py-3.5 px-4 font-bold tracking-tight whitespace-nowrap align-top">
-                      <span
-                        className={`angka-keuangan font-bold ${
-                          isIncome ? 'text-income' : 'text-expense'
-                        }`}
-                      >
-                        {isIncome ? '+' : '-'}
-                        {formatMaskedRupiah(tx.amount, isHideBalance)}
+                    <td className="py-3.5 px-4 font-bold whitespace-nowrap angka-keuangan align-top">
+                      <span className={isIncome ? 'text-income' : 'text-[var(--text-main)]'}>
+                        {isIncome ? '+' : '-'} {formatMaskedRupiah(tx.amount, isHideBalance)}
                       </span>
                     </td>
 
-                    {/* 4. Status Badge & Parse Method (Sejalur) */}
                     <td className="py-3.5 px-4 whitespace-nowrap align-top">
-                      <div className="flex flex-col gap-1.5 items-start">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          {isPending ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-500 dark:text-amber-400 border border-amber-500/30 animate-pulse">
-                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                              Pending Review
-                            </span>
-                          ) : isIncome ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-income/15 text-income border border-income/30">
-                              Income
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-expense/15 text-expense border border-expense/30">
-                              Expense
-                            </span>
-                          )}
-
-                          {renderParseMethodBadge(tx.parse_method)}
-
-                          {isPending && onMarkAsPromoSpam && (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onMarkAsPromoSpam(tx);
-                              }}
-                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/20 transition-colors shadow-2xs"
-                              title="Tandai transaksi ini sebagai promo/iklan/spam yang lolos dari Regex"
-                            >
-                              <ShieldAlert className="w-2.5 h-2.5" />
-                              <span>Promo/Spam</span>
-                            </button>
-                          )}
-                        </div>
+                      <div className="inline-flex items-center gap-1.5">
+                        {renderParseMethodBadge(tx.parse_method)}
+                        {isPending ? (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-300 border border-amber-500/30">
+                            Pending
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                            Reconciled
+                          </span>
+                        )}
                       </div>
                     </td>
 
-                    {/* 5. Noted & Notifikasi (Utuh & Expandable) */}
-                    <td className="py-3.5 px-4 align-top max-w-md">
+                    <td className="py-3.5 px-4 align-top max-w-md" onClick={(e) => e.stopPropagation()}>
                       {tx.raw_notification ? (
-                        <div className="space-y-1.5" onClick={(e) => e.stopPropagation()}>
-                          {isExpanded ? (
-                            <div className="rounded-xl border border-[var(--border-color)] bg-[var(--surface-2)] p-2.5 shadow-2xs">
-                              <div className="flex items-center justify-between gap-2 pb-1.5 mb-1.5 border-b border-[var(--border-color)]/70 text-[10px] text-[var(--text-muted)] font-semibold">
-                                <span className="flex items-center gap-1 text-[var(--accent-color)]">
-                                  <FileText className="w-3 h-3" />
-                                  <span>Notifikasi Utuh ({tx.raw_notification.length} kar.)</span>
-                                </span>
-                                <div className="flex items-center gap-1">
-                                  <button
-                                    type="button"
-                                    onClick={(e) => handleCopyNotif(e, tx.id, tx.raw_notification!)}
-                                    className="hover:text-[var(--text-main)] transition-colors inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[var(--surface-3)]"
-                                    title="Salin teks notifikasi utuh"
-                                  >
-                                    {copiedId === tx.id ? (
-                                      <>
-                                        <CheckCheck className="w-3 h-3 text-income" />
-                                        <span className="text-income">Tersalin</span>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <Copy className="w-3 h-3" />
-                                        <span>Salin</span>
-                                      </>
-                                    )}
-                                  </button>
-                                  {!expandAllNotifs && (
-                                    <button
-                                      type="button"
-                                      onClick={() => setExpandedNotifId(null)}
-                                      className="hover:text-[var(--text-main)] transition-colors p-0.5 rounded"
-                                      title="Tutup teks"
-                                    >
-                                      <ChevronUp className="w-3 h-3" />
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-                              <p className="font-mono text-xs text-[var(--text-main)] leading-relaxed whitespace-pre-wrap break-words select-text">
-                                {tx.raw_notification}
-                              </p>
-                            </div>
-                          ) : (
-                            <div>
-                              <div className="flex items-start gap-1.5">
-                                <span className="text-[var(--text-muted)] font-mono text-[11px] leading-relaxed break-words line-clamp-2">
-                                  {tx.raw_notification}
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={(e) => handleCopyNotif(e, tx.id, tx.raw_notification!)}
-                                  className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--accent-color)] transition-colors shrink-0"
-                                  title="Salin notifikasi lengkap"
-                                >
-                                  {copiedId === tx.id ? (
-                                    <CheckCheck className="w-3.5 h-3.5 text-income" />
-                                  ) : (
-                                    <Copy className="w-3.5 h-3.5" />
-                                  )}
-                                </button>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setExpandedNotifId(tx.id);
-                                }}
-                                className="mt-1 text-[10px] font-semibold text-[var(--accent-color)] hover:underline inline-flex items-center gap-0.5"
-                              >
-                                <span>Baca teks utuh</span>
-                                <ChevronDown className="w-3 h-3" />
-                              </button>
-                            </div>
+                        <div className="space-y-1">
+                          <div className="flex items-start justify-between gap-2">
+                            <p
+                              className={`text-[11px] text-[var(--text-muted)] leading-relaxed ${
+                                isExpanded ? 'whitespace-pre-wrap break-words font-mono' : 'line-clamp-2'
+                              }`}
+                            >
+                              <FileText className="w-3 h-3 inline mr-1" />
+                              {tx.raw_notification}
+                            </p>
+                            <button
+                              type="button"
+                              onClick={(e) => handleCopyNotif(e, tx.id, tx.raw_notification || '')}
+                              className="p-1 text-[var(--text-muted)] hover:text-[var(--accent-color)] shrink-0"
+                              title="Salin teks"
+                            >
+                              {copiedId === tx.id ? (
+                                <CheckCheck className="w-3.5 h-3.5 text-income" />
+                              ) : (
+                                <Copy className="w-3.5 h-3.5" />
+                              )}
+                            </button>
+                          </div>
+                          {!expandAllNotifs && (
+                            <button
+                              type="button"
+                              onClick={() => setExpandedNotifId(isExpanded ? null : tx.id)}
+                              className="text-[10px] font-semibold text-[var(--accent-color)] hover:underline inline-flex items-center gap-0.5"
+                            >
+                              <span>{isExpanded ? 'Sembunyikan' : 'Baca teks utuh'}</span>
+                              {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                            </button>
                           )}
                         </div>
                       ) : (
                         <span className="text-[var(--text-muted)] text-[11px]">-</span>
-                      )}
-                    </td>
-
-                    {/* 6. Action Menu */}
-                    <td
-                      className="py-3.5 px-4 text-right whitespace-nowrap relative align-top"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <button
-                        onClick={() =>
-                          setActiveMenuId(activeMenuId === tx.id ? null : tx.id)
-                        }
-                        className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--surface-2)] transition-colors"
-                        title="Menu Aksi"
-                      >
-                        <MoreVertical className="w-4 h-4" />
-                      </button>
-
-                      {activeMenuId === tx.id && (
-                        <div className="absolute right-4 top-10 w-44 rounded-2xl bg-[var(--surface-4)] border border-[var(--border-color)] shadow-xl z-30 p-1 animate-in fade-in zoom-in-95 duration-100 text-left">
-                          <button
-                            onClick={() => {
-                              setActiveMenuId(null);
-                              onSelectTransaction(tx);
-                            }}
-                            className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-[var(--text-main)] hover:bg-[var(--surface-2)] transition-colors"
-                          >
-                            <CheckCircle2 className="w-3.5 h-3.5 text-income" />
-                            <span>Lihat Detail</span>
-                          </button>
-
-                          <button
-                            onClick={() => {
-                              setActiveMenuId(null);
-                              onEditTransaction(tx);
-                            }}
-                            className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-[var(--text-main)] hover:bg-[var(--surface-2)] transition-colors"
-                          >
-                            <Edit3 className="w-3.5 h-3.5 text-[var(--accent-color)]" />
-                            <span>Koreksi Data</span>
-                          </button>
-
-                          {onMarkAsPromoSpam && isPending && (
-                            <button
-                              onClick={() => {
-                                setActiveMenuId(null);
-                                onMarkAsPromoSpam(tx);
-                              }}
-                              className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 transition-colors"
-                            >
-                              <ShieldAlert className="w-3.5 h-3.5" />
-                              <span>Tandai Promo / Spam</span>
-                            </button>
-                          )}
-
-                          {onDeleteTransaction && (
-                            <button
-                              onClick={() => {
-                                setActiveMenuId(null);
-                                onDeleteTransaction(tx.id);
-                              }}
-                              className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-rose-500 hover:bg-rose-500/10 transition-colors"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                              <span>Hapus Transaksi</span>
-                            </button>
-                          )}
-                        </div>
                       )}
                     </td>
                   </tr>
@@ -479,45 +254,20 @@ export default function TransactionTable({
         </div>
       </div>
 
-      {/* =========================================================================
-          2. TAMPILAN HP ANDROID (Mobile Transaction Cards: Sangat Ringkas & Rapi)
-          ========================================================================= */}
+      {/* Mobile View (Identik di Website & HP WebView) */}
       <div className="block md:hidden space-y-2.5">
         {transactions.map((tx) => {
           const isIncome = tx.direction === 'in';
           const isPending = tx.status === 'pending';
-          const isSelected = selectedIds.includes(tx.id);
 
           return (
             <div
               key={`mobile-${tx.id}`}
               onClick={() => onSelectTransaction(tx)}
-              className={`p-3.5 rounded-xl border shadow-2xs space-y-2 active:scale-[0.99] transition-all cursor-pointer ${
-                isSelected
-                  ? 'bg-[var(--accent-color)]/10 border-[var(--accent-color)] ring-1 ring-[var(--accent-color)]/40'
-                  : 'bg-[var(--surface-1)] border-[var(--border-color)]'
-              }`}
+              className="p-3.5 rounded-xl border bg-[var(--surface-1)] border-[var(--border-color)] shadow-2xs space-y-2 active:scale-[0.99] transition-all cursor-pointer"
             >
-              {/* Baris 1: Checkbox + Ikon + Merchant & Waktu + Nominal */}
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-2.5 min-w-0">
-                  {onToggleSelect && (
-                    <div
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onToggleSelect(tx.id);
-                      }}
-                      className="p-1 -ml-1 flex items-center justify-center shrink-0"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => {}}
-                        className="w-4 h-4 rounded border-[var(--border-color)] accent-[var(--accent-color)] cursor-pointer"
-                        title="Pilih transaksi ini"
-                      />
-                    </div>
-                  )}
                   <div
                     className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
                       isIncome
@@ -525,11 +275,7 @@ export default function TransactionTable({
                         : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
                     }`}
                   >
-                    {isIncome ? (
-                      <ArrowDownLeft className="w-4 h-4" />
-                    ) : (
-                      <ArrowUpRight className="w-4 h-4" />
-                    )}
+                    {isIncome ? <ArrowDownLeft className="w-4 h-4" /> : <ArrowUpRight className="w-4 h-4" />}
                   </div>
                   <div className="min-w-0">
                     <h4 className="text-xs sm:text-sm font-semibold text-[var(--text-main)] truncate">
@@ -553,13 +299,10 @@ export default function TransactionTable({
                 </div>
               </div>
 
-              {/* Baris 2: Chips Metadata Ringkas (Akun, Kategori, Status & Parse Method Sejalur) */}
               <div className="flex items-center gap-1.5 flex-wrap text-[10px]">
                 <span className="px-2 py-0.5 rounded-full bg-[var(--surface-2)] text-[var(--text-muted)] font-medium flex items-center gap-1 border border-[var(--border-color)]/60">
                   <Building2 className="w-2.5 h-2.5 text-[var(--accent-color)]" />
                   <span>{tx.account_name || 'Rekening'}</span>
-                  <span className="text-[var(--text-muted)]/60">•</span>
-                  <span className="capitalize">{tx.source_device || 'Suami'}</span>
                 </span>
 
                 {tx.category_name && (
@@ -568,69 +311,13 @@ export default function TransactionTable({
                   </span>
                 )}
 
-                {/* Badge Parsing & Status Transaksi Selalu Bersisian & Sejalur */}
-                <div className="inline-flex items-center gap-1 shrink-0">
-                  {renderParseMethodBadge(tx.parse_method)}
+                {renderParseMethodBadge(tx.parse_method)}
 
-                  {isPending ? (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-300 border border-amber-500/30">
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                      Pending
-                    </span>
-                  ) : (
-                    <span
-                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border ${
-                        isIncome
-                          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
-                          : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20'
-                      }`}
-                    >
-                      {isIncome ? 'Pemasukan' : 'Pengeluaran'}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* Baris 3: Aksi Cepat Ramah Jempol */}
-              <div
-                className="flex items-center justify-between gap-1.5 pt-1.5 border-t border-[var(--border-color)]/50 text-[11px]"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => onEditTransaction(tx)}
-                    className="py-1 px-2.5 rounded-lg bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-[11px] font-semibold text-[var(--text-main)] flex items-center gap-1 transition-colors"
-                  >
-                    <Edit3 className="w-3 h-3 text-[var(--accent-color)]" />
-                    <span>{isPending ? 'Verifikasi' : 'Ubah'}</span>
-                  </button>
-
-                  {isPending && onMarkAsPromoSpam && (
-                    <button
-                      type="button"
-                      onClick={() => onMarkAsPromoSpam(tx)}
-                      className="py-1 px-2.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-[11px] font-semibold text-rose-600 dark:text-rose-400 flex items-center gap-1 transition-colors"
-                      title="Tandai notifikasi promo atau spam"
-                    >
-                      <ShieldAlert className="w-3 h-3" />
-                      <span>Promo/Spam</span>
-                    </button>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-1">
-                  {onDeleteTransaction && (
-                    <button
-                      type="button"
-                      onClick={() => onDeleteTransaction(tx.id)}
-                      className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-rose-500 hover:bg-rose-500/10 transition-colors"
-                      title="Hapus Transaksi"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                </div>
+                {isPending && (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-300 border border-amber-500/30">
+                    Pending
+                  </span>
+                )}
               </div>
             </div>
           );

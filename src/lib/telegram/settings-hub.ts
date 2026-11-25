@@ -16,6 +16,7 @@ import { getMonthlyRange, getBudgetPeriodKey } from '../date-utils.ts';
 import { syncAccountBalance, syncAllHouseholdAccountBalances } from '../account-balance.ts';
 import { parseNominal } from './nlp-chat.ts';
 import { buildDaily11AMReportText } from './commands.ts';
+import { syncTransactionsToSpreadsheet } from '../spreadsheet/sheets-sync.ts';
 
 export interface TelegramCallbackQuery {
   id: string;
@@ -38,17 +39,17 @@ export interface TelegramCallbackQuery {
  * Format Pesan Menu Utama Pengaturan Hub
  */
 export function formatSettingsHubMenuText(): string {
-  return `*[PENGATURAN] PUSAT PENGATURAN KEUANGAN KELUARGA*
+  return `*[PENGATURAN] PUSAT KENDALI KEUANGAN KELUARGA*
 
-Pusat kendali pengaturan keuangan keluarga langsung dari Telegram.
-Silakan pilih modul pengaturan yang ingin Anda kelola:
+Seluruh konfigurasi sistem dikendalikan penuh dari Telegram ini:
 
-- *Rekening & Saldo:* Cek, ubah saldo, atau satukan rekening
-- *Pagu Anggaran:* Atur kuota belanja 8 kategori utama
+- *Rekening & Saldo:* Cek, tambah, nonaktifkan, atau ubah saldo
+- *Pagu Anggaran:* Atur kuota belanja 9 kategori utama
 - *Tanggal Gajian:* Sinkronisasi siklus finansial bulanan
 - *Filter Spam & Promo:* Kelola kata kunci blokir otomatis
-- *Bersihkan Sampah:* Hapus log promo yang diabaikan
-- *Laporan 11:00 WIB:* Tampilkan ringkasan harian, cuaca Yogyakarta & libur resmi
+- *Google Spreadsheet:* Hubungkan link/webhook & paksa sinkronisasi
+- *Notif Penuh:* Toggle tampilan teks notifikasi lengkap di Telegram
+- *Laporan 11:00 WIB & Sampah:* Ringkasan harian serta pembersihan log
 
 _Pilih menu di bawah ini:_`;
 }
@@ -63,6 +64,10 @@ export function getSettingsHubInlineKeyboard() {
       [
         { text: 'Tgl Gajian', callback_data: 'cfg:pay' },
         { text: 'Filter Spam', callback_data: 'cfg:spam' },
+      ],
+      [
+        { text: 'Spreadsheet', callback_data: 'cfg:sheet' },
+        { text: 'Notif Penuh', callback_data: 'cfg:notif' },
       ],
       [
         { text: 'Laporan 11:00', callback_data: 'cfg:report11' },
@@ -103,10 +108,10 @@ async function handleAccountSettingsMenu(
   const totalKas = activeAccounts.reduce((sum, a) => sum + Number(a.current_balance || 0), 0);
 
   const accLines = activeAccounts.map(
-    (a) => `- *${a.name}* (${a.owner === 'istri' ? 'Istri' : 'Suami'}): \`${formatRupiah(Number(a.current_balance || 0))}\``
+    (a) => `- *${a.name}:* \`${formatRupiah(Number(a.current_balance || 0))}\``
   );
 
-  const text = `*[REKENING] KELOLA REKENING & SALDO KELUARGA*
+  const text = `*[REKENING] KELOLA REKENING & SALDO SUAMI*
 
 *Total Kas Siap Pakai:* \`${formatRupiah(totalKas)}\`
 
@@ -115,8 +120,8 @@ ${accLines.join('\n') || '- Belum ada rekening aktif -'}
 
 *Panduan Perintah Cepat:*
 - Ketik \`total kas ganti 1jt\` untuk sinkronisasi kas
-- Ketik \`set saldo dana suami 2jt\` untuk ubah saldo rekening
-- Ketik \`tambah akun <nama> <suami/istri> <saldo>\` untuk buat rekening baru
+- Ketik \`set saldo dana 2jt\` untuk ubah saldo rekening
+- Ketik \`tambah akun <nama> <saldo>\` untuk buat rekening baru
 - Ketik \`nonaktifkan akun <nama>\` untuk menutup rekening lama`;
 
   const buttons = activeAccounts.map((a) => [
@@ -127,6 +132,7 @@ ${accLines.join('\n') || '- Belum ada rekening aktif -'}
   ]);
 
   buttons.push([
+    { text: '+ Tambah Rekening', callback_data: 'cfg:aadd' },
     { text: 'Sederhanakan Akun', callback_data: 'cfg:asimp' },
   ]);
   buttons.push([
@@ -158,11 +164,10 @@ async function handleAccountBalanceEditMenu(
 
   const currentBal = Number(target.current_balance || 0);
   const shortId = target.id.slice(0, 8);
-  const ownerLabel = target.owner === 'istri' ? 'Istri' : 'Suami';
   const plus100k = currentBal + 100000;
   const minus100k = Math.max(0, currentBal - 100000);
 
-  const text = `*[UBAH SALDO] ${target.name.toUpperCase()} (${ownerLabel})*
+  const text = `*[UBAH SALDO] ${target.name.toUpperCase()}*
 
 *Saldo Saat Ini:* \`${formatRupiah(currentBal)}\`
 
@@ -205,11 +210,7 @@ async function promptSimplifyAccountsConfirmation(
 ): Promise<void> {
   const text = `*[KONFIRMASI] PENYEDERHANAAN REKENING*
 
-Tindakan ini akan merapikan struktur dompet keluarga menjadi 2 rekening resmi:
-1. *Dana Suami* (Milik Suami)
-2. *Dana Istri* (Milik Istri)
-
-Seluruh saldo awal dan riwayat transaksi akan otomatis disatukan ke kedua akun ini tanpa ada data yang hilang.
+Tindakan ini akan menyatukan seluruh rekening aktif ke *1 Akun Utama (Dana Suami)* beserta total saldonya secara aman tanpa menghapus riwayat transaksi.
 
 Apakah Anda yakin ingin melanjutkan?`;
 
@@ -240,16 +241,11 @@ async function executeSimplifyAccounts(
     .select('*')
     .eq('household_id', householdId);
 
-  let totalSuami = 0;
-  let totalIstri = 0;
+  const totalKas = (accounts || []).reduce(
+    (sum, acc) => sum + Number(acc.balance ?? acc.initial_balance ?? 0),
+    0
+  );
 
-  (accounts || []).forEach((acc) => {
-    const bal = Number(acc.balance ?? acc.initial_balance ?? 0);
-    if (acc.owner === 'suami') totalSuami += bal;
-    else if (acc.owner === 'istri') totalIstri += bal;
-  });
-
-  // 1. Akun Dana Suami
   let accSuami = (accounts || []).find((a) => a.name === 'Dana Suami' && a.owner === 'suami');
   if (!accSuami) {
     const { data: newSuami } = await supabase
@@ -259,8 +255,8 @@ async function executeSimplifyAccounts(
         name: 'Dana Suami',
         type: 'bank',
         owner: 'suami',
-        initial_balance: totalSuami,
-        balance: totalSuami,
+        initial_balance: totalKas,
+        balance: totalKas,
         is_active: true,
       })
       .select()
@@ -269,45 +265,16 @@ async function executeSimplifyAccounts(
   } else {
     await supabase
       .from('accounts')
-      .update({ initial_balance: totalSuami, balance: totalSuami, is_active: true })
+      .update({ initial_balance: totalKas, balance: totalKas, is_active: true })
       .eq('id', accSuami.id);
   }
 
-  // 2. Akun Dana Istri
-  let accIstri = (accounts || []).find((a) => a.name === 'Dana Istri' && a.owner === 'istri');
-  if (!accIstri) {
-    const { data: newIstri } = await supabase
-      .from('accounts')
-      .insert({
-        household_id: householdId,
-        name: 'Dana Istri',
-        type: 'bank',
-        owner: 'istri',
-        initial_balance: totalIstri,
-        balance: totalIstri,
-        is_active: true,
-      })
-      .select()
-      .single();
-    accIstri = newIstri;
-  } else {
-    await supabase
-      .from('accounts')
-      .update({ initial_balance: totalIstri, balance: totalIstri, is_active: true })
-      .eq('id', accIstri.id);
-  }
-
-  // 3. Alihkan transaksi rekening lama & nonaktifkan akun selain keduanya
-  const otherAccounts = (accounts || []).filter(
-    (a) => a.id !== accSuami?.id && a.id !== accIstri?.id
-  );
-
+  const otherAccounts = (accounts || []).filter((a) => a.id !== accSuami?.id);
   for (const oldAcc of otherAccounts) {
-    const targetId = oldAcc.owner === 'istri' ? accIstri?.id : accSuami?.id;
-    if (targetId) {
+    if (accSuami?.id) {
       await supabase
         .from('transactions')
-        .update({ account_id: targetId })
+        .update({ account_id: accSuami.id })
         .eq('account_id', oldAcc.id)
         .eq('household_id', householdId);
     }
@@ -318,14 +285,11 @@ async function executeSimplifyAccounts(
   }
 
   if (accSuami?.id) await syncAccountBalance(supabase, accSuami.id);
-  if (accIstri?.id) await syncAccountBalance(supabase, accIstri.id);
 
-  const successText = `*[BERHASIL] REKENING BERHASIL DISEDERHANAKAN*
+  const successText = `*[BERHASIL] REKENING BERHASIL DISATUKAN*
 
-Struktur rekening keluarga kini ringkas & rapi:
-- *Dana Suami:* \`${formatRupiah(totalSuami)}\`
-- *Dana Istri:* \`${formatRupiah(totalIstri)}\`
-- *Total Kas:* \`${formatRupiah(totalSuami + totalIstri)}\`
+Rekening tunggal aktif kini siap dipakai:
+- *Dana Suami:* \`${formatRupiah(totalKas)}\`
 
 Seluruh transaksi historis telah dialihkan secara aman.
 Diselaraskan oleh: *${userName}*`;
@@ -396,6 +360,7 @@ _Pilih pos kategori di bawah untuk mengatur batas pagu:_`;
     buttons.push(row);
   }
 
+  buttons.push([{ text: '+ Tambah Kata Blokir', callback_data: 'cfg:sadd' }]);
   buttons.push([{ text: 'Kembali', callback_data: 'cfg:menu' }]);
 
   await editTelegramMessageText(chatId, messageId, text, {
@@ -456,6 +421,7 @@ _Pilih nominal pagu baru cepat di bawah ini atau ketik langsung:_
       { text: 'Rp 3 Juta', callback_data: `cfg:bset:${cat.id}:3000000` },
     ],
     [
+      { text: 'Nominal Bebas', callback_data: `cfg:bcustom:${cat.id}` },
       { text: 'Pos Lain', callback_data: 'cfg:bg' },
     ],
   ];
@@ -573,6 +539,7 @@ _Pilih opsi tanggal gajian keluarga di bawah ini, atau ketik:_
       { text: currentDay === 25 ? '[Aktif] Tgl 25' : 'Tgl 25 (BUMN/Swasta)', callback_data: 'cfg:pset:25' },
       { text: currentDay === 28 ? '[Aktif] Tgl 28' : 'Tgl 28 (Akhir Bln)', callback_data: 'cfg:pset:28' },
     ],
+    [{ text: 'Tanggal Bebas (1-28)', callback_data: 'cfg:pcustom' }],
     [{ text: 'Kembali', callback_data: 'cfg:menu' }],
   ];
 
@@ -655,6 +622,7 @@ _Setiap kali Anda menolak mutasi dengan alasan "Promo" atau reply "Itu spam", AI
     },
   ]);
 
+  buttons.push([{ text: '+ Tambah Kata Blokir', callback_data: 'cfg:sadd' }]);
   buttons.push([{ text: 'Kembali', callback_data: 'cfg:menu' }]);
 
   await editTelegramMessageText(chatId, messageId, text, {
@@ -890,6 +858,167 @@ export async function handleSettingsHubCallback(
     return true;
   }
 
+  // 8. Menu Google Spreadsheet & Sync
+  if (data === 'cfg:sheet') {
+    const [{ data: settingRow }, { data: integ }] = await Promise.all([
+      supabase
+        .from('settings')
+        .select('spreadsheet_url, spreadsheet_owner_email, spreadsheet_auto_sync')
+        .eq('household_id', householdId)
+        .maybeSingle(),
+      supabase
+        .from('spreadsheet_integrations')
+        .select('webhook_url, spreadsheet_id, last_synced_at, last_error')
+        .eq('household_id', householdId)
+        .maybeSingle(),
+    ]);
+
+    const status = integ?.webhook_url || integ?.spreadsheet_id ? 'Terhubung' : 'Belum terhubung';
+    const text = `*[SPREADSHEET] INTEGRASI GOOGLE SPREADSHEET*
+
+Status: *${status}*
+Email: ${settingRow?.spreadsheet_owner_email ? `\`${settingRow.spreadsheet_owner_email}\`` : '_Belum diset_'}
+Auto-Sync: *${settingRow?.spreadsheet_auto_sync !== false ? 'AKTIF' : 'NONAKTIF'}*
+Link Sheet: ${settingRow?.spreadsheet_url || '_Login Google di Website atau tempel URL Apps Script/Sheet_'}
+${integ?.last_error ? `\nCatatan Terakhir: _${integ.last_error}_` : ''}`;
+
+    await editTelegramMessageText(chatId, messageId, text, {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: 'Sync Sekarang', callback_data: 'cfg:sheet_sync' },
+            { text: 'Set URL/Webhook', callback_data: 'cfg:sheet_set' },
+          ],
+          [
+            { text: 'Toggle Auto-Sync', callback_data: 'cfg:sheet_toggle' },
+            { text: 'Kembali', callback_data: 'cfg:menu' },
+          ],
+        ],
+      },
+    });
+    return true;
+  }
+
+  if (data === 'cfg:sheet_sync') {
+    const res = await syncTransactionsToSpreadsheet(supabase, householdId);
+    const msg = res.success
+      ? `*[BERHASIL] SPREADSHEET TERSINKRON*\nJumlah baris dikirim: *${res.syncedCount}*`
+      : `*[PERHATIAN] SINKRONISASI GAGAL*\nAlasan: _${res.error || 'Integrasi belum terpasang'}_`;
+    await editTelegramMessageText(chatId, messageId, msg, {
+      reply_markup: { inline_keyboard: [[{ text: 'Kembali', callback_data: 'cfg:sheet' }]] },
+    });
+    return true;
+  }
+
+  if (data === 'cfg:sheet_toggle') {
+    const { data: curr } = await supabase
+      .from('settings')
+      .select('spreadsheet_auto_sync')
+      .eq('household_id', householdId)
+      .maybeSingle();
+    const nextVal = curr?.spreadsheet_auto_sync === false;
+    await supabase.from('settings').update({ spreadsheet_auto_sync: nextVal }).eq('household_id', householdId);
+    await editTelegramMessageText(
+      chatId,
+      messageId,
+      `*[SPREADSHEET] AUTO-SYNC ${nextVal ? 'DIAKTIFKAN' : 'DINONAKTIFKAN'}*`,
+      { reply_markup: { inline_keyboard: [[{ text: 'Kembali', callback_data: 'cfg:sheet' }]] } }
+    );
+    return true;
+  }
+
+  if (data === 'cfg:sheet_set') {
+    await sendTelegramMessage(
+      chatId,
+      'Balas pesan ini dengan *URL Web App Apps Script* (`https://script.google.com/...`), *Link Google Spreadsheet*, atau *Secret Sync*:\n`#CFG_SHEET`',
+      { reply_markup: { force_reply: true, selective: true } }
+    );
+    return true;
+  }
+
+  // 9. Toggle Isi Notifikasi Lengkap di Alert Telegram
+  if (data === 'cfg:notif') {
+    const { data: curr } = await supabase
+      .from('settings')
+      .select('show_full_notification_telegram')
+      .eq('household_id', householdId)
+      .maybeSingle();
+    const currentVal = curr?.show_full_notification_telegram !== false;
+    await editTelegramMessageText(
+      chatId,
+      messageId,
+      `*[NOTIFIKASI PENUH]*\n\nSaat ini isi teks asli notifikasi bank di alert Telegram: *${currentVal ? 'AKTIF (Ditampilkan)' : 'NONAKTIF'}*.`,
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: currentVal ? 'Matikan Notif Penuh' : 'Aktifkan Notif Penuh', callback_data: 'cfg:notif_toggle' }],
+            [{ text: 'Kembali', callback_data: 'cfg:menu' }],
+          ],
+        },
+      }
+    );
+    return true;
+  }
+
+  if (data === 'cfg:notif_toggle') {
+    const { data: curr } = await supabase
+      .from('settings')
+      .select('show_full_notification_telegram')
+      .eq('household_id', householdId)
+      .maybeSingle();
+    const nextVal = curr?.show_full_notification_telegram === false;
+    await supabase
+      .from('settings')
+      .update({ show_full_notification_telegram: nextVal })
+      .eq('household_id', householdId);
+    await editTelegramMessageText(
+      chatId,
+      messageId,
+      `*[BERHASIL] NOTIFIKASI PENUH ${nextVal ? 'DIAKTIFKAN' : 'DINONAKTIFKAN'}*`,
+      { reply_markup: { inline_keyboard: [[{ text: 'Menu Utama', callback_data: 'cfg:menu' }]] } }
+    );
+    return true;
+  }
+
+  // 10. Prompt Force Reply untuk Tambah Akun, Budget Bebas, Gajian Bebas, & Filter Spam
+  if (data === 'cfg:aadd') {
+    await sendTelegramMessage(
+      chatId,
+      'Balas pesan ini dengan `<Nama Rekening> <Saldo Awal>` (contoh: `SeaBank 1,5jt`):\n`#CFG_AADD`',
+      { reply_markup: { force_reply: true, selective: true } }
+    );
+    return true;
+  }
+
+  if (data.startsWith('cfg:bcustom:')) {
+    const catId = data.replace('cfg:bcustom:', '').trim();
+    const catName = TARGET_BUDGET_CATEGORIES.find((c) => c.id === catId)?.name || catId;
+    await sendTelegramMessage(
+      chatId,
+      `Balas pesan ini dengan nominal pagu baru untuk *${catName}* (contoh: \`750rb\` atau \`1,2jt\`):\n\`#CFG_BSET:${catId}\``,
+      { reply_markup: { force_reply: true, selective: true } }
+    );
+    return true;
+  }
+
+  if (data === 'cfg:pcustom') {
+    await sendTelegramMessage(
+      chatId,
+      'Balas pesan ini dengan angka tanggal gajian (1 s.d. 28):\n`#CFG_PSET`',
+      { reply_markup: { force_reply: true, selective: true } }
+    );
+    return true;
+  }
+
+  if (data === 'cfg:sadd') {
+    await sendTelegramMessage(
+      chatId,
+      'Balas pesan ini dengan kata/frasa promo yang ingin diblokir otomatis (contoh: `spin & win`):\n`#CFG_SADD`',
+      { reply_markup: { force_reply: true, selective: true } }
+    );
+    return true;
+  }
+
   return true;
 }
 
@@ -906,12 +1035,12 @@ export async function handleAccountTextCommands(
 ): Promise<boolean> {
   const clean = rawText.trim();
 
-  // 1. Tambah Rekening: "tambah akun <nama> <suami/istri> [saldo]"
-  const addMatch = clean.match(/^tambah\s+akun\s+([a-zA-Z0-9\s]+?)\s+(suami|istri)(?:\s+(?:rp|idr)?\.?\s*([0-9.,]+(?:\s*(?:rb|ribu|k|jt|juta))?))?$/i);
+  // 1. Tambah Rekening: "tambah akun <nama> [suami/istri] [saldo]" (disimpan ke akun Suami)
+  const addMatch = clean.match(/^tambah\s+akun\s+([a-zA-Z0-9\s]+?)(?:\s+(?:suami|istri))?(?:\s+(?:rp|idr)?\.?\s*([0-9.,]+(?:\s*(?:rb|ribu|k|jt|juta))?))?$/i);
   if (addMatch) {
     const accountName = addMatch[1].trim();
-    const owner = addMatch[2].toLowerCase() as 'suami' | 'istri';
-    const initialAmount = addMatch[3] ? parseNominal(addMatch[3]) : 0;
+    const owner: 'suami' = 'suami';
+    const initialAmount = addMatch[2] ? parseNominal(addMatch[2]) : 0;
 
     const { data: newAcc, error } = await supabase.from('accounts').insert({
       household_id: householdId,
@@ -930,7 +1059,7 @@ export async function handleAccountTextCommands(
 
     await sendTelegramMessage(
       chatId,
-      `*[BERHASIL] REKENING BERHASIL DITAMBAHKAN*\n\nNama: *${accountName}*\nPemilik: *${owner === 'istri' ? 'Istri' : 'Suami'}*\nSaldo Awal: \`${formatRupiah(initialAmount)}\`\n\n_Rekening siap digunakan dan otomatis disinkronkan ke rekap kas keluarga._`,
+      `*[BERHASIL] REKENING BERHASIL DITAMBAHKAN*\n\nNama: *${accountName}*\nSaldo Awal: \`${formatRupiah(initialAmount)}\`\n\n_Rekening siap digunakan dan otomatis disinkronkan ke rekap kas._`,
       { reply_to_message_id: messageId }
     );
     return true;
@@ -963,7 +1092,7 @@ export async function handleAccountTextCommands(
 
     await sendTelegramMessage(
       chatId,
-      `*[DINONAKTIFKAN] REKENING DINONAKTIFKAN*\n\nAkun *${target.name}* (${target.owner === 'istri' ? 'Istri' : 'Suami'}) kini telah dinonaktifkan.\nRiwayat transaksi masa lalu tetap tersimpan utuh di sistem.`,
+      `*[DINONAKTIFKAN] REKENING DINONAKTIFKAN*\n\nAkun *${target.name}* kini telah dinonaktifkan.\nRiwayat transaksi masa lalu tetap tersimpan utuh di sistem.`,
       { reply_to_message_id: messageId }
     );
     return true;

@@ -18,7 +18,6 @@ import {
   EyeOff,
   Menu,
   RotateCw,
-  Camera,
 } from 'lucide-react';
 
 interface TopBarProps {
@@ -147,23 +146,8 @@ export default function TopBar({
           </div>
         </div>
 
-        {/* Kanan: Fitur Sensor Saldo, Scan Nota, Notifikasi Bell, 3-Way Theme, & Avatar Pengguna */}
+        {/* Kanan: Sensor Saldo, Muat Ulang, 3-Way Theme, & Avatar Suami */}
         <div className="flex items-center gap-2">
-          {/* Tombol Cepat Scan Nota / Struk Pembelian (Kamera & Galeri) */}
-          <button
-            onClick={() => {
-              if (typeof window !== 'undefined') {
-                window.dispatchEvent(new CustomEvent('open-scan-receipt-modal'));
-              }
-            }}
-            title="Pindai Nota / Ambil Foto Struk Pembelian via Kamera"
-            aria-label="Scan Nota Pembelian"
-            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 text-xs font-semibold transition-colors shadow-xs"
-          >
-            <Camera className="w-4 h-4" />
-            <span className="hidden sm:inline">Scan Nota</span>
-          </button>
-
           {/* Tombol Sensor Saldo */}
           <button
             onClick={togglePrivacy}
@@ -217,12 +201,12 @@ export default function TopBar({
             {themeMode === 'system' && <Monitor className="w-4 h-4 text-sky-400" />}
           </button>
 
-          {/* Avatar Profil: Keluarga Ajian */}
+          {/* Avatar Profil: Akun Utama Suami */}
           <div className="flex items-center gap-2 pl-2 border-l border-[var(--border-color)] ml-1">
             <div className="w-8 h-8 rounded-full overflow-hidden bg-[var(--surface-2)] border border-[var(--border-color)] flex items-center justify-center">
               <img
-                src={userRole === 'suami' ? '/avatars/suami.png' : '/avatars/istri.png'}
-                alt={userRole === 'suami' ? 'Kepala Keluarga' : 'Istri'}
+                src="/avatars/suami.png"
+                alt={displayName || 'Kepala Keluarga'}
                 width={32}
                 height={32}
                 style={{ width: '32px', height: '32px' }}

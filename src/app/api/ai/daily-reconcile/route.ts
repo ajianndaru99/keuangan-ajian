@@ -242,11 +242,6 @@ export async function POST(req: NextRequest) {
     let reconciledCount = 0;
     let ignoredCount = 0;
 
-    // Cari ID Kategori 'Transfer Keluarga'
-    const transferCategory = availableCategories.find(
-      (c: any) => c.name.toLowerCase().includes('transfer')
-    ) || availableCategories[0];
-
     const validPendingIds = new Set(pendingTxs.map((t) => t.id));
 
     // A. Terapkan Pasangan Transfer Internal

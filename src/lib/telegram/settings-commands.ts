@@ -12,8 +12,9 @@ import { matchTargetCategory, TARGET_BUDGET_CATEGORIES } from '../budget/budget-
 import { getMonthlyRange, getBudgetPeriodKey } from '../date-utils.ts';
 import { buildFinancialContext } from './commands.ts';
 import { syncAccountBalance } from '../account-balance.ts';
-import { extractPromoKeywordsFromText } from '../ai/adaptive-rules.ts';
+import { extractPromoKeywordsFromText, cleanRuleKeyword, isSafePromoKeyword } from '../ai/adaptive-rules.ts';
 import { assignTransactionCategory } from './category-helper.ts';
+import { syncTransactionsToSpreadsheet } from '../spreadsheet/sheets-sync.ts';
 import {
   parseNominal,
   parseSetSaldoCommand,
@@ -122,7 +123,7 @@ export function isDirectCategoryFeedback(text: string): boolean {
   if (!clean || clean.length > 60) return false;
   return (
     /^(?:masuk|kategori|pos|ke|ubah\s+ke|pindah\s+ke|set\s+kategori)\s+([a-zA-Z\s&/]+)$/i.test(clean) ||
-    /^(?:dapur|belanja dapur|makan|jajan|makan & jajan|bensin|transport|transportasi|tagihan|utilitas|kebutuhan rumah|jalan-jalan|liburan|darurat|keperluan mendadak)$/i.test(clean)
+    /^(?:dapur|belanja dapur|makan|makan harian|jajan|makan & jajan|bensin|transport|transportasi|tagihan|utilitas|kebutuhan rumah|jalan-jalan|liburan|darurat|keperluan mendadak|lainnya)$/i.test(clean)
   );
 }
 
@@ -333,6 +334,168 @@ export async function handleCustomRejectionReply(
   const userReason = stripBotMentions(message.text || '').trim();
   if (!userReason) return false;
 
+  // Kasus 0: Force Reply Terstruktur dari Tombol Pengaturan & Koreksi Telegram
+  const txAmtMatch = replyText.match(/#TX_AMT:([a-f0-9-]{36})/i);
+  if (txAmtMatch) {
+    const txId = txAmtMatch[1];
+    const newAmt = parseNominal(userReason);
+    if (newAmt <= 0) {
+      await sendTelegramMessage(message.chat.id, '[PERHATIAN] Nominal tidak terbaca. Contoh: `25000` atau `25rb`.', { reply_to_message_id: message.message_id });
+      return true;
+    }
+    const { data: prevTx } = await supabase
+      .from('transactions')
+      .select('id, account_id, merchant')
+      .eq('id', txId)
+      .eq('household_id', householdId)
+      .maybeSingle();
+
+    if (!prevTx) {
+      await sendTelegramMessage(message.chat.id, '[PERHATIAN] Transaksi tidak ditemukan.', { reply_to_message_id: message.message_id });
+      return true;
+    }
+    await supabase
+      .from('transactions')
+      .update({ amount: newAmt, status: 'reconciled' })
+      .eq('id', txId)
+      .eq('household_id', householdId);
+    if (prevTx.account_id) await syncAccountBalance(supabase, prevTx.account_id);
+    void syncTransactionsToSpreadsheet(supabase, householdId, [txId]).catch(() => undefined);
+    await sendTelegramMessage(
+      message.chat.id,
+      `*[BERHASIL] NOMINAL DIPERBARUI*\nMerchant: *${prevTx.merchant}*\nNominal Baru: \`${formatRupiah(newAmt)}\`\n_Saldo dan Spreadsheet otomatis disesuaikan._`,
+      { reply_to_message_id: message.message_id }
+    );
+    return true;
+  }
+
+  const txMrcMatch = replyText.match(/#TX_MRC:([a-f0-9-]{36})/i);
+  if (txMrcMatch) {
+    const txId = txMrcMatch[1];
+    const newMerchant = userReason.slice(0, 100);
+    await supabase
+      .from('transactions')
+      .update({ merchant: newMerchant, status: 'reconciled' })
+      .eq('id', txId)
+      .eq('household_id', householdId);
+    void syncTransactionsToSpreadsheet(supabase, householdId, [txId]).catch(() => undefined);
+    await sendTelegramMessage(
+      message.chat.id,
+      `*[BERHASIL] MERCHANT DIPERBARUI*\nNama Baru: *${newMerchant}*\n_Status: Reconciled & Spreadsheet tersinkron._`,
+      { reply_to_message_id: message.message_id }
+    );
+    return true;
+  }
+
+  const cfgBudgetMatch = replyText.match(/#CFG_BSET:([a-z0-9-]+)/i);
+  if (cfgBudgetMatch) {
+    const catId = cfgBudgetMatch[1];
+    const amount = parseNominal(userReason);
+    if (amount < 0) {
+      await sendTelegramMessage(message.chat.id, '[PERHATIAN] Nominal pagu tidak valid.', { reply_to_message_id: message.message_id });
+      return true;
+    }
+    const { data: settingRow } = await supabase
+      .from('settings')
+      .select('month_start_day')
+      .eq('household_id', householdId)
+      .maybeSingle();
+    const monthStartDay = settingRow?.month_start_day || 1;
+    return handleSetAnggaranFlow(
+      `set anggaran ${matchTargetCategory(catId).name} ${amount}`,
+      message.chat.id,
+      message.message_id,
+      supabase,
+      householdId,
+      monthStartDay
+    );
+  }
+
+  if (replyText.includes('#CFG_PSET')) {
+    const day = parseInt(userReason.replace(/\D/g, ''), 10);
+    if (!day || day < 1 || day > 28) {
+      await sendTelegramMessage(message.chat.id, '[PERHATIAN] Masukkan angka tanggal antara 1 s.d. 28.', { reply_to_message_id: message.message_id });
+      return true;
+    }
+    return handleSetGajianFlow(`set gajian ${day}`, message.chat.id, message.message_id, supabase, householdId);
+  }
+
+  if (replyText.includes('#CFG_SADD')) {
+    const kw = cleanRuleKeyword(userReason);
+    if (!isSafePromoKeyword(kw)) {
+      await sendTelegramMessage(message.chat.id, '[PERHATIAN] Frasa terlalu umum/pendek (minimal 4 karakter & bukan nama bank/kata transaksi umum).', { reply_to_message_id: message.message_id });
+      return true;
+    }
+    await supabase.from('learned_promo_rules').upsert(
+      { household_id: householdId, keyword: kw, source: 'user_manual', sample_text: userReason.slice(0, 120) },
+      { onConflict: 'household_id,keyword' }
+    );
+    await sendTelegramMessage(message.chat.id, `*[BERHASIL] ATURAN SPAM DITAMBAHKAN*\nKata kunci blokir: \`${kw}\``, { reply_to_message_id: message.message_id });
+    return true;
+  }
+
+  if (replyText.includes('#CFG_AADD')) {
+    const parts = userReason.split(/\s+/);
+    const maybeAmt = parts.length > 1 ? parseNominal(parts[parts.length - 1]) : 0;
+    const accName = (maybeAmt > 0 || /^\d+$/.test(parts[parts.length - 1]) ? parts.slice(0, -1).join(' ') : userReason).trim();
+    if (!accName) {
+      await sendTelegramMessage(message.chat.id, '[PERHATIAN] Format: `<Nama Rekening> <Saldo>`. Contoh: `SeaBank 1,5jt`', { reply_to_message_id: message.message_id });
+      return true;
+    }
+    const { error } = await supabase.from('accounts').insert({
+      household_id: householdId,
+      name: accName,
+      owner: 'suami',
+      type: /dana|gopay|ovo|shopeepay|linkaja/i.test(accName) ? 'ewallet' : 'bank',
+      initial_balance: maybeAmt,
+      balance: maybeAmt,
+      is_active: true,
+    });
+    if (error) {
+      await sendTelegramMessage(message.chat.id, `[ERROR] Gagal membuat rekening: ${error.message}`, { reply_to_message_id: message.message_id });
+      return true;
+    }
+    await sendTelegramMessage(message.chat.id, `*[BERHASIL] REKENING DITAMBAHKAN*\nNama: *${accName}*\nSaldo Awal: \`${formatRupiah(maybeAmt)}\``, { reply_to_message_id: message.message_id });
+    return true;
+  }
+
+  if (replyText.includes('#CFG_SHEET')) {
+    const trimmed = userReason.trim();
+    if (trimmed.includes('script.google.com')) {
+      await supabase.from('spreadsheet_integrations').upsert({
+        household_id: householdId,
+        webhook_url: trimmed,
+        updated_at: new Date().toISOString(),
+      });
+      await supabase.from('settings').update({ spreadsheet_auto_sync: true }).eq('household_id', householdId);
+      const syncRes = await syncTransactionsToSpreadsheet(supabase, householdId);
+      await sendTelegramMessage(
+        message.chat.id,
+        `*[BERHASIL] APPS SCRIPT SHEETS TERHUBUNG*\nTersinkron: *${syncRes.syncedCount} transaksi*${syncRes.error ? `\nCatatan: _${syncRes.error}_` : ''}`,
+        { reply_to_message_id: message.message_id }
+      );
+      return true;
+    }
+    const sheetIdMatch = trimmed.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+    if (sheetIdMatch) {
+      await supabase.from('spreadsheet_integrations').upsert({
+        household_id: householdId,
+        spreadsheet_id: sheetIdMatch[1],
+        updated_at: new Date().toISOString(),
+      });
+      await supabase.from('settings').update({ spreadsheet_url: trimmed, spreadsheet_auto_sync: true }).eq('household_id', householdId);
+      await sendTelegramMessage(message.chat.id, `*[BERHASIL] LINK SPREADSHEET DISIMPAN*\nURL: ${trimmed}`, { reply_to_message_id: message.message_id });
+      return true;
+    }
+    await supabase.from('spreadsheet_integrations').upsert({
+      household_id: householdId,
+      sync_secret: trimmed,
+      updated_at: new Date().toISOString(),
+    });
+    await sendTelegramMessage(message.chat.id, '*[BERHASIL] SECRET SYNC SPREADSHEET DISIMPAN*', { reply_to_message_id: message.message_id });
+    return true;
+  }
+
   // Kasus 1: Balasan ke Force Reply "Tulis Alasan Pembatalan [REF:uuid]"
   if (replyText.includes('Tulis Alasan Pembatalan')) {
     const match = replyText.match(/\[REF:([a-f0-9-]{36})\]/i);
@@ -511,10 +674,10 @@ export async function promptSetSaldoConfirmation(
   );
 
   if (!targetAccount) {
-    const list = accounts.map((a) => `• *${a.name}* (${a.owner === 'istri' ? 'Istri' : 'Suami'}) — Saldo: \`${formatRupiah(Number(a.balance || 0))}\``).join('\n');
+    const list = accounts.map((a) => `• *${a.name}* — Saldo: \`${formatRupiah(Number(a.balance || 0))}\``).join('\n');
     await sendTelegramMessage(
       chatId,
-      `*[PERHATIAN] Akun ${accountName} tidak ditemukan di dasbor.*\n\nRekening aktif yang terdaftar saat ini:\n${list || 'Belum ada rekening'}\n\n_Contoh perintah:_ \`set saldo dana suami 2jt\` atau \`total kas ganti 1jt\``,
+      `*[PERHATIAN] Akun ${accountName} tidak ditemukan di dasbor.*\n\nRekening aktif yang terdaftar saat ini:\n${list || 'Belum ada rekening'}\n\n_Contoh perintah:_ \`set saldo dana 2jt\` atau \`total kas ganti 1jt\``,
       { reply_to_message_id: messageId }
     );
     return true;
@@ -528,7 +691,7 @@ export async function promptSetSaldoConfirmation(
   const projectedTotalKas = otherAccountsTotal + targetAmount;
 
   const confirmText = `*[KONFIRMASI] PERUBAHAN SALDO REKENING*\n\n` +
-    `Akun: ${targetAccount.name} (${targetAccount.owner === 'istri' ? 'Istri' : 'Suami'})\n` +
+    `Akun: ${targetAccount.name}\n` +
     `Saldo Saat Ini: \`${formatRupiah(currentBalance)}\`\n` +
     `Saldo Baru: \`${formatRupiah(targetAmount)}\`\n` +
     `Selisih Koreksi: \`${diff >= 0 ? '+' : ''}${formatRupiah(diff)}\`\n` +
@@ -657,7 +820,7 @@ export async function handleSetAnggaranFlow(
     return true;
   }
 
-  // Ambil konteks terbaru untuk menampilkan status seluruh 8 pos anggaran
+  // Ambil konteks terbaru untuk menampilkan status seluruh 9 pos anggaran
   const context = await buildFinancialContext(supabase, householdId, monthStartDay);
   const categoryItems: CategoryBudgetItem[] = TARGET_BUDGET_CATEGORIES.map((t) => {
     const item = context.categoryBudgets.find((b) => b.name === t.name);

@@ -8,7 +8,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import crypto from 'node:crypto';
 import { suggestCategoryForMerchant } from '@/lib/vision/gemini';
-import { parseNotificationPayload } from '@/lib/ai/notification-parser';
+import {
+  parseNotificationPayload,
+  enhanceNotificationWithSyncAI,
+} from '@/lib/ai/notification-parser';
+import { classifyExpenseCategoryRuleBased } from '@/lib/ai/category-classifier';
 import { evaluateBudgetAlert, type BudgetAlert, type ReviewAlert } from '@/lib/budget/budget-guard';
 import { formatRupiah } from '@/lib/utils';
 import { isTelegramConfigured, broadcastToAllowedChats } from '@/lib/telegram/bot';
@@ -18,7 +22,8 @@ import {
   formatIncomeAlertMessage,
   formatInternalTransferAlertMessage,
 } from '@/lib/telegram/formatters';
-import { applyAccountBalanceDelta, syncAccountBalance } from '@/lib/account-balance';
+import { applyAccountBalanceDelta } from '@/lib/account-balance';
+import { syncTransactionsToSpreadsheet } from '@/lib/spreadsheet/sheets-sync';
 
 export const dynamic = 'force-dynamic';
 
@@ -62,9 +67,9 @@ function isSensitiveContent(text: string): boolean {
   return SENSITIVE_KEYWORDS.some(kw => lower.includes(kw));
 }
  
-// Cache memori aturan promo adaptif (TTL 60 detik)
+// Cache memori aturan promo adaptif (TTL singkat 15 detik agar aturan baru Telegram cepat aktif)
 let cachedRules: { rules: string[]; timestamp: number } | null = null;
-const CACHE_TTL_MS = 60 * 1000;
+const CACHE_TTL_MS = 15 * 1000;
 
 async function getLearnedPromoRules(supabaseUrl: string, supabaseKey: string): Promise<string[]> {
   const now = Date.now();
@@ -123,8 +128,8 @@ export async function POST(req: NextRequest) {
     let app_name = '';
     let title = '';
     let content = '';
-    let device_id = '';
     let received_at_raw: string | number = '';
+    let notificationKey = '';
 
     if (contentType.includes('application/json')) {
       try {
@@ -132,8 +137,8 @@ export async function POST(req: NextRequest) {
         app_name = String(json.app_name || json.packageName || '').trim();
         title = String(json.title || '').trim();
         content = String(json.content || json.text || '').trim();
-        device_id = String(json.device_id || '').trim();
         received_at_raw = json.received_at !== undefined ? json.received_at : '';
+        notificationKey = String(json.notification_key || json.notificationKey || '').trim();
       } catch {
         return NextResponse.json(
           { error: 'Format JSON tidak valid' },
@@ -145,8 +150,8 @@ export async function POST(req: NextRequest) {
       app_name = String(formData.get('app_name') || '');
       title = String(formData.get('title') || '');
       content = String(formData.get('content') || formData.get('text') || '');
-      device_id = String(formData.get('device_id') || '');
       received_at_raw = String(formData.get('received_at') || '');
+      notificationKey = String(formData.get('notification_key') || '');
     } else {
       return NextResponse.json(
         { error: 'Unsupported Media Type. Gunakan application/json atau application/x-www-form-urlencoded' },
@@ -166,8 +171,8 @@ export async function POST(req: NextRequest) {
     const safeTitle = isSensitive ? '[REDACTED]' : title;
     const safeContent = isSensitive ? '[REDACTED]' : content;
 
-    // Identifikasi device / role pengirim
-    const sourceDevice = device_id.includes('istri') || clientApiKey?.includes('istri') ? 'istri' : 'suami';
+    // Sistem 1 Akun Utama (Suami Only)
+    const sourceDevice = 'suami' as const;
 
     // Inisialisasi Supabase Client Env
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -309,80 +314,157 @@ export async function POST(req: NextRequest) {
     // 3. Masukkan ke tabel transactions jika sah bernilai > 0
     let newTransaction: TransactionRecord | null = null;
     let budgetAlert: BudgetAlert | null = null;
+    let workingAmount = amount;
+    let workingDirection = direction;
+    let workingMerchant = merchant;
+    let finalParseMethod: 'regex' | 'ai_gemini' | 'manual' = parsed.parseMethod;
 
     if (householdId) {
-      // Cari akun yang paling cocok
-      const { data: accounts } = await supabase
-        .from('accounts')
-        .select('id, name, owner, type')
-        .eq('household_id', householdId);
+      // Ambil accounts, categories, dan settings secara paralel untuk memangkas latency
+      const [{ data: accounts }, { data: categories }, { data: settingData }] = await Promise.all([
+        supabase.from('accounts').select('id, name, owner, type').eq('household_id', householdId),
+        supabase.from('categories').select('id, name, type').eq('household_id', householdId),
+        supabase
+          .from('settings')
+          .select('month_start_day, show_full_notification_telegram')
+          .eq('household_id', householdId)
+          .maybeSingle(),
+      ]);
 
+      const monthStartDay = settingData?.month_start_day || 1;
+      const showFullNotifTelegram = settingData?.show_full_notification_telegram !== false;
+
+      // Cari akun Suami yang paling cocok
       let accountId = accounts?.[0]?.id || null;
       if (accounts && accounts.length > 0) {
         const target = (accountName || app_name).toLowerCase();
-        // Prioritas 1: nama bank/wallet cocok dan pemilik sesuai sourceDevice
-        const exactMatch = accounts.find(a => 
-          (target.includes(a.name.toLowerCase()) || a.name.toLowerCase().includes(target)) && a.owner === sourceDevice
+        const suamiMatch = accounts.find(
+          (a) =>
+            (a.owner === 'suami' || a.owner === 'bersama') &&
+            (target.includes(a.name.toLowerCase()) || a.name.toLowerCase().includes(target))
         );
-        // Prioritas 2: Akun bersama (shared) yang cocok nama
-        const sharedMatch = accounts.find(a =>
-          (target.includes(a.name.toLowerCase()) || a.name.toLowerCase().includes(target)) &&
-          (a.owner === 'bersama' || a.name.toLowerCase().includes('bersama'))
+        const suamiDefault = accounts.find((a) => a.owner === 'suami');
+        const nameMatch = accounts.find(
+          (a) => target.includes(a.name.toLowerCase()) || a.name.toLowerCase().includes(target)
         );
-        // Prioritas 3: akun default milik sourceDevice (hindari salah assign ke akun pribadi pasangan)
-        const deviceDefault = accounts.find(a => a.owner === sourceDevice);
-        // Prioritas 4: fallback nama bank/wallet cocok (jika akun umum/tak terikat device)
-        const nameMatch = accounts.find(a =>
-          target.includes(a.name.toLowerCase()) || a.name.toLowerCase().includes(target)
-        );
-
-        accountId = exactMatch?.id || sharedMatch?.id || deviceDefault?.id || nameMatch?.id || accounts[0].id;
+        accountId = suamiMatch?.id || nameMatch?.id || suamiDefault?.id || accounts[0].id;
       }
 
-      // Cari kategori
-      const { data: categories } = await supabase
-        .from('categories')
-        .select('id, name, type')
-        .eq('household_id', householdId);
+      const rawCombined = `${safeTitle} ${safeContent}`.trim();
+      const ruleClassified = classifyExpenseCategoryRuleBased(workingMerchant, rawCombined, workingAmount);
+      let suggestedCategoryId = categories
+        ? suggestCategoryForMerchant(workingMerchant, categories, rawCombined, workingAmount)
+        : null;
 
-      const suggestedCategoryId = categories ? suggestCategoryForMerchant(merchant, categories) : null;
+      // Fast-path Merchant Memory (lewatkan Sync AI jika merchant yang sama sudah pernah direkonsiliasi)
+      let memoryMatched = false;
+      if (workingDirection === 'out' && !ruleClassified.confident && workingMerchant.length >= 3) {
+        const { data: memTx } = await supabase
+          .from('transactions')
+          .select('category_id')
+          .eq('household_id', householdId)
+          .eq('status', 'reconciled')
+          .ilike('merchant', workingMerchant)
+          .not('category_id', 'is', null)
+          .order('transaction_date', { ascending: false })
+          .limit(1)
+          .maybeSingle();
 
-      // Cek apakah ada notifikasi konfirmasi ganda pada waktu bersamaan (+/- 5 menit) dan nominal sama
-      // Aturan keluarga: jika ada 2 notifikasi bersamaan dengan nominal sama (mis. Rp 13.500 di NURUL HAFIZA RAHIMA & Rp 13.500 di Jago),
-      // maka satukan menjadi 1 transaksi milik Istri (gunakan nama merchant spesifik & alokasikan ke akun Istri)
+        if (memTx?.category_id) {
+          suggestedCategoryId = memTx.category_id;
+          memoryMatched = true;
+        }
+      }
+
+      // Pengayaan AI Sinkron HANYA jika kategori belum yakin atau format belum terkonfirmasi ketat (cegah promo lolos)
+      let syncAiConfirmed = false;
+      const geminiApiKey = process.env.GEMINI_API_KEY || '';
+      if (
+        geminiApiKey &&
+        !isSensitive &&
+        !memoryMatched &&
+        (!ruleClassified.confident || !parsed.hasStrictConfirmation)
+      ) {
+        const aiEnh = await enhanceNotificationWithSyncAI(
+          app_name,
+          safeTitle,
+          safeContent,
+          parsed,
+          geminiApiKey
+        );
+        if (aiEnh) {
+          if (!aiEnh.isTransaction) {
+            return NextResponse.json(
+              {
+                status: 'success',
+                is_transaction: false,
+                review_alert: null,
+                budget_alert: null,
+                message: aiEnh.reason || 'Ditolak oleh verifikasi AI sinkron (indikasi promo/non-transaksi).',
+                data: { app_name, title: safeTitle, amount: 0, merchant: workingMerchant },
+              },
+              { status: 201, headers: corsHeaders }
+            );
+          }
+
+          syncAiConfirmed = true;
+          finalParseMethod = 'ai_gemini';
+          if (aiEnh.amount > 0) workingAmount = aiEnh.amount;
+          if (aiEnh.merchant) workingMerchant = aiEnh.merchant;
+          workingDirection = aiEnh.direction;
+
+          const aiCat = (categories || []).find(
+            (c) => c.name.toLowerCase() === aiEnh.categoryName.toLowerCase()
+          );
+          if (aiCat) suggestedCategoryId = aiCat.id;
+        }
+      }
+
+      // Layer Anti-Double: Fingerprint konten + Rentang +/- 10 menit (ambil hingga 10 kandidat)
       const txTimeMs = new Date(transactionDate).getTime();
-      const minTimeIso = new Date(txTimeMs - 5 * 60 * 1000).toISOString();
-      const maxTimeIso = new Date(txTimeMs + 5 * 60 * 1000).toISOString();
+      const safeTxMs = Number.isNaN(txTimeMs) ? Date.now() : txTimeMs;
+      const timeBucket10m = Math.floor(safeTxMs / (10 * 60 * 1000));
+      const contentFingerprint = crypto
+        .createHash('sha256')
+        .update(
+          `fp:${app_name.toLowerCase()}:${workingAmount}:${workingDirection}:${safeTitle.toLowerCase()}:${safeContent.toLowerCase()}:${timeBucket10m}`
+        )
+        .digest('hex');
+      const notificationRef = parsed.reference || (notificationKey ? `${notificationKey}:${timeBucket10m}` : null);
 
-      const { data: existingSameTimeTx } = await supabase
+      const minTimeIso = new Date(safeTxMs - 10 * 60 * 1000).toISOString();
+      const maxTimeIso = new Date(safeTxMs + 10 * 60 * 1000).toISOString();
+
+      const { data: sameTimeTxs } = await supabase
         .from('transactions')
         .select('id, merchant, account_id, source_device, raw_notification')
         .eq('household_id', householdId)
-        .eq('amount', amount)
-        .eq('direction', direction)
+        .eq('amount', workingAmount)
+        .eq('direction', workingDirection)
         .neq('status', 'ignored')
         .gte('transaction_date', minTimeIso)
         .lte('transaction_date', maxTimeIso)
         .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .limit(10);
 
-      if (existingSameTimeTx) {
-        const isGeneric = (m: string) =>
-          /^(?:jago|bank\s*jago|bca|mandiri|bri|bni|bsi|seabank|qris|pembayaran(?:\s*qris)?|daily\s*pocket|your\s*daily\s*pocket|kantong(?:\s*utama|\s*bersama)?|saldo|dana|gopay|ovo|shopeepay|linkaja|rekening|merchant(?:\s*transaksi)?|transaksi(?:\s*digital)?|umum|pengeluaran)$/i.test(
-            (m || '').trim()
-          ) || /daily\s*pocket|kantong|saldo|dana|gopay|ovo|shopeepay|rekening|merchant\s*transaksi|transaksi\s*digital/i.test(m || '');
+      const isGenericLabel = (m: string) =>
+        /^(?:jago|bank\s*jago|bca|mandiri|bri|bni|bsi|seabank|qris|pembayaran(?:\s*qris)?|daily\s*pocket|your\s*daily\s*pocket|kantong(?:\s*utama|\s*bersama)?|saldo|dana|gopay|ovo|shopeepay|linkaja|rekening|merchant(?:\s*transaksi)?|transaksi(?:\s*digital)?|umum|pengeluaran)$/i.test(
+          (m || '').trim()
+        ) ||
+        /daily\s*pocket|kantong|saldo|dana|gopay|ovo|shopeepay|rekening|merchant\s*transaksi|transaksi\s*digital/i.test(
+          m || ''
+        );
 
-        const existingIsGeneric = isGeneric(existingSameTimeTx.merchant) || /transfer\s*internal/i.test(existingSameTimeTx.merchant);
-        const incomingIsGeneric = isGeneric(merchant);
+      const incomingIsGeneric = isGenericLabel(workingMerchant);
 
-        // KASUS A: Pasangan Transfer Antar Rekening Sendiri (Bank -> E-Wallet) vs Pengeluaran Merchant Riil (E-Wallet -> Merchant)
-        // Contoh: Transfer Rp 13.500 dari Jago ke GoPay, lalu beli Bensin Rp 13.500 di NURUL HAFIZA RAHIMA.
-        // Jumlah sama, tapi satu adalah mutasi rekening sendiri dan satu lagi belanja keluar riil.
+      for (const existingTx of sameTimeTxs || []) {
+        const existingIsGeneric =
+          isGenericLabel(existingTx.merchant) || /transfer\s*internal/i.test(existingTx.merchant || '');
+
         if ((existingIsGeneric && !incomingIsGeneric) || (!existingIsGeneric && incomingIsGeneric)) {
-          // Jika transaksi sebelumnya adalah akun bank/dompet generik, pastikan tercatat sebagai Transfer Internal
-          if (existingIsGeneric && !/transfer\s*internal/i.test(existingSameTimeTx.merchant)) {
-            const fromName = existingSameTimeTx.merchant || 'Bank Jago';
+          // Pasangan Transfer Antar Rekening vs Belanja Merchant Riil: pisahkan bukan duplikat
+          if (existingIsGeneric && !/transfer\s*internal/i.test(existingTx.merchant || '')) {
+            const fromName = existingTx.merchant || 'Bank Jago';
             const toName = accountName || app_name || 'GoPay';
             await supabase
               .from('transactions')
@@ -391,69 +473,50 @@ export async function POST(req: NextRequest) {
                 category_id: null,
                 notes: 'Dikonversi otomatis sebagai transfer internal (pasangan belanja waktu bersamaan)',
               })
-              .eq('id', existingSameTimeTx.id);
+              .eq('id', existingTx.id);
           }
-          // JANGAN disatukan, biarkan transaksi incoming lanjut diproses sebagai transaksi pengeluaran baru!
-        } else if (!existingIsGeneric && !incomingIsGeneric && (existingSameTimeTx.merchant || '').toLowerCase() !== (merchant || '').toLowerCase()) {
-          // KASUS B: Dua transaksi belanja dengan nama merchant spesifik yang BERBEDA (Merchant A vs Merchant B)
-          // Keduanya adalah pengeluaran sah terpisah, jangan disatukan
-        } else {
-          // KASUS C: Nama merchant sama persis (atau keduanya generik) dari notifikasi duplikat / multi-listener
-          // Satukan menjadi 1 transaksi milik Istri sesuai aturan keluarga
-          const bestMerchant = existingIsGeneric && !incomingIsGeneric
-            ? merchant
-            : existingSameTimeTx.merchant;
-
-          const istriAcc = (accounts || []).find((a) => a.owner === 'istri');
-          const targetIstriAccountId = direction === 'out' && istriAcc?.id ? istriAcc.id : existingSameTimeTx.account_id;
-          const previousAccountId = existingSameTimeTx.account_id;
-
-          await supabase
-            .from('transactions')
-            .update({
-              merchant: bestMerchant,
-              source_device: direction === 'out' ? 'istri' : existingSameTimeTx.source_device,
-              account_id: targetIstriAccountId,
-              raw_notification: `${existingSameTimeTx.raw_notification} | [Notif Ganda Istri] ${safeTitle}: ${safeContent}`,
-            })
-            .eq('id', existingSameTimeTx.id);
-
-          if (previousAccountId && previousAccountId !== targetIstriAccountId) {
-            await syncAccountBalance(supabase, previousAccountId);
-          }
-          if (targetIstriAccountId && previousAccountId !== targetIstriAccountId) {
-            await syncAccountBalance(supabase, targetIstriAccountId);
-          }
-
-          return NextResponse.json(
-            {
-              status: 'success',
-              duplicate: true,
-              review_alert: null,
-              budget_alert: null,
-              message: 'Notifikasi konfirmasi kedua pada waktu dan nominal bersamaan disatukan otomatis sebagai pengeluaran Istri.',
-              dedupe_hash: dedupeHash,
-            },
-            { status: 200, headers: corsHeaders }
-          );
+          continue;
         }
+
+        if (
+          !existingIsGeneric &&
+          !incomingIsGeneric &&
+          (existingTx.merchant || '').toLowerCase() !== (workingMerchant || '').toLowerCase()
+        ) {
+          // Merchant spesifik berbeda -> dua transaksi sah terpisah
+          continue;
+        }
+
+        // Duplikat teknis pada rentang +/- 10 menit -> tolak pencatatan ganda
+        const bestMerchant = existingIsGeneric && !incomingIsGeneric ? workingMerchant : existingTx.merchant;
+        await supabase
+          .from('transactions')
+          .update({
+            merchant: bestMerchant,
+            raw_notification: `${existingTx.raw_notification} | [Notif Ganda Disaring] ${safeTitle}: ${safeContent}`,
+          })
+          .eq('id', existingTx.id);
+
+        return NextResponse.json(
+          {
+            status: 'success',
+            duplicate: true,
+            review_alert: null,
+            budget_alert: null,
+            message: 'Notifikasi ganda dalam rentang waktu bersamaan otomatis disaring.',
+            dedupe_hash: dedupeHash,
+          },
+          { status: 200, headers: corsHeaders }
+        );
       }
 
-      // Ambil tanggal siklus gajian dari settings
-      const { data: settingData } = await supabase
-        .from('settings')
-        .select('month_start_day')
-        .eq('household_id', householdId)
-        .maybeSingle();
-      const monthStartDay = settingData?.month_start_day || 1;
-
-      // Cek apakah ada pasangan mutasi arah berlawanan dalam rentang +/- 3 menit (Transfer Internal / Top-Up)
-      const oppositeDirection = direction === 'out' ? 'in' : 'out';
+      // Cek apakah ada pasangan mutasi arah berlawanan dalam rentang +/- 10 menit (Transfer Internal / Top-Up)
+      const oppositeDirection = workingDirection === 'out' ? 'in' : 'out';
       let pairedQuery = supabase
         .from('transactions')
         .select('id, merchant, account_id, direction, amount, status, raw_notification, accounts(name)')
         .eq('household_id', householdId)
-        .eq('amount', amount)
+        .eq('amount', workingAmount)
         .eq('direction', oppositeDirection)
         .gte('transaction_date', minTimeIso)
         .lte('transaction_date', maxTimeIso)
@@ -469,7 +532,7 @@ export async function POST(req: NextRequest) {
         .maybeSingle();
 
       const currentSourceName = (accountName || app_name || '').trim().toLowerCase();
-      const cleanMerchantLower = (merchant || '').trim().toLowerCase();
+      const cleanMerchantLower = (workingMerchant || '').trim().toLowerCase();
       const isSelfAccountMerchant =
         Boolean(currentSourceName) &&
         Boolean(cleanMerchantLower) &&
@@ -477,39 +540,41 @@ export async function POST(req: NextRequest) {
           currentSourceName.includes(cleanMerchantLower) ||
           cleanMerchantLower.includes(currentSourceName));
 
-      const textToScan = `${safeTitle} ${safeContent} ${merchant}`.toLowerCase();
-      // Cari apakah ada penyebutan dompet/bank lain yang berbeda dari akun asal
-      const walletMatches = textToScan.match(/\b(gopay|dana|ovo|shopeepay|linkaja|kantong|jago|bca|mandiri|bri|bni|bsi|seabank)\b/gi) || [];
+      const textToScan = `${safeTitle} ${safeContent} ${workingMerchant}`.toLowerCase();
+      const walletMatches =
+        textToScan.match(/\b(gopay|dana|ovo|shopeepay|linkaja|kantong|jago|bca|mandiri|bri|bni|bsi|seabank)\b/gi) || [];
       const hasDistinctTargetWallet = walletMatches.some((w) => !currentSourceName.includes(w.toLowerCase()));
 
       const isTopUpKeyword =
         (hasDistinctTargetWallet &&
           (/\b(top\s*up|isi\s*saldo|isi\s*ulang)\b/i.test(textToScan) ||
             /\b(transfer\s*(?:ke)?|trsf)\b/i.test(textToScan) ||
-            /\b(gopay|dana|ovo|shopeepay|linkaja)\b/i.test(merchant))) ||
+            /\b(gopay|dana|ovo|shopeepay|linkaja)\b/i.test(workingMerchant))) ||
         (!isSelfAccountMerchant &&
-          ((/\b(top\s*up|isi\s*saldo|isi\s*ulang)\b/i.test(textToScan) && (hasDistinctTargetWallet || !/\b(gopay|dana|ovo|shopeepay|linkaja)\b/i.test(currentSourceName))) ||
-            (/\b(transfer\s*(?:ke)?|trsf)\b/i.test(textToScan) && /\b(gopay|dana|ovo|shopeepay|linkaja|kantong)/i.test(textToScan) && hasDistinctTargetWallet) ||
-            (/\b(gopay|dana|ovo|shopeepay|linkaja)\b/i.test(merchant) && direction === 'out')));
+          ((/\b(top\s*up|isi\s*saldo|isi\s*ulang)\b/i.test(textToScan) &&
+            (hasDistinctTargetWallet || !/\b(gopay|dana|ovo|shopeepay|linkaja)\b/i.test(currentSourceName))) ||
+            (/\b(transfer\s*(?:ke)?|trsf)\b/i.test(textToScan) &&
+              /\b(gopay|dana|ovo|shopeepay|linkaja|kantong)/i.test(textToScan) &&
+              hasDistinctTargetWallet) ||
+            (/\b(gopay|dana|ovo|shopeepay|linkaja)\b/i.test(workingMerchant) && workingDirection === 'out')));
 
       let isInternalTransfer = false;
-      let finalMerchant = merchant;
+      let finalMerchant = workingMerchant;
       let finalNotes = '';
       let internalTransferAlertPayload: { fromAccount: string; toAccount: string; amount: number } | null = null;
 
       if (pairedTransferTx) {
-        const pairedAccName = (pairedTransferTx.accounts as unknown as { name?: string })?.name || pairedTransferTx.merchant || 'Akun Lain';
+        const pairedAccName =
+          (pairedTransferTx.accounts as unknown as { name?: string })?.name || pairedTransferTx.merchant || 'Akun Lain';
         const currentAccName = accountName || app_name || 'Akun';
-        const fromAccount = direction === 'out' ? currentAccName : pairedAccName;
-        const toAccount = direction === 'out' ? pairedAccName : currentAccName;
+        const fromAccount = workingDirection === 'out' ? currentAccName : pairedAccName;
+        const toAccount = workingDirection === 'out' ? pairedAccName : currentAccName;
 
-        // Guard: Akun sumber dan tujuan WAJIB berbeda!
         if (fromAccount.trim().toLowerCase() !== toAccount.trim().toLowerCase()) {
           isInternalTransfer = true;
           finalMerchant = `Transfer Internal: ${fromAccount} ➔ ${toAccount}`;
           finalNotes = 'Dipasangkan otomatis sebagai perpindahan dana internal';
 
-          // Update pasangan transaksi sebelumnya
           await supabase
             .from('transactions')
             .update({
@@ -519,25 +584,28 @@ export async function POST(req: NextRequest) {
             })
             .eq('id', pairedTransferTx.id);
 
-          // Jika paired leg sebelumnya masih pending, sinkronkan saldonya sekarang
           if (pairedTransferTx.status !== 'reconciled' && pairedTransferTx.account_id) {
-            const pairedDelta = pairedTransferTx.direction === 'in' ? Number(pairedTransferTx.amount) : -Number(pairedTransferTx.amount);
+            const pairedDelta =
+              pairedTransferTx.direction === 'in'
+                ? Number(pairedTransferTx.amount)
+                : -Number(pairedTransferTx.amount);
             await applyAccountBalanceDelta(supabase, pairedTransferTx.account_id, pairedDelta);
           }
 
-          // Cek apakah leg pertama sudah mengirim broadcast Telegram (hindari dobel notif)
-          const alreadyBroadcasted = typeof pairedTransferTx.merchant === 'string' && pairedTransferTx.merchant.startsWith('Transfer Internal:');
+          const alreadyBroadcasted =
+            typeof pairedTransferTx.merchant === 'string' &&
+            pairedTransferTx.merchant.startsWith('Transfer Internal:');
 
           if (!alreadyBroadcasted) {
-            internalTransferAlertPayload = { fromAccount, toAccount, amount };
+            internalTransferAlertPayload = { fromAccount, toAccount, amount: workingAmount };
           }
         }
       } else if (isTopUpKeyword) {
-        const targetWalletRaw = walletMatches.find((w) => !currentSourceName.includes(w.toLowerCase())) || merchant || 'E-Wallet';
+        const targetWalletRaw =
+          walletMatches.find((w) => !currentSourceName.includes(w.toLowerCase())) || workingMerchant || 'E-Wallet';
         const formattedTarget = targetWalletRaw.charAt(0).toUpperCase() + targetWalletRaw.slice(1);
         const sourceAccLabel = accountName || app_name || 'Bank';
 
-        // Guard ketat: Jangan jadikan mutasi internal bila sumber dan tujuan adalah akun yang sama (misal DANA ➔ DANA)
         if (sourceAccLabel.trim().toLowerCase() !== formattedTarget.trim().toLowerCase()) {
           isInternalTransfer = true;
           finalMerchant = `Transfer Internal: ${sourceAccLabel} ➔ ${formattedTarget}`;
@@ -545,21 +613,29 @@ export async function POST(req: NextRequest) {
           internalTransferAlertPayload = {
             fromAccount: sourceAccLabel,
             toAccount: formattedTarget,
-            amount,
+            amount: workingAmount,
           };
         }
       }
 
-      // Penentuan status otomatis: jika format baku regex atau transfer internal -> langsung 'reconciled'
-      const isFixFormat = parsed.parseMethod === 'regex' && !isSensitive && amount > 0;
-      const initialStatus = (isInternalTransfer || isFixFormat) ? 'reconciled' : 'pending';
+      // Penentuan status otomatis: wajib lolos konfirmasi transaksi ketat (hindari auto-reconciled untuk format meragukan)
+      const isFixFormat =
+        Boolean(parsed.hasStrictConfirmation) &&
+        !isSensitive &&
+        workingAmount > 0 &&
+        (parsed.parseMethod === 'regex' || syncAiConfirmed);
+      const initialStatus = isInternalTransfer || isFixFormat ? 'reconciled' : 'pending';
 
       const incomeCategory = categories?.find(
         (c) => c.type === 'income' || c.name.toLowerCase().includes('pemasukan') || c.name.toLowerCase().includes('gaji')
       );
       const effectiveCategoryId = isInternalTransfer
         ? null
-        : (direction === 'in' ? (incomeCategory?.id || null) : suggestedCategoryId);
+        : workingDirection === 'in'
+          ? incomeCategory?.id || null
+          : suggestedCategoryId;
+
+      const fullRawText = `[Notifikasi ${accountName || app_name}] ${safeTitle}: ${safeContent}`;
 
       let { data: tx, error: txError } = await supabase
         .from('transactions')
@@ -567,22 +643,24 @@ export async function POST(req: NextRequest) {
           household_id: householdId,
           account_id: accountId,
           category_id: effectiveCategoryId,
-          amount,
-          direction,
+          amount: workingAmount,
+          direction: workingDirection,
           merchant: finalMerchant,
-          raw_notification: `[Notifikasi ${accountName || app_name}] ${safeTitle}: ${safeContent}`,
+          raw_notification: fullRawText,
           source_device: sourceDevice,
           transaction_date: transactionDate,
           status: initialStatus,
           notes: finalNotes || null,
           dedupe_hash: dedupeHash,
-          needs_review: isSensitive || amount === 0,
-          parse_method: parsed.parseMethod,
+          content_fingerprint: contentFingerprint,
+          notification_ref: notificationRef,
+          needs_review: isSensitive || workingAmount === 0,
+          parse_method: finalParseMethod,
         })
         .select('*')
         .single();
 
-      // Retry tanpa parse_method atau notes jika kolom belum termigrasi
+      // Fallback bila ada kolom baru belum termigrasi (42703)
       if (txError && txError.code === '42703') {
         const retryRes = await supabase
           .from('transactions')
@@ -590,15 +668,15 @@ export async function POST(req: NextRequest) {
             household_id: householdId,
             account_id: accountId,
             category_id: effectiveCategoryId,
-            amount,
-            direction,
+            amount: workingAmount,
+            direction: workingDirection,
             merchant: finalMerchant,
-            raw_notification: `[Notifikasi ${accountName || app_name}] ${safeTitle}: ${safeContent}`,
+            raw_notification: fullRawText,
             source_device: sourceDevice,
             transaction_date: transactionDate,
             status: initialStatus,
             dedupe_hash: dedupeHash,
-            needs_review: isSensitive || amount === 0,
+            needs_review: isSensitive || workingAmount === 0,
           })
           .select('*')
           .single();
@@ -624,17 +702,20 @@ export async function POST(req: NextRequest) {
       } else {
         newTransaction = tx as TransactionRecord;
 
-        // Sinkronisasi saldo akun di level aplikasi jika transaksi reconciled
         if (initialStatus === 'reconciled' && accountId) {
-          const delta = direction === 'in' ? amount : -amount;
+          const delta = workingDirection === 'in' ? workingAmount : -workingAmount;
           await applyAccountBalanceDelta(supabase, accountId, delta);
         }
 
-        // 0. Kirim Notifikasi Transfer Internal / Top-Up ke Telegram lengkap dengan Tombol Koreksi & Batalkan
+        const rawDisplayText = `${safeTitle ? `${safeTitle}: ` : ''}${safeContent}`.trim();
+
+        // 0. Kirim Notifikasi Transfer Internal / Top-Up ke Telegram
         if (isInternalTransfer && internalTransferAlertPayload && isTelegramConfigured() && newTransaction?.id) {
           const transferAlert = formatInternalTransferAlertMessage({
             ...internalTransferAlertPayload,
             transactionDate: transactionDate || new Date().toISOString(),
+            rawNotification: rawDisplayText,
+            showRawNotification: showFullNotifTelegram,
           });
           try {
             await broadcastToAllowedChats(transferAlert, {
@@ -642,6 +723,7 @@ export async function POST(req: NextRequest) {
                 inline_keyboard: [
                   [
                     { text: 'Ubah', callback_data: `tx_edit:${newTransaction.id}` },
+                    { text: 'Dobel', callback_data: `tx_rej_dup:${newTransaction.id}` },
                     { text: 'Batal', callback_data: `tx_wrong_menu:${newTransaction.id}` },
                   ],
                 ],
@@ -652,20 +734,24 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // 1. Kirim Notifikasi Pemasukan Realtime ke Telegram (Gaji, Bonus, Transfer Masuk dari Luar)
-        if (direction === 'in' && amount > 0 && !isInternalTransfer) {
-          const catName = categories?.find(c => c.type === 'income' || c.name.toLowerCase().includes('pemasukan') || c.name.toLowerCase().includes('gaji'))?.name || 'Gaji/Pemasukan';
-          const accName = accounts?.find(a => a.id === accountId)?.name || 'Akun Keluarga';
+        // 1. Kirim Notifikasi Pemasukan Realtime ke Telegram
+        if (workingDirection === 'in' && workingAmount > 0 && !isInternalTransfer) {
+          const catName =
+            categories?.find(
+              (c) => c.type === 'income' || c.name.toLowerCase().includes('pemasukan') || c.name.toLowerCase().includes('gaji')
+            )?.name || 'Gaji/Pemasukan';
+          const accName = accounts?.find((a) => a.id === accountId)?.name || 'Akun Suami';
 
           if (isTelegramConfigured() && newTransaction?.id) {
             const alertMsg = formatIncomeAlertMessage({
               merchant: finalMerchant,
-              amount,
+              amount: workingAmount,
               categoryName: catName,
               accountName: accName,
-              sourceDevice,
               isAutoReconciled: isFixFormat,
               transactionDate: transactionDate || new Date().toISOString(),
+              rawNotification: rawDisplayText,
+              showRawNotification: showFullNotifTelegram,
             });
 
             const replyMarkup = isFixFormat
@@ -673,7 +759,8 @@ export async function POST(req: NextRequest) {
                   inline_keyboard: [
                     [
                       { text: 'Ubah', callback_data: `tx_edit:${newTransaction.id}` },
-                      { text: 'Batal', callback_data: `tx_wrong_menu:${newTransaction.id}` },
+                      { text: 'Promo/Spam', callback_data: `tx_rej_promo:${newTransaction.id}` },
+                      { text: 'Dobel', callback_data: `tx_rej_dup:${newTransaction.id}` },
                     ],
                   ],
                 }
@@ -682,36 +769,37 @@ export async function POST(req: NextRequest) {
                     [
                       { text: 'Sesuai', callback_data: `tx_ok:${newTransaction.id}` },
                       { text: 'Ubah', callback_data: `tx_edit:${newTransaction.id}` },
-                      { text: 'Batal', callback_data: `tx_wrong_menu:${newTransaction.id}` },
+                    ],
+                    [
+                      { text: 'Promo/Spam', callback_data: `tx_rej_promo:${newTransaction.id}` },
+                      { text: 'Dobel', callback_data: `tx_rej_dup:${newTransaction.id}` },
                     ],
                   ],
                 };
 
             try {
-              await broadcastToAllowedChats(alertMsg, {
-                reply_markup: replyMarkup,
-              });
+              await broadcastToAllowedChats(alertMsg, { reply_markup: replyMarkup });
             } catch (tErr) {
               console.warn('[Telegram Broadcast Income Alert Warn]:', tErr);
             }
           }
         }
 
-        // Evaluasi ambang batas anggaran jika pengeluaran riil (bukan transfer internal)
-        if (direction === 'out' && amount > 0 && !isInternalTransfer) {
-          const catName = categories?.find(c => c.id === suggestedCategoryId)?.name || 'Lainnya';
-          const accName = accounts?.find(a => a.id === accountId)?.name || 'Akun Keluarga';
+        // 2. Pengeluaran Riil: Kirim Notifikasi Telegram + Evaluasi Budget + Sync Spreadsheet
+        if (workingDirection === 'out' && workingAmount > 0 && !isInternalTransfer) {
+          const catName = categories?.find((c) => c.id === suggestedCategoryId)?.name || 'Lainnya';
+          const accName = accounts?.find((a) => a.id === accountId)?.name || 'Akun Suami';
 
-          // 2. Kirim Notifikasi Pengeluaran Realtime ke Telegram (Hanya untuk Uang Keluar Sah)
           if (isTelegramConfigured() && newTransaction?.id) {
             const alertMsg = formatExpenseAlertMessage({
               merchant: finalMerchant,
-              amount,
+              amount: workingAmount,
               categoryName: catName,
               accountName: accName,
-              sourceDevice,
               isAutoReconciled: isFixFormat,
               transactionDate: transactionDate || new Date().toISOString(),
+              rawNotification: rawDisplayText,
+              showRawNotification: showFullNotifTelegram,
             });
 
             const replyMarkup = isFixFormat
@@ -720,7 +808,10 @@ export async function POST(req: NextRequest) {
                     [
                       { text: 'Kategori', callback_data: `tx_cat:${newTransaction.id}` },
                       { text: 'Ubah', callback_data: `tx_edit:${newTransaction.id}` },
-                      { text: 'Batal', callback_data: `tx_wrong_menu:${newTransaction.id}` },
+                    ],
+                    [
+                      { text: 'Promo/Spam', callback_data: `tx_rej_promo:${newTransaction.id}` },
+                      { text: 'Dobel', callback_data: `tx_rej_dup:${newTransaction.id}` },
                     ],
                   ],
                 }
@@ -729,28 +820,26 @@ export async function POST(req: NextRequest) {
                     [
                       { text: 'Sesuai', callback_data: `tx_ok:${newTransaction.id}` },
                       { text: 'Kategori', callback_data: `tx_cat:${newTransaction.id}` },
+                      { text: 'Ubah', callback_data: `tx_edit:${newTransaction.id}` },
                     ],
                     [
-                      { text: 'Ubah', callback_data: `tx_edit:${newTransaction.id}` },
-                      { text: 'Batal', callback_data: `tx_wrong_menu:${newTransaction.id}` },
+                      { text: 'Promo/Spam', callback_data: `tx_rej_promo:${newTransaction.id}` },
+                      { text: 'Dobel', callback_data: `tx_rej_dup:${newTransaction.id}` },
+                      { text: 'Lainnya', callback_data: `tx_wrong_menu:${newTransaction.id}` },
                     ],
                   ],
                 };
 
             try {
-              await broadcastToAllowedChats(alertMsg, {
-                reply_markup: replyMarkup,
-              });
+              await broadcastToAllowedChats(alertMsg, { reply_markup: replyMarkup });
             } catch (tErr) {
               console.warn('[Telegram Broadcast Expense Alert Warn]:', tErr);
             }
           }
 
-          // 3. Evaluasi Ambang Batas Anggaran
           try {
             budgetAlert = await evaluateBudgetAlert(supabase, householdId, catName, transactionDate, monthStartDay);
 
-            // Memicu notifikasi darurat ke Telegram jika batas anggaran mencapai 100%
             if (budgetAlert && budgetAlert.level === '100' && isTelegramConfigured()) {
               const overspent = Math.max(0, budgetAlert.totalSpent - budgetAlert.limitAmount);
               const telegramMsg = formatOverbudgetAlert(
@@ -768,6 +857,14 @@ export async function POST(req: NextRequest) {
           } catch (bErr) {
             console.warn('Gagal evaluasi budget alert:', bErr);
           }
+        }
+
+        // Sinkronisasi cepat Spreadsheet (dibatasi timeout 1,5 detik agar webhook tetap responsif)
+        if (newTransaction?.id) {
+          await Promise.race([
+            syncTransactionsToSpreadsheet(supabase, householdId, [newTransaction.id]).catch(() => undefined),
+            new Promise((resolve) => setTimeout(resolve, 1500)),
+          ]);
         }
       }
     }

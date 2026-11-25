@@ -48,6 +48,7 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const isLoginPage = request.nextUrl.pathname.startsWith('/login');
+  const isAuthCallback = request.nextUrl.pathname.startsWith('/auth/');
   const isStaticOrApi = 
     request.nextUrl.pathname.startsWith('/_next') ||
     request.nextUrl.pathname.startsWith('/api') ||
@@ -55,7 +56,7 @@ export async function updateSession(request: NextRequest) {
 
   if (!isStaticOrApi) {
     // 1. Jika belum login dan mengakses halaman yang diproteksi -> redirect ke /login
-    if (!user && !isLoginPage) {
+    if (!user && !isLoginPage && !isAuthCallback) {
       const url = request.nextUrl.clone();
       url.pathname = '/login';
       return NextResponse.redirect(url);

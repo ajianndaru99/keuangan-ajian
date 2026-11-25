@@ -50,11 +50,9 @@ class OnboardingActivity : AppCompatActivity() {
     }
 
     private fun setupProfileSelection() {
-        if (profileManager.selectedProfile == "istri") {
-            binding.rbIstri.isChecked = true
-        } else {
-            binding.rbSuami.isChecked = true
-        }
+        profileManager.selectedProfile = "suami"
+        binding.rbSuami.isChecked = true
+        binding.rbIstri.visibility = android.view.View.GONE
 
         binding.etApiKey.setText(profileManager.getCurrentCustomApiKey())
 
@@ -65,16 +63,6 @@ class OnboardingActivity : AppCompatActivity() {
                 profileManager.setCurrentCustomApiKey(s?.toString() ?: "")
             }
         })
-
-        binding.rgProfile.setOnCheckedChangeListener { _, checkedId ->
-            if (checkedId == binding.rbIstri.id) {
-                profileManager.selectedProfile = "istri"
-            } else {
-                profileManager.selectedProfile = "suami"
-            }
-            binding.etApiKey.setText(profileManager.getCurrentCustomApiKey())
-            runDatabaseHandshake()
-        }
     }
 
     private fun setupButtons() {

@@ -25,7 +25,6 @@ interface SessionLockModalProps {
 
 export default function SessionLockModal({
   isOpen,
-  userRole = 'suami',
   displayName,
   onUnlock,
 }: SessionLockModalProps) {
@@ -35,9 +34,9 @@ export default function SessionLockModal({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [hasBiometrics, setHasBiometrics] = useState(false);
 
-  const profileName = displayName || (userRole === 'suami' ? 'Kepala Keluarga' : 'Istri');
-  const avatarImg = userRole === 'suami' ? '/avatars/suami.png' : '/avatars/istri.png';
-  const userEmail = userRole === 'suami' ? 'suami@keluarga.com' : 'istri@keluarga.com';
+  const profileName = displayName || 'Kepala Keluarga (Suami)';
+  const avatarImg = '/avatars/suami.png';
+  const userEmail = 'suami@keluarga.com';
 
   // Periksa ketersediaan biometrik
   useEffect(() => {

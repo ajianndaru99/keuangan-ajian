@@ -350,7 +350,8 @@ describe('Telegram Bot: Format Pesan Alert Realtime & Struk Belanja', () => {
     assert.ok(text.includes('Warung Bu Joko'));
     assert.ok(text.includes('45.000'));
     assert.ok(text.includes('Belanja Dapur'));
-    assert.ok(text.includes('(Istri)'));
+    assert.ok(text.includes('GoPay'));
+    assert.ok(!text.includes('(Istri)'));
     assert.ok(text.includes('Waktu:'));
     assert.ok(text.includes('WIB'));
   });
@@ -1260,7 +1261,7 @@ describe('Telegram Bot: NLP Parser & Perintah Cepat', () => {
   it('Pusat Pengaturan Telegram (/pengaturan): Menu Hub, Batas 64 Byte Callback, & Manajemen Akun', async () => {
     // 1. Validasi Format Menu Pengaturan
     const menuText = formatSettingsHubMenuText();
-    assert.ok(menuText.includes('PUSAT PENGATURAN KEUANGAN KELUARGA'));
+    assert.ok(menuText.includes('PUSAT KENDALI KEUANGAN KELUARGA'));
     assert.ok(menuText.includes('Rekening & Saldo'));
     assert.ok(menuText.includes('Pagu Anggaran'));
     assert.ok(menuText.includes('Tanggal Gajian'));
