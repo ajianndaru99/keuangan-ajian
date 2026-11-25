@@ -2,24 +2,14 @@
 
 // ==============================================================================
 // COMPONENT: src/components/layout/Sidebar.tsx
-// Navigasi Vertikal Gaya Foto 2: Brand "Keluarga Ajian" & Palet Pastel Soft
+// Navigasi Minimalis: Khusus Menu Tunggal Rekap & Analisis + Pusat Kendali Bot
 // ==============================================================================
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import BrandLogo from './BrandLogo';
-import {
-  LayoutDashboard,
-  ReceiptText,
-  Wallet,
-  LogOut,
-  X,
-  PiggyBank,
-  PieChart,
-  Smartphone,
-  Bot,
-} from 'lucide-react';
+import { LogOut, X, PieChart, Bot } from 'lucide-react';
 
 interface SidebarProps {
   pendingCount?: number;
@@ -28,7 +18,6 @@ interface SidebarProps {
 }
 
 export default function Sidebar({
-  pendingCount = 0,
   isOpenMobile = false,
   onCloseMobile,
 }: SidebarProps) {
@@ -42,44 +31,10 @@ export default function Sidebar({
     router.refresh();
   };
 
-  const menuItems = [
-    {
-      name: 'Beranda',
-      href: '/',
-      icon: LayoutDashboard,
-    },
-    {
-      name: 'Transactions',
-      href: '/inbox',
-      icon: ReceiptText,
-      badge: pendingCount > 0 ? pendingCount : undefined,
-    },
-    {
-      name: 'Dompet & Akun',
-      href: '/accounts',
-      icon: Wallet,
-    },
-    {
-      name: 'Anggaran Belanja',
-      href: '/budget',
-      icon: PiggyBank,
-    },
-    {
-      name: 'Rekap & Analisis',
-      href: '/rekap',
-      icon: PieChart,
-    },
-    {
-      name: 'Aplikasi Android',
-      href: '/supports',
-      icon: Smartphone,
-      badge: 'APK',
-    },
-  ];
+  const isRekapActive = pathname === '/' || pathname.startsWith('/rekap');
 
   const sidebarContent = (
     <div className="flex flex-col h-full bg-[var(--surface-1)] border-r border-[var(--border-color)] w-64 select-none text-[var(--text-main)]">
-      {/* Brand Header: Keluarga Ajian */}
       <div className="p-5 flex items-center justify-between border-b border-[var(--border-color)]">
         <Link href="/" className="flex items-center gap-3 group">
           <BrandLogo size="md" />
@@ -91,12 +46,11 @@ export default function Sidebar({
               <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-income)]" />
             </div>
             <span className="text-[10px] font-medium text-[var(--text-muted)] block">
-              Financial Management
+              Financial Analytics
             </span>
           </div>
         </Link>
 
-        {/* Close Button untuk Mobile Drawer */}
         {onCloseMobile && (
           <button
             onClick={onCloseMobile}
@@ -108,53 +62,26 @@ export default function Sidebar({
         )}
       </div>
 
-      {/* Navigasi Menu */}
-      <div className="flex-1 py-4 px-3 space-y-6 overflow-y-auto no-scrollbar">
-        {/* Grup 1: MENU */}
-        <div>
-          <span className="px-3 text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] block mb-2">
-            MENU
-          </span>
-          <nav className="space-y-1">
-            {menuItems.map((item) => {
-              const isActive = pathname === item.href;
-              const Icon = item.icon;
-
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={onCloseMobile}
-                  className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
-                    isActive
-                      ? 'bg-[var(--accent-color)] text-white dark:text-[#121218] shadow-sm font-bold'
-                      : 'text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--surface-2)]'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <Icon className="w-4 h-4 shrink-0" />
-                    <span>{item.name}</span>
-                  </div>
-
-                  {item.badge !== undefined && (
-                    <span
-                      className={`px-1.5 py-0.5 text-[10px] font-bold rounded-full ${
-                        isActive
-                          ? 'bg-[var(--surface-1)] text-[var(--accent-color)]'
-                          : 'bg-amber-500/15 text-amber-600 dark:text-amber-300'
-                      }`}
-                    >
-                      {item.badge}
-                    </span>
-                  )}
-                </Link>
-              );
-            })}
-          </nav>
-        </div>
+      <div className="flex-1 py-4 px-3 overflow-y-auto no-scrollbar">
+        <span className="px-3 text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] block mb-2">
+          MENU
+        </span>
+        <nav className="space-y-1">
+          <Link
+            href="/"
+            onClick={onCloseMobile}
+            className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+              isRekapActive
+                ? 'bg-[var(--accent-color)] text-white dark:text-[#121218] shadow-sm font-bold'
+                : 'text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--surface-2)]'
+            }`}
+          >
+            <PieChart className="w-4 h-4 shrink-0" />
+            <span>Rekap &amp; Analisis</span>
+          </Link>
+        </nav>
       </div>
 
-      {/* Footer: Pusat Kendali Telegram & Tombol Keluar */}
       <div className="p-3 border-t border-[var(--border-color)] space-y-2">
         <div className="p-3 rounded-2xl bg-[var(--surface-2)] border border-[var(--border-color)] text-[var(--text-main)]">
           <div className="flex items-center gap-2 mb-1">
@@ -162,7 +89,7 @@ export default function Sidebar({
             <span className="text-[11px] font-bold">Pusat Kendali Bot</span>
           </div>
           <p className="text-[10px] text-[var(--text-muted)] leading-relaxed">
-            Seluruh saldo, pagu, dan akun dikelola via Telegram:
+            Seluruh transaksi, saldo, pagu, &amp; spam dikelola via Telegram:
             <code className="block mt-1 font-mono font-bold text-[10px] text-[var(--accent-color)]">/pengaturan</code>
           </p>
         </div>
@@ -180,12 +107,10 @@ export default function Sidebar({
 
   return (
     <>
-      {/* Sidebar Desktop (Fixed di Kiri) */}
       <aside className="hidden md:flex flex-col shrink-0 sticky top-0 h-screen z-30">
         {sidebarContent}
       </aside>
 
-      {/* Drawer Sidebar Mobile dengan Overlay Halus */}
       {isOpenMobile && (
         <div className="md:hidden fixed inset-0 z-50 flex">
           <div

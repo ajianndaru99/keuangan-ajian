@@ -2,15 +2,13 @@
 
 // ==============================================================================
 // COMPONENT: src/components/layout/TopBar.tsx
-// Header Atas Gaya Foto 2: Search Bar, Status Notifikasi, Sensor Saldo, & Profil
+// Header Atas Ringkas: Judul Rekap & Analisis, Sensor Saldo, Refresh, Tema, Profil
 // ==============================================================================
 
 import { useState, useEffect } from 'react';
-import { usePathname } from 'next/navigation';
 import { usePrivacy } from '@/lib/privacy';
 import BrandLogo from './BrandLogo';
 import {
-  Search,
   Sun,
   Moon,
   Monitor,
@@ -21,23 +19,14 @@ import {
 } from 'lucide-react';
 
 interface TopBarProps {
-  userRole?: 'suami' | 'istri';
   displayName?: string;
-  pendingCount?: number;
   onOpenMobileSidebar?: () => void;
-  searchQuery?: string;
-  onSearchChange?: (query: string) => void;
 }
 
 export default function TopBar({
-  userRole = 'suami',
   displayName,
-  pendingCount: _pendingCount = 0,
   onOpenMobileSidebar,
-  searchQuery,
-  onSearchChange,
 }: TopBarProps) {
-  const pathname = usePathname();
   const [themeMode, setThemeMode] = useState<'light' | 'dark' | 'system'>('system');
   const { isHideBalance, togglePrivacy } = usePrivacy();
 
@@ -49,13 +38,8 @@ export default function TopBar({
     const handleMediaChange = (e: MediaQueryListEvent) => {
       const current = (localStorage.getItem('theme') as 'light' | 'dark' | 'system') || 'system';
       if (current === 'system') {
-        if (e.matches) {
-          document.documentElement.classList.add('dark');
-          document.documentElement.classList.remove('light');
-        } else {
-          document.documentElement.classList.remove('dark');
-          document.documentElement.classList.add('light');
-        }
+        document.documentElement.classList.toggle('dark', e.matches);
+        document.documentElement.classList.toggle('light', !e.matches);
       }
     };
 
@@ -64,7 +48,6 @@ export default function TopBar({
   }, []);
 
   const cycleTheme = () => {
-    // Siklus 3-arah: Terang -> Gelap -> Sistem Otomatis -> Terang
     const nextMode: 'light' | 'dark' | 'system' =
       themeMode === 'light' ? 'dark' : themeMode === 'dark' ? 'system' : 'light';
 
@@ -74,41 +57,13 @@ export default function TopBar({
     const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
     const isDark = nextMode === 'dark' || (nextMode === 'system' && prefersDark);
 
-    if (isDark) {
-      document.documentElement.classList.add('dark');
-      document.documentElement.classList.remove('light');
-    } else {
-      document.documentElement.classList.remove('dark');
-      document.documentElement.classList.add('light');
-    }
-  };
-
-  const getPageTitle = () => {
-    if (pathname === '/') {
-      return <span className="font-bold text-[var(--text-main)]">Dasbor Finansial</span>;
-    }
-    if (pathname.startsWith('/inbox')) {
-      return <span className="font-bold text-[var(--text-main)]">Daftar Transaksi</span>;
-    }
-    if (pathname.startsWith('/accounts')) {
-      return <span className="font-bold text-[var(--text-main)]">Dompet & Rekening</span>;
-    }
-    if (pathname.startsWith('/budget')) {
-      return <span className="font-bold text-[var(--text-main)]">Anggaran Belanja</span>;
-    }
-    if (pathname.startsWith('/rekap')) {
-      return <span className="font-bold text-[var(--text-main)]">Rekap & Analisis</span>;
-    }
-    if (pathname.startsWith('/supports')) {
-      return <span className="font-bold text-[var(--text-main)]">Bantuan & APK</span>;
-    }
-    return <span className="font-bold text-[var(--text-main)]">Keluarga Ajian</span>;
+    document.documentElement.classList.toggle('dark', isDark);
+    document.documentElement.classList.toggle('light', !isDark);
   };
 
   return (
     <header className="sticky top-0 z-20 bg-[var(--bg-card)]/95 backdrop-blur-md border-b border-[var(--border-color)] px-4 sm:px-6 lg:px-8 py-3 transition-colors">
       <div className="flex items-center justify-between gap-4">
-        {/* Kiri: Hamburger Mobile + Breadcrumb Judul Halaman */}
         <div className="flex items-center gap-3">
           {onOpenMobileSidebar && (
             <button
@@ -123,8 +78,8 @@ export default function TopBar({
           <BrandLogo size="sm" className="md:hidden" />
 
           <div>
-            <h1 className="text-base sm:text-lg tracking-tight leading-none">
-              {getPageTitle()}
+            <h1 className="text-base sm:text-lg font-bold text-[var(--text-main)] tracking-tight leading-none">
+              Rekap &amp; Analisis
             </h1>
             <span className="text-[11px] font-medium text-[var(--text-muted)] mt-0.5 hidden sm:block">
               Keuangan Keluarga • Ajian
@@ -132,23 +87,7 @@ export default function TopBar({
           </div>
         </div>
 
-        {/* Tengah: Kolom Pencarian Global (Search Bar ala Foto 2) */}
-        <div className="flex-1 max-w-md mx-2 hidden sm:block">
-          <div className="relative">
-            <Search className="w-4 h-4 text-[var(--text-muted)] absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={searchQuery ?? ''}
-              onChange={(e) => onSearchChange?.(e.target.value)}
-              placeholder="Cari transaksi, merchant, keterangan..."
-              className="w-full pl-9 pr-4 py-2 rounded-xl bg-[var(--surface-2)] border border-[var(--border-color)] text-xs text-[var(--text-main)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-color)]/30 transition-all"
-            />
-          </div>
-        </div>
-
-        {/* Kanan: Sensor Saldo, Muat Ulang, 3-Way Theme, & Avatar Suami */}
         <div className="flex items-center gap-2">
-          {/* Tombol Sensor Saldo */}
           <button
             onClick={togglePrivacy}
             title={isHideBalance ? 'Tampilkan Nominal Saldo' : 'Sembunyikan Saldo (Sensor)'}
@@ -161,7 +100,6 @@ export default function TopBar({
             {isHideBalance ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
           </button>
 
-          {/* Tombol Muat Ulang Halaman & Periksa Pembaruan APK */}
           <button
             onClick={() => {
               if (
@@ -170,38 +108,30 @@ export default function TopBar({
               ) {
                 try {
                   (window as unknown as { AndroidBridge: { checkForUpdate: () => void } }).AndroidBridge.checkForUpdate();
-                } catch (e) {
-                  console.warn('Gagal memanggil checkForUpdate:', e);
+                } catch {
+                  // Abaikan
                 }
               }
               window.location.reload();
             }}
             title="Muat ulang aplikasi & periksa pembaruan"
             aria-label="Muat Ulang Aplikasi"
-            className="p-2 rounded-xl text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--surface-2)] transition-colors active:rotate-180 duration-300"
+            className="p-2 rounded-xl text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--surface-2)] transition-colors"
           >
             <RotateCw className="w-4 h-4" />
           </button>
 
-          {/* 3-Way Toggle Theme (Terang / Gelap / Sistem) */}
           <button
             onClick={cycleTheme}
-            title={
-              themeMode === 'light'
-                ? 'Tema: Mode Terang (Klik untuk ganti ke Mode Gelap)'
-                : themeMode === 'dark'
-                ? 'Tema: Mode Gelap (Klik untuk ganti ke Otomatis Sistem)'
-                : 'Tema: Otomatis Sistem (Klik untuk ganti ke Mode Terang)'
-            }
-            aria-label="Ganti Tema Tampilan (Terang / Gelap / Sistem)"
-            className="p-2 rounded-xl text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--surface-2)] transition-colors relative flex items-center justify-center"
+            title="Ganti Tema (Terang / Gelap / Sistem)"
+            aria-label="Ganti Tema Tampilan"
+            className="p-2 rounded-xl text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-[var(--surface-2)] transition-colors flex items-center justify-center"
           >
             {themeMode === 'light' && <Sun className="w-4 h-4 text-amber-500" />}
             {themeMode === 'dark' && <Moon className="w-4 h-4 text-indigo-400" />}
             {themeMode === 'system' && <Monitor className="w-4 h-4 text-sky-400" />}
           </button>
 
-          {/* Avatar Profil: Akun Utama Suami */}
           <div className="flex items-center gap-2 pl-2 border-l border-[var(--border-color)] ml-1">
             <div className="w-8 h-8 rounded-full overflow-hidden bg-[var(--surface-2)] border border-[var(--border-color)] flex items-center justify-center">
               <img
@@ -212,14 +142,6 @@ export default function TopBar({
                 style={{ width: '32px', height: '32px' }}
                 className="w-full h-full object-cover rounded-full dark:brightness-90 dark:contrast-[0.98]"
               />
-            </div>
-            <div className="hidden lg:block text-left">
-              <span className="text-xs font-bold text-[var(--text-main)] block leading-none">
-                {userRole === 'suami' ? 'Kepala Keluarga' : (displayName || 'Istri')}
-              </span>
-              <span className="text-[10px] text-[var(--text-muted)] mt-0.5 block capitalize">
-                {userRole === 'suami' ? 'Kepala Keluarga' : 'Bendahara'}
-              </span>
             </div>
           </div>
         </div>

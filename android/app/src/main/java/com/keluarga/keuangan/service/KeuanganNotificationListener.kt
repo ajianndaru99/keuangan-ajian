@@ -191,7 +191,7 @@ class KeuanganNotificationListener : NotificationListenerService() {
                     notificationId = 1001,
                     title = title,
                     message = message,
-                    targetPath = "/inbox"
+                    targetPath = "/"
                 )
             }
 
@@ -211,7 +211,7 @@ class KeuanganNotificationListener : NotificationListenerService() {
                     notificationId = notifId,
                     title = title,
                     message = message,
-                    targetPath = "/budget"
+                    targetPath = "/"
                 )
             }
         } catch (e: Exception) {
